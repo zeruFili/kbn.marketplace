@@ -16,8 +16,31 @@ import { getPublicUserDashboardData, type UserDashboardData, type UserProfileDat
 type PublicPage = 'companies' | 'people' | 'blogs' | 'events' | 'articles'
 type PublicSelection =
   | { type: 'person'; item: UserProfileData }
-  | { type: 'article' | 'blog'; item: UserArticleData }
-  | { type: 'event'; item: UserEventData }
+  | { type: 'article' | 'blog'; item: UserArticleData; returnToProfile?: UserProfileData }
+  | { type: 'event'; item: UserEventData; returnToProfile?: UserProfileData }
+
+const ABEL_DEMO_COMPANY: Company = {
+  id: 'abel-demo-company',
+  name: 'Selam Build Collective',
+  category: 'Construction',
+  logo: 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=160&h=160&fit=crop&auto=format',
+  banner: 'https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=1200&h=420&fit=crop&auto=format',
+  rating: 4.8,
+  reviewCount: 42,
+  description: 'A purpose-led construction studio creating durable homes, schools, and community spaces across Addis Ababa.',
+  longDescription: 'Selam Build Collective helps communities create durable, welcoming spaces through thoughtful construction, transparent planning, and excellent craftsmanship.',
+  phone: '+251 911 246 810',
+  email: 'hello@selambuild.et',
+  website: 'https://selambuild.et',
+  address: 'Addis Ababa, Ethiopia',
+  services: ['Community spaces', 'Residential construction', 'Project planning'],
+  gallery: [],
+  tags: ['Purpose-led', 'Construction', 'Community'],
+  reviews: [],
+  featured: false,
+  ownerName: 'Abel Tesfaye',
+  missionStatement: 'Build spaces that strengthen families and communities.',
+}
 
 const NAV_ITEMS: { id: PublicPage; label: string }[] = [
   { id: 'companies', label: 'Companies' },
@@ -283,7 +306,7 @@ function PublicIcon({ path, className = 'w-5 h-5' }: { path: string; className?:
   return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d={path} /></svg>
 }
 
-function PublicContentDetail({ selection, onBack }: { selection: PublicSelection; onBack: () => void }) {
+function PublicContentDetail({ selection, onBack, onSelectCompany, onSelectContent }: { selection: PublicSelection; onBack: () => void; onSelectCompany: (company: Company, returnToProfile?: UserProfileData) => void; onSelectContent: (selection: PublicSelection) => void }) {
   const collection = selection.type === 'person' ? 'People' : selection.type === 'event' ? 'Events' : selection.type === 'article' ? 'Articles' : 'Blogs'
   const title = selection.type === 'person' ? selection.item.fullName : selection.item.title
 
@@ -296,7 +319,7 @@ function PublicContentDetail({ selection, onBack }: { selection: PublicSelection
           <h1 className="font-serif text-3xl md:text-5xl text-white max-w-4xl">{title}</h1>
         </div>
       </div>
-      {selection.type === 'person' && <PublicPersonDetail item={selection.item} />}
+      {selection.type === 'person' && <PublicPersonDetail item={selection.item} onSelectCompany={onSelectCompany} onSelectContent={onSelectContent} />}
       {selection.type === 'article' && <PublicPostDetail item={selection.item} kind="Article" />}
       {selection.type === 'blog' && <PublicPostDetail item={selection.item} kind="Blog" />}
       {selection.type === 'event' && <PublicEventDetail item={selection.item} />}
@@ -304,8 +327,30 @@ function PublicContentDetail({ selection, onBack }: { selection: PublicSelection
   )
 }
 
-function PublicPersonDetail({ item }: { item: UserProfileData }) {
+function PublicPersonDetailLegacy({ item }: { item: UserProfileData }) {
   return <div className="max-w-6xl mx-auto px-4 md:px-8 py-10 md:py-16"><div className="grid lg:grid-cols-[300px_1fr] gap-8 items-start"><aside className="bg-[var(--brand)] rounded-[2rem] p-7 text-white lg:sticky lg:top-24 shadow-xl shadow-[var(--brand)]/10"><div className="flex items-center gap-2 text-[var(--accent)] text-xs font-bold uppercase tracking-[0.16em] mb-6"><PublicIcon path="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" className="w-4 h-4" /> Member profile</div><img src={item.profilePhoto} alt={item.fullName} className="w-32 h-32 rounded-2xl object-cover ring-4 ring-white/20 mb-6" /><p className="text-sm text-[var(--accent)] font-semibold mb-2">{item.professionalTitle}</p><h2 className="font-serif text-3xl mb-4">{item.fullName}</h2><div className="flex items-center gap-2 text-sm text-white/70"><PublicIcon path="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z" className="w-4 h-4" />{item.city}, {item.country}</div><div className="mt-7 pt-5 border-t border-white/10 space-y-3"><a href={`https://${item.website}`} className="flex items-center gap-2 text-sm text-white/85 hover:text-[var(--accent)]"><PublicIcon path="M12 21a9 9 0 100-18 9 9 0 000 18zm0 0c2.21-2.49 3.5-5.53 3.5-9S14.21 5.49 12 3m0 18c-2.21-2.49-3.5-5.53-3.5-9S9.79 5.49 12 3m-9 9h18" className="w-4 h-4" />{item.website}</a><p className="flex items-center gap-2 text-sm text-white/70"><PublicIcon path="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z" className="w-4 h-4" />{item.socialMedia}</p></div></aside><section className="space-y-6"><div className="relative overflow-hidden bg-white rounded-[2rem] border border-[var(--border-light)] p-7 md:p-10 shadow-[0_12px_30px_rgba(15,29,58,0.05)]"><div className="absolute -right-8 -top-8 w-28 h-28 rounded-full bg-[var(--accent-light)]" /><div className="relative"><div className="flex items-center gap-3 text-[var(--accent-dark)] mb-4"><PublicIcon path="M8 10h.01M12 10h.01M16 10h.01M9 16h6m5-4a8 8 0 01-8 8H5l-2 2 1-5a8 8 0 1116-5z" /><p className="text-xs font-bold uppercase tracking-[0.16em]">A word from {item.fullName.split(' ')[0]}</p></div><p className="font-serif text-2xl md:text-3xl text-[var(--text-primary)] leading-relaxed">{item.shortBio}</p></div></div><div className="grid sm:grid-cols-2 gap-5"><PublicDetailField label="Professional experience" value={item.professionalExperience} /><PublicDetailField label="Education" value={item.education} /><PublicDetailField label="Phone number" value={item.phone} /><PublicDetailField label="Digital slug" value={item.digitalSlug} /></div><div className="bg-white rounded-[2rem] border border-[var(--border-light)] p-7 md:p-8"><div className="flex items-center gap-3 mb-5"><span className="grid place-items-center w-9 h-9 rounded-xl bg-[var(--accent-light)] text-[var(--accent-dark)]"><PublicIcon path="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></span><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--accent-dark)]">Milestones</p><p className="text-sm text-[var(--text-tertiary)]">A few highlights from the journey</p></div></div><ul className="grid sm:grid-cols-2 gap-3">{item.achievements.map(achievement => <li key={achievement} className="flex gap-3 items-start rounded-xl bg-[var(--surface-alt)] p-4 text-sm text-[var(--text-secondary)]"><span className="text-[var(--accent-dark)] mt-0.5">✦</span>{achievement}</li>)}</ul></div></section></div></div>
+}
+
+function PublicPersonDetail({ item, onSelectCompany, onSelectContent }: { item: UserProfileData; onSelectCompany: (company: Company, returnToProfile?: UserProfileData) => void; onSelectContent: (selection: PublicSelection) => void }) {
+  const [activeTab, setActiveTab] = useState<'profile' | 'blogs' | 'articles' | 'events' | 'companies'>('profile')
+  const member = getPublicUserDashboardData().find(data => data.profile.digitalSlug === item.digitalSlug)
+  const tabs = ['profile', 'blogs', 'articles', 'events', 'companies'] as const
+  const content = activeTab === 'blogs' ? member?.blogs ?? [] : activeTab === 'articles' ? member?.articles ?? [] : activeTab === 'events' ? member?.events ?? [] : []
+  const isAbel = item.digitalSlug === 'abel-tesfaye'
+
+  function emptyState(label: string) {
+    return <div className="bg-white rounded-2xl border border-[var(--border-light)] p-12 text-center shadow-sm"><div className="mx-auto mb-4 grid place-items-center w-12 h-12 rounded-2xl bg-[var(--accent-light)] text-[var(--accent-dark)]"><PublicIcon path="M12 6v12m6-6H6" /></div><h3 className="font-serif text-2xl text-[var(--text-primary)] mb-2">No content available</h3><p className="text-sm text-[var(--text-tertiary)]">No {label} are currently available for this member.</p></div>
+  }
+
+  function renderTab() {
+    if (activeTab === 'profile') return <PublicPersonDetailLegacy item={item} />
+    if (activeTab === 'companies') return isAbel ? <CompanyCard company={ABEL_DEMO_COMPANY} onClick={() => onSelectCompany(ABEL_DEMO_COMPANY, item)} /> : emptyState('companies')
+    if (!content.length) return emptyState(activeTab)
+    if (activeTab === 'articles' || activeTab === 'blogs') return <div className="grid grid-cols-1 md:grid-cols-2 gap-5">{content.map(post => <article key={post.id} onClick={() => onSelectContent({ type: activeTab === 'articles' ? 'article' : 'blog', item: post, returnToProfile: item })} className="card-hover bg-white rounded-2xl overflow-hidden cursor-pointer"><img src={post.featuredImage} alt={post.title} className="w-full h-44 object-cover" /><div className="p-5"><p className="text-xs uppercase tracking-wide text-[var(--accent-dark)] mb-2">{post.topic}</p><h3 className="font-serif text-xl text-[var(--text-primary)] mb-2">{post.title}</h3><p className="text-sm text-[var(--text-secondary)] line-clamp-3">{post.excerpt}</p></div></article>)}</div>
+    return <div className="grid grid-cols-1 md:grid-cols-2 gap-5">{content.map(event => <article key={event.id} onClick={() => onSelectContent({ type: 'event', item: event, returnToProfile: item })} className="card-hover bg-white rounded-2xl overflow-hidden cursor-pointer"><img src={event.eventImage} alt={event.title} className="w-full h-44 object-cover" /><div className="p-5"><p className="text-xs uppercase tracking-wide text-[var(--accent-dark)] mb-2">{event.eventType}</p><h3 className="font-serif text-xl text-[var(--text-primary)] mb-2">{event.title}</h3><p className="text-sm text-[var(--text-secondary)] line-clamp-3">{event.description}</p></div></article>)}</div>
+  }
+
+  return <div className="max-w-6xl mx-auto px-4 md:px-8 py-10 md:py-16"><div className="flex flex-wrap gap-2 bg-white rounded-2xl border border-[var(--border-light)] p-2 mb-6 shadow-sm">{tabs.map(tab => <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 min-w-[92px] px-4 py-2.5 rounded-xl text-sm font-semibold capitalize transition-colors ${activeTab === tab ? 'bg-[var(--brand)] text-white shadow-sm' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-alt)]'}`}>{tab}</button>)}</div>{renderTab()}</div>
 }
 
 function PublicPostDetail({ item, kind }: { item: UserArticleData; kind: 'Article' | 'Blog' }) {
@@ -319,6 +364,7 @@ function PublicEventDetail({ item }: { item: UserEventData }) {
 
 export default function App() {
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null)
+  const [companyReturnProfile, setCompanyReturnProfile] = useState<UserProfileData | null>(null)
   const [selectedPublicContent, setSelectedPublicContent] = useState<PublicSelection | null>(null)
   const [showDirectory, setShowDirectory] = useState(false)
   const [showAboutUs, setShowAboutUs] = useState(false)
@@ -377,8 +423,8 @@ export default function App() {
   if (selectedCompany) {
     return (
       <div className="min-h-screen bg-[var(--surface-alt)]">
-        <Navbar onLogin={() => setAuthPage('login')} onSignUp={() => setAuthPage('signup')} onHome={() => setSelectedCompany(null)} onPublicPage={page => { setSelectedCompany(null); setSelectedPublicContent(null); setPublicPage(page) }} onDashboard={() => setDashboard(user?.role ?? null)} />
-        <CompanyProfile company={selectedCompany} onBack={() => setSelectedCompany(null)} />
+        <Navbar onLogin={() => setAuthPage('login')} onSignUp={() => setAuthPage('signup')} onHome={() => { setSelectedCompany(null); setCompanyReturnProfile(null) }} onPublicPage={page => { setSelectedCompany(null); setCompanyReturnProfile(null); setSelectedPublicContent(null); setPublicPage(page) }} onDashboard={() => setDashboard(user?.role ?? null)} />
+        <CompanyProfile company={selectedCompany} onBack={() => { setSelectedCompany(null); if (companyReturnProfile) setSelectedPublicContent({ type: 'person', item: companyReturnProfile }); setCompanyReturnProfile(null) }} />
       </div>
     )
   }
@@ -387,7 +433,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-[var(--surface-alt)]">
         <Navbar onLogin={() => setAuthPage('login')} onSignUp={() => setAuthPage('signup')} onHome={() => { setSelectedPublicContent(null); setPublicPage(null) }} onPublicPage={page => { setSelectedPublicContent(null); setPublicPage(page) }} onDashboard={() => setDashboard(user?.role ?? null)} />
-        {selectedPublicContent ? <PublicContentDetail selection={selectedPublicContent} onBack={() => setSelectedPublicContent(null)} /> : <PublicContentPage page={publicPage} onBack={() => setPublicPage(null)} onSelectCompany={company => { setSelectedCompany(company); setPublicPage(null) }} onSelectContent={setSelectedPublicContent} />}
+        {selectedPublicContent ? <PublicContentDetail selection={selectedPublicContent} onBack={() => { if ('returnToProfile' in selectedPublicContent && selectedPublicContent.returnToProfile) setSelectedPublicContent({ type: 'person', item: selectedPublicContent.returnToProfile }); else setSelectedPublicContent(null) }} onSelectCompany={(company, returnToProfile) => { setSelectedCompany(company); setCompanyReturnProfile(returnToProfile ?? null); setPublicPage(null); setSelectedPublicContent(null) }} onSelectContent={setSelectedPublicContent} /> : <PublicContentPage page={publicPage} onBack={() => setPublicPage(null)} onSelectCompany={company => { setSelectedCompany(company); setPublicPage(null) }} onSelectContent={setSelectedPublicContent} />}
       </div>
     )
   }
