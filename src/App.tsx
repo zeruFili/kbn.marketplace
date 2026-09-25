@@ -11,9 +11,13 @@ import { useAuth } from './auth/AuthContext'
 import { type UserRole } from './auth/auth'
 import { getCompanies, subscribe } from './data/companyStore'
 import { CATEGORIES, type Company, type Category } from './data/companies'
-import { getPublicUserDashboardData, type UserDashboardData } from './data/userDataStore'
+import { getPublicUserDashboardData, type UserDashboardData, type UserProfileData, type UserArticleData, type UserEventData } from './data/userDataStore'
 
 type PublicPage = 'companies' | 'people' | 'blogs' | 'events' | 'articles'
+type PublicSelection =
+  | { type: 'person'; item: UserProfileData }
+  | { type: 'article' | 'blog'; item: UserArticleData }
+  | { type: 'event'; item: UserEventData }
 
 const NAV_ITEMS: { id: PublicPage; label: string }[] = [
   { id: 'companies', label: 'Companies' },
@@ -200,7 +204,7 @@ function DirectoryPage({ onBack, onSelectCompany, title = 'All Members' }: { onB
   )
 }
 
-function PublicContentPage({ page, onBack, onSelectCompany }: { page: PublicPage; onBack: () => void; onSelectCompany: (company: Company) => void }) {
+function PublicContentPage({ page, onBack, onSelectCompany, onSelectContent }: { page: PublicPage; onBack: () => void; onSelectCompany: (company: Company) => void; onSelectContent: (selection: PublicSelection) => void }) {
   const memberData = getPublicUserDashboardData()
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('All')
@@ -250,7 +254,7 @@ function PublicContentPage({ page, onBack, onSelectCompany }: { page: PublicPage
         </div>
         <p className="text-sm text-[var(--text-tertiary)] mb-6">Showing {resultCount} of {page === 'people' ? people.length : page === 'events' ? events.length : articles.length} {page}</p>
         {page === 'people' && <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 animate-stagger">
-          {filteredPeople.map(profile => <div key={profile.digitalSlug} className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6">
+          {filteredPeople.map(profile => <div key={profile.digitalSlug} onClick={() => onSelectContent({ type: 'person', item: profile })} className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6 cursor-pointer">
             <div className="flex items-center gap-4 mb-5"><img src={profile.profilePhoto} alt={profile.fullName} className="w-16 h-16 rounded-2xl object-cover" /><div><h2 className="font-serif text-xl text-[var(--text-primary)]">{profile.fullName}</h2><p className="text-sm text-[var(--accent-dark)]">{profile.professionalTitle}</p></div></div>
             <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-5 line-clamp-3">{profile.shortBio}</p>
             <div className="flex items-center justify-between text-xs text-[var(--text-tertiary)]"><span>{profile.city}, {profile.country}</span><span>{profile.digitalSlug}</span></div>
@@ -258,11 +262,11 @@ function PublicContentPage({ page, onBack, onSelectCompany }: { page: PublicPage
         </div>}
 
         {(page === 'articles' || page === 'blogs') && <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-stagger">
-          {filteredArticles.map(item => <article key={item.id} className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden"><img src={item.featuredImage} alt={item.title} className="w-full h-44 object-cover" /><div className="p-5"><p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-dark)] mb-2">{item.topic}</p><h2 className="font-serif text-xl text-[var(--text-primary)] mb-3">{item.title}</h2><p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-5 line-clamp-3">{item.excerpt}</p><div className="flex items-center justify-between text-xs text-[var(--text-tertiary)]"><span>{item.author}</span><span>{item.publishedDate}</span></div></div></article>)}
+          {filteredArticles.map(item => <article key={item.id} onClick={() => onSelectContent({ type: page === 'articles' ? 'article' : 'blog', item })} className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden cursor-pointer"><img src={item.featuredImage} alt={item.title} className="w-full h-44 object-cover" /><div className="p-5"><p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-dark)] mb-2">{item.topic}</p><h2 className="font-serif text-xl text-[var(--text-primary)] mb-3">{item.title}</h2><p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-5 line-clamp-3">{item.excerpt}</p><div className="flex items-center justify-between text-xs text-[var(--text-tertiary)]"><span>{item.author}</span><span>{item.publishedDate}</span></div></div></article>)}
         </div>}
 
         {page === 'events' && <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-stagger">
-          {filteredEvents.map(event => <article key={event.id} className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden"><img src={event.eventImage} alt={event.title} className="w-full h-44 object-cover" /><div className="p-5"><div className="flex items-center justify-between gap-3 mb-3"><span className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-dark)]">{event.eventType}</span><span className="text-xs text-[var(--text-tertiary)]">{event.online ? 'Online' : 'In person'}</span></div><h2 className="font-serif text-xl text-[var(--text-primary)] mb-3">{event.title}</h2><p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-5 line-clamp-3">{event.description}</p><div className="space-y-1 text-xs text-[var(--text-tertiary)]"><p>{event.startDate}</p><p>{event.location}</p></div></div></article>)}
+          {filteredEvents.map(event => <article key={event.id} onClick={() => onSelectContent({ type: 'event', item: event })} className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden cursor-pointer"><img src={event.eventImage} alt={event.title} className="w-full h-44 object-cover" /><div className="p-5"><div className="flex items-center justify-between gap-3 mb-3"><span className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-dark)]">{event.eventType}</span><span className="text-xs text-[var(--text-tertiary)]">{event.online ? 'Online' : 'In person'}</span></div><h2 className="font-serif text-xl text-[var(--text-primary)] mb-3">{event.title}</h2><p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-5 line-clamp-3">{event.description}</p><div className="space-y-1 text-xs text-[var(--text-tertiary)]"><p>{event.startDate}</p><p>{event.location}</p></div></div></article>)}
         </div>}
         {resultCount === 0 && <div className="text-center py-20 text-[var(--text-tertiary)]">No matching {page} found.</div>}
       </div>
@@ -270,8 +274,34 @@ function PublicContentPage({ page, onBack, onSelectCompany }: { page: PublicPage
   )
 }
 
+function PublicDetailField({ label, value }: { label: string; value: string }) {
+  return <div className="bg-[var(--surface-alt)] rounded-xl border border-[var(--border-light)] p-4"><p className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)] mb-1">{label}</p><p className="text-sm text-[var(--text-primary)] break-words whitespace-pre-wrap">{value || 'Not provided'}</p></div>
+}
+
+function PublicContentDetail({ selection, onBack }: { selection: PublicSelection; onBack: () => void }) {
+  const { item } = selection
+  const title = selection.type === 'person' ? item.fullName : selection.type === 'event' ? item.title : item.title
+  return (
+    <main className="min-h-screen bg-[var(--surface-alt)]">
+      <div className="bg-[var(--brand-dark)] py-10 md:py-14">
+        <div className="max-w-4xl mx-auto px-4 md:px-8">
+          <button onClick={onBack} className="flex items-center gap-2 text-white/80 hover:text-white text-sm font-medium mb-6"><span aria-hidden="true">←</span> Back to {selection.type === 'person' ? 'People' : selection.type === 'event' ? 'Events' : selection.type === 'article' ? 'Articles' : 'Blogs'}</button>
+          <p className="text-xs font-semibold uppercase tracking-widest text-[var(--accent)] mb-3">KBN Community</p>
+          <h1 className="font-serif text-3xl md:text-5xl text-white">{title}</h1>
+        </div>
+      </div>
+      <div className="max-w-4xl mx-auto px-4 md:px-8 py-10 md:py-14">
+        {selection.type === 'person' && <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6 md:p-8"><div className="flex flex-col sm:flex-row items-start gap-6 mb-8"><img src={item.profilePhoto} alt={item.fullName} className="w-28 h-28 rounded-2xl object-cover" /><div><p className="text-sm text-[var(--accent-dark)] mb-2">{item.professionalTitle}</p><h2 className="font-serif text-3xl text-[var(--text-primary)] mb-3">{item.fullName}</h2><p className="text-sm text-[var(--text-tertiary)]">{item.city}, {item.country}</p></div></div><p className="text-base text-[var(--text-secondary)] leading-relaxed mb-8">{item.shortBio}</p><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><PublicDetailField label="Phone number" value={item.phone} /><PublicDetailField label="Professional experience" value={item.professionalExperience} /><PublicDetailField label="Education" value={item.education} /><PublicDetailField label="Website" value={item.website} /><PublicDetailField label="Social media" value={item.socialMedia} /><PublicDetailField label="Digital slug" value={item.digitalSlug} /><PublicDetailField label="Achievements" value={item.achievements.join('\n')} /></div></section>}
+        {(selection.type === 'article' || selection.type === 'blog') && <article className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden"><img src={item.featuredImage} alt={item.title} className="w-full h-64 md:h-80 object-cover" /><div className="p-6 md:p-8"><p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-dark)] mb-2">{item.topic}</p><div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-7"><h2 className="font-serif text-3xl text-[var(--text-primary)]">{item.title}</h2><span className="text-xs text-[var(--text-tertiary)] whitespace-nowrap">{item.publishedDate}</span></div><p className="text-base text-[var(--text-secondary)] leading-relaxed mb-8">{item.excerpt}</p><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><PublicDetailField label="Author" value={item.author} /><PublicDetailField label="Published date" value={item.publishedDate} /><PublicDetailField label="Visibility" value={item.visibility} /><PublicDetailField label="Status" value={item.status} /></div></div></article>}
+        {selection.type === 'event' && <article className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden"><img src={item.eventImage} alt={item.title} className="w-full h-64 md:h-80 object-cover" /><div className="p-6 md:p-8"><div className="flex items-center justify-between gap-3 mb-3"><p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-dark)]">{item.eventType}</p><span className="text-xs text-[var(--text-tertiary)]">{item.online ? 'Online' : 'In person'}</span></div><h2 className="font-serif text-3xl text-[var(--text-primary)] mb-5">{item.title}</h2><p className="text-base text-[var(--text-secondary)] leading-relaxed mb-8">{item.description}</p><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><PublicDetailField label="Start date and time" value={item.startDate} /><PublicDetailField label="End date and time" value={item.endDate} /><PublicDetailField label="Location" value={item.location} /><PublicDetailField label="Event URL" value={item.eventUrl} /><PublicDetailField label="Status" value={item.status} /></div></div></article>}
+      </div>
+    </main>
+  )
+}
+
 export default function App() {
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null)
+  const [selectedPublicContent, setSelectedPublicContent] = useState<PublicSelection | null>(null)
   const [showDirectory, setShowDirectory] = useState(false)
   const [showAboutUs, setShowAboutUs] = useState(false)
   const [publicPage, setPublicPage] = useState<PublicPage | null>(null)
@@ -327,14 +357,19 @@ export default function App() {
   }
 
   if (selectedCompany) {
-    return <CompanyProfile company={selectedCompany} onBack={() => setSelectedCompany(null)} />
+    return (
+      <div className="min-h-screen bg-[var(--surface-alt)]">
+        <Navbar onLogin={() => setAuthPage('login')} onSignUp={() => setAuthPage('signup')} onHome={() => setSelectedCompany(null)} onPublicPage={page => { setSelectedCompany(null); setSelectedPublicContent(null); setPublicPage(page) }} onDashboard={() => setDashboard(user?.role ?? null)} />
+        <CompanyProfile company={selectedCompany} onBack={() => setSelectedCompany(null)} />
+      </div>
+    )
   }
 
   if (publicPage) {
     return (
       <div className="min-h-screen bg-[var(--surface-alt)]">
-        <Navbar onLogin={() => setAuthPage('login')} onSignUp={() => setAuthPage('signup')} onHome={() => setPublicPage(null)} onPublicPage={setPublicPage} onDashboard={() => setDashboard(user?.role ?? null)} />
-        <PublicContentPage page={publicPage} onBack={() => setPublicPage(null)} onSelectCompany={company => { setSelectedCompany(company); setPublicPage(null) }} />
+        <Navbar onLogin={() => setAuthPage('login')} onSignUp={() => setAuthPage('signup')} onHome={() => { setSelectedPublicContent(null); setPublicPage(null) }} onPublicPage={page => { setSelectedPublicContent(null); setPublicPage(page) }} onDashboard={() => setDashboard(user?.role ?? null)} />
+        {selectedPublicContent ? <PublicContentDetail selection={selectedPublicContent} onBack={() => setSelectedPublicContent(null)} /> : <PublicContentPage page={publicPage} onBack={() => setPublicPage(null)} onSelectCompany={company => { setSelectedCompany(company); setPublicPage(null) }} onSelectContent={setSelectedPublicContent} />}
       </div>
     )
   }
