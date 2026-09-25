@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../auth/AuthContext'
-import { getUserReviews, updateUserReview, deleteUserReview, submitApplication, userSubscribe, getUserDashboardData, updateUserContent, deleteUserContent, updateUserProfile, type UserReview, type UserDashboardData, type UserProfileData, type UserBusinessData, type UserArticleData, type UserEventData, type UserContentType } from '../data/userDataStore'
+import { getUserReviews, updateUserReview, deleteUserReview, submitApplication, userSubscribe, getUserDashboardData, updateUserContent, createUserContent, deleteUserContent, updateUserProfile, type UserReview, type UserDashboardData, type UserProfileData, type UserBusinessData, type UserArticleData, type UserEventData, type UserContentType } from '../data/userDataStore'
 import { getListedCompanies, adminSubscribe, type AdminCompany } from '../data/adminStore'
 import { type Category } from '../data/companies'
 
@@ -28,6 +28,7 @@ export default function UserDashboard({ onBack }: { onBack: () => void }) {
   const [activePage, setActivePage] = useState<UserPage>('profile')
   const [tab, setTab] = useState<Tab>('companies')
   const [selectedContent, setSelectedContent] = useState<SelectedContent>(null)
+  const [addingContent, setAddingContent] = useState<UserContentType | null>(null)
 
   if (!user || user.role !== 'user') {
     return <div className="min-h-screen bg-[var(--surface-alt)] flex items-center justify-center text-[var(--text-tertiary)]">Access denied.</div>
@@ -97,15 +98,17 @@ export default function UserDashboard({ onBack }: { onBack: () => void }) {
         </header>
 
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-8">
-          {selectedContent ? (
+          {addingContent ? (
+            <AddContentForm type={addingContent} email={user.email} user={user} onCancel={() => setAddingContent(null)} onCreated={() => setAddingContent(null)} />
+          ) : selectedContent ? (
             <UserContentDetail key={`${selectedContent.type}-${selectedContent.id}`} data={dashboardData} email={user.email} selected={selectedContent} onBack={() => setSelectedContent(null)} />
           ) : (
             <>
               {activePage === 'profile' && <UserProfile data={dashboardData} email={user.email} />}
-              {activePage === 'business' && <BusinessPage data={dashboardData} email={user.email} tab={tab} setTab={setTab} user={user} onOpen={(id) => setSelectedContent({ type: 'businesses', id })} />}
-              {activePage === 'articles' && <ArticlePage title="Articles" description="Practical insights and faith-centered guidance from your member profile." items={dashboardData.articles} type="articles" onOpen={(id) => setSelectedContent({ type: 'articles', id })} />}
-              {activePage === 'blogs' && <ArticlePage title="Blogs" description="Stories, reflections, and experiences shared from your member profile." items={dashboardData.blogs} type="blogs" onOpen={(id) => setSelectedContent({ type: 'blogs', id })} />}
-              {activePage === 'events' && <EventsPage items={dashboardData.events} onOpen={(id) => setSelectedContent({ type: 'events', id })} />}
+              {activePage === 'business' && <BusinessPage data={dashboardData} email={user.email} tab={tab} setTab={setTab} user={user} onOpen={(id) => setSelectedContent({ type: 'businesses', id })} onAdd={() => setAddingContent('businesses')} />}
+              {activePage === 'articles' && <ArticlePage title="Articles" description="Practical insights and faith-centered guidance from your member profile." items={dashboardData.articles} type="articles" onOpen={(id) => setSelectedContent({ type: 'articles', id })} onAdd={() => setAddingContent('articles')} />}
+              {activePage === 'blogs' && <ArticlePage title="Blogs" description="Stories, reflections, and experiences shared from your member profile." items={dashboardData.blogs} type="blogs" onOpen={(id) => setSelectedContent({ type: 'blogs', id })} onAdd={() => setAddingContent('blogs')} />}
+              {activePage === 'events' && <EventsPage items={dashboardData.events} onOpen={(id) => setSelectedContent({ type: 'events', id })} onAdd={() => setAddingContent('events')} />}
             </>
           )}
         </div>
@@ -212,9 +215,41 @@ function EventDetail({ item, email, onBack }: { item: UserEventData; email: stri
   return <div className="animate-fade-in"><DetailHeader title={form.title} onBack={onBack} editing={editing} onEdit={() => setEditing(true)} onSave={save} onCancel={() => { setForm(item); setEditing(false) }} onDelete={() => { if (window.confirm(`Delete ${form.title}?`)) { deleteUserContent(email, 'events', item.id); onBack() } }} /><div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden"><img src={form.eventImage} alt="" className="w-full h-56 object-cover" /><div className="p-6 md:p-8">{editing ? <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><EditField label="Event title" value={form.title} onChange={value => update('title', value)} /><EditField label="Event type" value={form.eventType} onChange={value => update('eventType', value)} /><EditField label="Event image URL" value={form.eventImage} onChange={value => update('eventImage', value)} /><EditField label="Start date and time" value={form.startDate} onChange={value => update('startDate', value)} /><EditField label="End date and time" value={form.endDate} onChange={value => update('endDate', value)} /><EditField label="Location" value={form.location} onChange={value => update('location', value)} /><EditField label="Event URL" value={form.eventUrl} onChange={value => update('eventUrl', value)} /><EditField label="Status" value={form.status} onChange={value => update('status', value as UserEventData['status'])} /><label className="flex items-center gap-3 text-sm text-[var(--text-secondary)] sm:col-span-2"><input type="checkbox" checked={form.online} onChange={event => update('online', event.target.checked)} className="w-4 h-4 accent-[var(--brand)]" /> This is an online event</label><div className="sm:col-span-2"><EditField label="Description" value={form.description} onChange={value => update('description', value)} multiline /></div></div> : <><div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-4"><div><p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-dark)]">{form.eventType}</p><h1 className="font-serif text-3xl text-[var(--text-primary)] mt-1">{form.title}</h1></div><StatusBadge status={form.status} /></div><p className="text-base text-[var(--text-secondary)] leading-relaxed mb-7">{form.description}</p><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><DetailField label="Starts" value={form.startDate} /><DetailField label="Ends" value={form.endDate} /><DetailField label={form.online ? 'Online event' : 'Location'} value={form.location} /><DetailField label="Event URL" value={form.eventUrl} /><DetailField label="Event image" value={form.eventImage} /></div></>}</div></div></div>
 }
 
-function BusinessPage({ data, email, tab, setTab, user, onOpen }: { data: UserDashboardData; email: string; tab: Tab; setTab: (tab: Tab) => void; user: NonNullable<ReturnType<typeof useAuth>['user']>; onOpen: (id: string) => void }) {
+function AddContentForm({ type, email, user, onCancel, onCreated }: { type: UserContentType; email: string; user: NonNullable<ReturnType<typeof useAuth>['user']>; onCancel: () => void; onCreated: () => void }) {
+  if (type === 'businesses') return <BusinessCreateForm email={email} onCancel={onCancel} onCreated={onCreated} />
+  if (type === 'events') return <EventCreateForm email={email} onCancel={onCancel} onCreated={onCreated} />
+  return <ArticleCreateForm email={email} author={user.name} type={type} onCancel={onCancel} onCreated={onCreated} />
+}
+
+function CreateShell({ title, children, onCancel, onSubmit }: { title: string; children: React.ReactNode; onCancel: () => void; onSubmit: () => void }) {
+  return <div className="animate-fade-in max-w-3xl mx-auto"><div className="flex items-center justify-between gap-4 mb-6"><button onClick={onCancel} className="text-sm font-medium text-[var(--brand)] hover:text-[var(--brand-light)]">← Back to list</button><h2 className="font-serif text-2xl text-[var(--text-primary)]">Add {title}</h2><span className="w-20" /></div><form onSubmit={event => { event.preventDefault(); onSubmit() }} className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6 md:p-8"><div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{children}</div><div className="flex justify-end gap-2 pt-6 mt-6 border-t border-[var(--border-light)]"><button type="button" onClick={onCancel} className="px-4 py-2 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-alt)]">Cancel</button><button type="submit" className="px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--brand)] text-white hover:bg-[var(--brand-light)]">Save</button></div></form></div>
+}
+
+function BusinessCreateForm({ email, onCancel, onCreated }: { email: string; onCancel: () => void; onCreated: () => void }) {
+  const [form, setForm] = useState<UserBusinessData>({ id: '', companyLogo: '', coverImage: '', companyName: '', industry: '', description: '', founderLeadership: '', city: '', country: '', website: '', phone: '', email: '', status: 'Pending review' })
+  function update<K extends keyof UserBusinessData>(key: K, value: UserBusinessData[K]) { setForm(current => ({ ...current, [key]: value })) }
+  function save() { createUserContent(email, 'businesses', { ...form, id: `business-${Date.now()}` }); onCreated() }
+  return <CreateShell title="Business" onCancel={onCancel} onSubmit={save}><EditField label="Company name" value={form.companyName} onChange={value => update('companyName', value)} /><EditField label="Industry" value={form.industry} onChange={value => update('industry', value)} /><EditField label="Company logo URL" value={form.companyLogo} onChange={value => update('companyLogo', value)} /><EditField label="Cover image URL" value={form.coverImage} onChange={value => update('coverImage', value)} /><EditField label="Founder / leadership" value={form.founderLeadership} onChange={value => update('founderLeadership', value)} /><EditField label="City" value={form.city} onChange={value => update('city', value)} /><EditField label="Country" value={form.country} onChange={value => update('country', value)} /><EditField label="Website" value={form.website} onChange={value => update('website', value)} /><EditField label="Phone" value={form.phone} onChange={value => update('phone', value)} /><EditField label="Email" value={form.email} onChange={value => update('email', value)} /><EditField label="Status" value={form.status} onChange={value => update('status', value as UserBusinessData['status'])} /><div className="sm:col-span-2"><EditField label="Description" value={form.description} onChange={value => update('description', value)} multiline /></div></CreateShell>
+}
+
+function ArticleCreateForm({ email, author, type, onCancel, onCreated }: { email: string; author: string; type: 'articles' | 'blogs'; onCancel: () => void; onCreated: () => void }) {
+  const [form, setForm] = useState<UserArticleData>({ id: '', featuredImage: '', title: '', topic: '', excerpt: '', author, publishedDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), status: 'Draft', visibility: 'Public' })
+  function update<K extends keyof UserArticleData>(key: K, value: UserArticleData[K]) { setForm(current => ({ ...current, [key]: value })) }
+  function save() { createUserContent(email, type, { ...form, id: `${type.slice(0, -1)}-${Date.now()}` }); onCreated() }
+  return <CreateShell title={type === 'articles' ? 'Article' : 'Blog'} onCancel={onCancel} onSubmit={save}><EditField label="Title" value={form.title} onChange={value => update('title', value)} /><EditField label="Topic" value={form.topic} onChange={value => update('topic', value)} /><EditField label="Featured image URL" value={form.featuredImage} onChange={value => update('featuredImage', value)} /><EditField label="Author" value={form.author} onChange={value => update('author', value)} /><DetailField label="Published date" value={form.publishedDate} locked /><EditField label="Status" value={form.status} onChange={value => update('status', value as UserArticleData['status'])} /><EditField label="Visibility" value={form.visibility} onChange={value => update('visibility', value as UserArticleData['visibility'])} /><div className="sm:col-span-2"><EditField label="Excerpt" value={form.excerpt} onChange={value => update('excerpt', value)} multiline /></div></CreateShell>
+}
+
+function EventCreateForm({ email, onCancel, onCreated }: { email: string; onCancel: () => void; onCreated: () => void }) {
+  const [form, setForm] = useState<UserEventData>({ id: '', eventImage: '', title: '', description: '', eventType: '', startDate: '', endDate: '', location: '', online: false, eventUrl: '', status: 'Draft' })
+  function update<K extends keyof UserEventData>(key: K, value: UserEventData[K]) { setForm(current => ({ ...current, [key]: value })) }
+  function save() { createUserContent(email, 'events', { ...form, id: `event-${Date.now()}` }); onCreated() }
+  return <CreateShell title="Event" onCancel={onCancel} onSubmit={save}><EditField label="Event title" value={form.title} onChange={value => update('title', value)} /><EditField label="Event type" value={form.eventType} onChange={value => update('eventType', value)} /><EditField label="Event image URL" value={form.eventImage} onChange={value => update('eventImage', value)} /><EditField label="Start date and time" value={form.startDate} onChange={value => update('startDate', value)} /><EditField label="End date and time" value={form.endDate} onChange={value => update('endDate', value)} /><EditField label="Location" value={form.location} onChange={value => update('location', value)} /><EditField label="Event URL" value={form.eventUrl} onChange={value => update('eventUrl', value)} /><EditField label="Status" value={form.status} onChange={value => update('status', value as UserEventData['status'])} /><label className="flex items-center gap-3 text-sm text-[var(--text-secondary)] sm:col-span-2"><input type="checkbox" checked={form.online} onChange={event => update('online', event.target.checked)} className="w-4 h-4 accent-[var(--brand)]" /> This is an online event</label><div className="sm:col-span-2"><EditField label="Description" value={form.description} onChange={value => update('description', value)} multiline /></div></CreateShell>
+}
+
+function BusinessPage({ data, email, tab, setTab, user, onOpen, onAdd }: { data: UserDashboardData; email: string; tab: Tab; setTab: (tab: Tab) => void; user: NonNullable<ReturnType<typeof useAuth>['user']>; onOpen: (id: string) => void; onAdd: () => void }) {
   return (
     <div className="animate-fade-in">
+      <PageIntro title="Business" description="Businesses and companies owned by your member profile." count={data.businesses.length} onAdd={onAdd} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-8">
         {data.businesses.map(business => <BusinessCard key={business.id} business={business} onOpen={onOpen} />)}
       </div>
@@ -241,24 +276,24 @@ function BusinessCard({ business, onOpen }: { business: UserBusinessData; onOpen
   </article>
 }
 
-function ArticlePage({ title, description, items, type, onOpen }: { title: string; description: string; items: UserArticleData[]; type: 'articles' | 'blogs'; onOpen: (id: string) => void }) {
-  return <div className="animate-fade-in"><PageIntro title={title} description={description} count={items.length} /><div className="grid grid-cols-1 md:grid-cols-2 gap-5">{items.map(item => <ArticleCard key={item.id} item={item} onOpen={onOpen} />)}</div>{items.length === 0 && <EmptyState title={`No ${title.toLowerCase()} yet`} description={`Your ${title.toLowerCase()} will appear here once you publish or save them.`} />}</div>
+function ArticlePage({ title, description, items, type, onOpen, onAdd }: { title: string; description: string; items: UserArticleData[]; type: 'articles' | 'blogs'; onOpen: (id: string) => void; onAdd: () => void }) {
+  return <div className="animate-fade-in"><PageIntro title={title} description={description} count={items.length} onAdd={onAdd} /><div className="grid grid-cols-1 md:grid-cols-2 gap-5">{items.map(item => <ArticleCard key={item.id} item={item} onOpen={onOpen} />)}</div>{items.length === 0 && <EmptyState title={`No ${title.toLowerCase()} yet`} description={`Your ${title.toLowerCase()} will appear here once you publish or save them.`} />}</div>
 }
 
 function ArticleCard({ item, onOpen }: { item: UserArticleData; onOpen: (id: string) => void }) {
   return <article role="button" tabIndex={0} onClick={() => onOpen(item.id)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') onOpen(item.id) }} className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden card-hover cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--brand)]"><img src={item.featuredImage} alt="" className="w-full h-44 object-cover" /><div className="p-5"><div className="flex items-center justify-between gap-2 mb-3"><span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--accent-dark)]">{item.topic}</span><StatusBadge status={item.status} /></div><h3 className="font-serif text-xl text-[var(--text-primary)] leading-tight">{item.title}</h3><p className="text-sm text-[var(--text-secondary)] leading-relaxed mt-3 line-clamp-3">{item.excerpt}</p><div className="flex items-center justify-between gap-3 text-xs text-[var(--text-tertiary)] mt-5 pt-4 border-t border-[var(--border-light)]"><span>{item.author} · {item.publishedDate}</span><span>{item.visibility}</span></div></div></article>
 }
 
-function EventsPage({ items, onOpen }: { items: UserEventData[]; onOpen: (id: string) => void }) {
-  return <div className="animate-fade-in"><PageIntro title="Events" description="Events you have created or organized for the KBN community." count={items.length} /><div className="grid grid-cols-1 md:grid-cols-2 gap-5">{items.map(item => <EventCard key={item.id} item={item} onOpen={onOpen} />)}</div>{items.length === 0 && <EmptyState title="No events yet" description="Events you create or organize will appear here." />}</div>
+function EventsPage({ items, onOpen, onAdd }: { items: UserEventData[]; onOpen: (id: string) => void; onAdd: () => void }) {
+  return <div className="animate-fade-in"><PageIntro title="Events" description="Events you have created or organized for the KBN community." count={items.length} onAdd={onAdd} /><div className="grid grid-cols-1 md:grid-cols-2 gap-5">{items.map(item => <EventCard key={item.id} item={item} onOpen={onOpen} />)}</div>{items.length === 0 && <EmptyState title="No events yet" description="Events you create or organize will appear here." />}</div>
 }
 
 function EventCard({ item, onOpen }: { item: UserEventData; onOpen: (id: string) => void }) {
   return <article role="button" tabIndex={0} onClick={() => onOpen(item.id)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') onOpen(item.id) }} className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden card-hover cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--brand)]"><img src={item.eventImage} alt="" className="w-full h-44 object-cover" /><div className="p-5"><div className="flex items-center justify-between gap-2 mb-3"><span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--accent-dark)]">{item.eventType}</span><StatusBadge status={item.status} /></div><h3 className="font-serif text-xl text-[var(--text-primary)]">{item.title}</h3><p className="text-sm text-[var(--text-secondary)] leading-relaxed mt-3">{item.description}</p><div className="space-y-2 mt-5 text-xs text-[var(--text-tertiary)]"><Info label="Starts" value={item.startDate} /><Info label="Ends" value={item.endDate} /><Info label={item.online ? 'Online' : 'Location'} value={item.location} /></div><p className="text-xs font-medium text-[var(--brand)] mt-4">{item.eventUrl}</p></div></article>
 }
 
-function PageIntro({ title, description, count }: { title: string; description: string; count: number }) {
-  return <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-6"><div><p className="text-sm text-[var(--text-secondary)]">{description}</p></div><span className="text-xs font-semibold text-[var(--text-tertiary)] bg-[var(--surface)] border border-[var(--border-light)] px-3 py-1.5 rounded-full">{count} {count === 1 ? 'item' : 'items'}</span></div>
+function PageIntro({ title, description, count, onAdd }: { title: string; description: string; count: number; onAdd?: () => void }) {
+  return <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-6"><div><h2 className="font-serif text-2xl text-[var(--text-primary)] mb-1">{title}</h2><p className="text-sm text-[var(--text-secondary)]">{description}</p></div><div className="flex items-center gap-2"><span className="text-xs font-semibold text-[var(--text-tertiary)] bg-[var(--surface)] border border-[var(--border-light)] px-3 py-1.5 rounded-full">{count} {count === 1 ? 'item' : 'items'}</span>{onAdd && <button onClick={onAdd} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--brand)] text-white text-sm font-semibold hover:bg-[var(--brand-light)]"><span aria-hidden="true">+</span>Add</button>}</div></div>
 }
 
 function Info({ label, value }: { label: string; value: string }) {
