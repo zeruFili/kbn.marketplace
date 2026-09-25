@@ -6,6 +6,16 @@ import { type Category } from '../data/companies'
 
 type Tab = 'companies' | 'reviews' | 'apply'
 
+type UserPage = 'profile' | 'business' | 'articles' | 'blogs' | 'events'
+
+const USER_NAV_ITEMS: { id: UserPage; label: string; icon: string }[] = [
+  { id: 'profile', label: 'Profile', icon: 'M20 21a8 8 0 00-16 0m12-11a4 4 0 11-8 0 4 4 0 018 0z' },
+  { id: 'business', label: 'Business', icon: 'M3 21h18M5 21V7a2 2 0 012-2h10a2 2 0 012 2v14M9 9h2m-2 4h2m4-4h2m-2 4h2M9 21v-4h6v4' },
+  { id: 'articles', label: 'Articles', icon: 'M4 5a2 2 0 012-2h11a2 2 0 012 2v15a1 1 0 01-1 1H6a2 2 0 01-2-2V5zm3 2h8m-8 4h8m-8 4h5' },
+  { id: 'blogs', label: 'Blogs', icon: 'M4 5a2 2 0 012-2h12a2 2 0 012 2v14a1 1 0 01-1 1H6a2 2 0 01-2-2V5zm4 3h8m-8 4h8m-8 4h5' },
+  { id: 'events', label: 'Events', icon: 'M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1zm3 8h3m-3 4h3m2-4h3m-3 4h3' },
+]
+
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'companies', label: 'My Companies', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
   { id: 'reviews', label: 'My Reviews', icon: 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z' },
@@ -13,48 +23,133 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 ]
 
 export default function UserDashboard({ onBack }: { onBack: () => void }) {
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
+  const [activePage, setActivePage] = useState<UserPage>('profile')
   const [tab, setTab] = useState<Tab>('companies')
 
   if (!user || user.role !== 'user') {
     return <div className="min-h-screen bg-[var(--surface-alt)] flex items-center justify-center text-[var(--text-tertiary)]">Access denied.</div>
   }
 
+  const pageTitle = USER_NAV_ITEMS.find(item => item.id === activePage)?.label
+
   return (
-    <div className="min-h-screen bg-[var(--surface-alt)]">
-      <header className="bg-[var(--brand-dark)] py-5 md:py-8">
-        <div className="max-w-6xl mx-auto px-4 md:px-8 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-            <img src={user.avatar} alt="" className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl object-cover ring-2 ring-white/20" />
+    <div className="min-h-screen bg-[var(--surface-alt)] flex">
+      <aside className="hidden md:flex w-64 bg-[var(--brand-dark)] text-white flex-col flex-shrink-0 min-h-screen">
+        <div className="p-6 border-b border-white/10">
+          <div className="flex items-center gap-3">
+            <img src={user.avatar} alt="" className="w-11 h-11 rounded-xl object-cover ring-2 ring-white/20" />
             <div className="min-w-0">
-              <h1 className="font-serif text-xl sm:text-2xl md:text-3xl text-white">Welcome, {user.name}</h1>
-              <p className="text-[#94A3B8] text-sm">Member Dashboard</p>
+              <p className="font-semibold truncate">{user.name}</p>
+              <p className="text-xs text-[#94A3B8] truncate">Member account</p>
             </div>
           </div>
-          <button onClick={onBack} className="flex items-center gap-2 bg-white/10 backdrop-blur-md text-white text-sm font-medium px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl border border-white/15 hover:bg-white/20 transition-all self-start sm:self-auto flex-shrink-0">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-            Back to Home
-          </button>
         </div>
-      </header>
-
-      <div className="max-w-6xl mx-auto px-4 md:px-8 py-6">
-        <div className="flex items-center gap-1 bg-[var(--surface)] border border-[var(--border-light)] rounded-xl p-1 mb-8 overflow-x-auto hide-scrollbar w-full">
-          {TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex items-center gap-2 text-sm font-medium px-3 sm:px-4 py-2 rounded-lg transition-all whitespace-nowrap flex-shrink-0 ${tab === t.id ? 'bg-[var(--brand)] text-white shadow-sm' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}>
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={t.icon} /></svg>
-              <span className="hidden xs:inline">{t.label}</span>
+        <nav className="flex-1 p-4 space-y-1">
+          {USER_NAV_ITEMS.map(item => (
+            <button key={item.id} onClick={() => setActivePage(item.id)}
+              className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all text-left ${activePage === item.id ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[#94A3B8] hover:bg-white/5 hover:text-white'}`}>
+              <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={item.icon} /></svg>
+              <span>{item.label}</span>
             </button>
           ))}
+        </nav>
+        <div className="p-4 border-t border-white/10">
+          <button onClick={() => { void logout() }} className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-[#94A3B8] hover:bg-white/5 hover:text-white transition-all text-left">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4m-5-4l5-5-5-5m5 5H3" /></svg>
+            Log out
+          </button>
+          <button onClick={onBack} className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-[#94A3B8] hover:bg-white/5 hover:text-white transition-all text-left">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+            Back to Site
+          </button>
         </div>
+      </aside>
 
-        {tab === 'companies' && <MyCompanies email={user.email} />}
-        {tab === 'reviews' && <MyReviews email={user.email} name={user.name} avatar={user.avatar} />}
-        {tab === 'apply' && <ApplyCompany user={user} />}
-      </div>
+      <main className="flex-1 min-w-0">
+        <header className="bg-[var(--brand-dark)] text-white px-4 py-5 md:px-8">
+          <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
+            <div>
+              <p className="text-[#94A3B8] text-sm mb-1">Member Dashboard</p>
+              <h1 className="font-serif text-2xl sm:text-3xl">{pageTitle}</h1>
+            </div>
+            <div className="md:hidden flex items-center gap-2">
+              <button onClick={() => { void logout() }} className="flex items-center gap-2 bg-white/10 text-white text-sm font-medium px-3 py-2 rounded-xl border border-white/15">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4m-5-4l5-5-5-5m5 5H3" /></svg>
+                Log out
+              </button>
+              <button onClick={onBack} className="flex items-center gap-2 bg-white/10 text-white text-sm font-medium px-3 py-2 rounded-xl border border-white/15">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                Back
+              </button>
+            </div>
+          </div>
+          <nav className="md:hidden max-w-5xl mx-auto mt-5 flex gap-2 overflow-x-auto hide-scrollbar">
+            {USER_NAV_ITEMS.map(item => (
+              <button key={item.id} onClick={() => setActivePage(item.id)} className={`flex-shrink-0 text-sm font-medium px-3 py-2 rounded-lg ${activePage === item.id ? 'bg-[var(--accent)] text-[var(--brand-dark)]' : 'bg-white/10 text-white/75'}`}>
+                {item.label}
+              </button>
+            ))}
+          </nav>
+        </header>
+
+        <div className="max-w-5xl mx-auto px-4 md:px-8 py-8">
+          {activePage === 'profile' && <UserProfile user={user} />}
+          {activePage === 'business' && <BusinessPage email={user.email} tab={tab} setTab={setTab} user={user} />}
+          {activePage === 'articles' && <ContentPage title="Articles" description="Read practical insights and faith-centered guidance from the KBN community." />}
+          {activePage === 'blogs' && <ContentPage title="Blogs" description="Explore stories, reflections, and experiences shared by fellow members." />}
+          {activePage === 'events' && <ContentPage title="Events" description="Stay connected with upcoming gatherings, workshops, and community events." />}
+        </div>
+      </main>
     </div>
   )
+}
+
+function UserProfile({ user }: { user: NonNullable<ReturnType<typeof useAuth>['user']> }) {
+  return (
+    <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6 md:p-8 animate-fade-in">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-5 mb-8">
+        <img src={user.avatar} alt={user.name} className="w-24 h-24 rounded-2xl object-cover ring-4 ring-[var(--brand)]/10" />
+        <div>
+          <h2 className="font-serif text-2xl text-[var(--text-primary)]">{user.name}</h2>
+          <p className="text-sm text-[var(--text-tertiary)] mt-1">{user.email}</p>
+          {user.business && <p className="text-sm text-[var(--accent-dark)] mt-2">{user.business}</p>}
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <ProfileDetail label="Email address" value={user.email} />
+        <ProfileDetail label="Account type" value="Community member" />
+        <ProfileDetail label="Business" value={user.business || 'Not provided'} />
+        <ProfileDetail label="Member ID" value={user.id} />
+      </div>
+    </section>
+  )
+}
+
+function ProfileDetail({ label, value }: { label: string; value: string }) {
+  return <div className="bg-[var(--surface-alt)] rounded-xl border border-[var(--border-light)] p-4"><p className="text-xs text-[var(--text-tertiary)] mb-1">{label}</p><p className="text-sm font-medium text-[var(--text-primary)] break-words">{value}</p></div>
+}
+
+function BusinessPage({ email, tab, setTab, user }: { email: string; tab: Tab; setTab: (tab: Tab) => void; user: NonNullable<ReturnType<typeof useAuth>['user']> }) {
+  return (
+    <div className="animate-fade-in">
+      <div className="flex items-center gap-1 bg-[var(--surface)] border border-[var(--border-light)] rounded-xl p-1 mb-8 overflow-x-auto hide-scrollbar w-full">
+        {TABS.map(item => (
+          <button key={item.id} onClick={() => setTab(item.id)} className={`flex items-center gap-2 text-sm font-medium px-3 sm:px-4 py-2 rounded-lg transition-all whitespace-nowrap ${tab === item.id ? 'bg-[var(--brand)] text-white shadow-sm' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={item.icon} /></svg>
+            {item.label}
+          </button>
+        ))}
+      </div>
+      {tab === 'companies' && <MyCompanies email={email} />}
+      {tab === 'reviews' && <MyReviews email={email} name={user.name} avatar={user.avatar} />}
+      {tab === 'apply' && <ApplyCompany user={user} />}
+    </div>
+  )
+}
+
+function ContentPage({ title, description }: { title: string; description: string }) {
+  return <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-8 md:p-12 text-center animate-fade-in"><div className="w-14 h-14 rounded-2xl bg-[var(--brand)]/10 text-[var(--brand)] flex items-center justify-center mx-auto mb-5"><svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6l4 2" /></svg></div><h2 className="font-serif text-2xl text-[var(--text-primary)] mb-3">{title}</h2><p className="max-w-md mx-auto text-sm text-[var(--text-secondary)] leading-relaxed">{description}</p></section>
 }
 
 function MyCompanies({ email }: { email: string }) {

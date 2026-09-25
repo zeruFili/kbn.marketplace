@@ -5,8 +5,8 @@ import knbLogo from '../assets/kbn logo.jpg'
 
 const MOCK_CREDENTIALS = [
   { email: 'admin@kbn.org', name: 'Admin KBN', role: 'admin' as UserRole },
-  { email: 'john@example.com', name: 'Johns Doe', role: 'user' as UserRole },
-  { email: 'mary@example.com', name: 'Mary Smith', role: 'user' as UserRole },
+  { email: 'abel@example.com', name: 'Abel Tesfaye', role: 'user' as UserRole },
+  { email: 'tigist@example.com', name: 'Tigist Lemma', role: 'user' as UserRole },
   { email: 'david@covenantbuilders.com', name: 'David Thompson', role: 'company' as UserRole },
   { email: 'thomas@stewardshipwealth.org', name: 'Thomas Whitfield', role: 'company' as UserRole },
   { email: 'sarah@kingdomfoundations.org', name: 'Sarah Chen', role: 'company' as UserRole },

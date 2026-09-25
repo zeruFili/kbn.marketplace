@@ -18,7 +18,7 @@ const NAV_ITEMS: { id: Section; label: string; icon: string }[] = [
 ]
 
 export default function AdminDashboard({ onBack }: { onBack: () => void }) {
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
   const [active, setActive] = useState<Section>('overview')
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -59,6 +59,10 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
       </nav>
 
       <div className="p-2 border-t border-white/10">
+        <button onClick={() => { logout(); setMobileOpen(false) }} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[#94A3B8] hover:bg-white/5 hover:text-white transition-all">
+          <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4m-5-4l5-5-5-5m5 5H3" /></svg>
+          {!collapsed && 'Log out'}
+        </button>
         <button onClick={() => setCollapsed(!collapsed)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[#94A3B8] hover:bg-white/5 hover:text-white transition-all">
           <svg className={`w-5 h-5 flex-shrink-0 transition-transform ${collapsed ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>
           {!collapsed && 'Collapse'}

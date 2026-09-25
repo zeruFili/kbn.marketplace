@@ -23,7 +23,7 @@ const EVENTS = [
   { image: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=600&h=400&fit=crop&auto=format', date: 'Dec 19, 2025', time: '6:00 PM – 8:00 PM', location: 'Abren Cafe, Addis Ababa', title: 'Year-End Celebration & Prayer', description: 'Wind down the year with fellowship and celebration. Share testimonies of God\'s faithfulness and look ahead to the new year together.' },
 ]
 
-function Navbar({ onLogin, onSignUp, onHome, onAboutUs, onAllMembers }: { onLogin: () => void; onSignUp: () => void; onHome: () => void; onAboutUs: () => void; onAllMembers: () => void }) {
+function Navbar({ onLogin, onSignUp, onHome, onAboutUs, onAllMembers, onDashboard }: { onLogin: () => void; onSignUp: () => void; onHome: () => void; onAboutUs: () => void; onAllMembers: () => void; onDashboard: () => void }) {
   const { user, logout } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
@@ -56,6 +56,9 @@ function Navbar({ onLogin, onSignUp, onHome, onAboutUs, onAllMembers }: { onLogi
         <div className="flex items-center gap-2">
           {user ? (
             <>
+              <button onClick={onDashboard} className="hidden sm:inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand)] border border-[var(--brand)] px-3 py-2 rounded-xl hover:bg-[var(--brand)] hover:text-white transition-colors">
+                Back to Dashboard
+              </button>
               <button onClick={() => setUserMenuOpen(!userMenuOpen)} className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-2 py-1.5 rounded-xl hover:bg-[var(--surface-alt)] transition-all">
                 <img src={user.avatar} alt={user.name} className="w-7 h-7 rounded-lg object-cover ring-2 ring-[var(--border-light)]" />
                 <span className="hidden sm:inline">{user.name.split(' ')[0]}</span>
@@ -103,7 +106,10 @@ function Navbar({ onLogin, onSignUp, onHome, onAboutUs, onAllMembers }: { onLogi
           )}
           <div className="pt-2 border-t border-[var(--border-light)] space-y-2">
             {user ? (
-              <button onClick={() => { logout(); setMenuOpen(false) }} className="block w-full text-center text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-3 py-2.5 rounded-xl hover:bg-[var(--surface-alt)] transition-colors">Sign Out</button>
+              <>
+                <button onClick={() => { onDashboard(); setMenuOpen(false) }} className="block w-full text-center text-sm font-semibold text-[var(--brand)] border border-[var(--brand)] px-3 py-2.5 rounded-xl hover:bg-[var(--brand)] hover:text-white transition-colors">Back to Dashboard</button>
+                <button onClick={() => { logout(); setMenuOpen(false) }} className="block w-full text-center text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-3 py-2.5 rounded-xl hover:bg-[var(--surface-alt)] transition-colors">Sign Out</button>
+              </>
             ) : (
               <>
                 <button onClick={() => { onLogin(); setMenuOpen(false) }} className="block w-full text-center text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-3 py-2.5 rounded-xl hover:bg-[var(--surface-alt)] transition-colors">Login</button>
@@ -291,6 +297,7 @@ export default function App() {
         onHome={() => { setShowDirectory(false); setAuthPage(null); setShowAboutUs(false) }}
         onAboutUs={() => { setShowAboutUs(true); window.scrollTo(0, 0) }}
         onAllMembers={() => { setShowDirectory(true); window.scrollTo(0, 0) }}
+        onDashboard={() => setDashboard(user?.role ?? null)}
       />
 
       {/* Featured Members */}
