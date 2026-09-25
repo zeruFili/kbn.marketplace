@@ -384,7 +384,7 @@ export default function App() {
   function handleLoginSuccess(role: UserRole) {
     loginExplicitRef.current = true
     setAuthPage(null)
-    setDashboard(role)
+    setDashboard(null)
   }
 
   useEffect(() => {
@@ -397,6 +397,7 @@ export default function App() {
       }
     } else {
       setDashboard(null)
+      setAuthPage(current => current ?? 'login')
     }
   }, [loading, user])
 
@@ -413,7 +414,7 @@ export default function App() {
   if (dashboard === 'user') return <UserDashboard onBack={() => setDashboard(null)} />
 
   if (authPage === 'login') {
-    return <LoginPage onBack={() => setAuthPage(null)} onSwitch={() => setAuthPage('signup')} onSuccess={handleLoginSuccess} />
+    return <LoginPage onSwitch={() => setAuthPage('signup')} onSuccess={handleLoginSuccess} />
   }
 
   if (authPage === 'signup') {
