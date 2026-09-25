@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../auth/AuthContext'
-import { getUserReviews, updateUserReview, deleteUserReview, submitApplication, userSubscribe, type UserReview } from '../data/userDataStore'
+import { getUserReviews, updateUserReview, deleteUserReview, submitApplication, userSubscribe, getUserDashboardData, type UserReview, type UserDashboardData, type UserBusinessData, type UserArticleData, type UserEventData } from '../data/userDataStore'
 import { getListedCompanies, adminSubscribe, type AdminCompany } from '../data/adminStore'
 import { type Category } from '../data/companies'
 
@@ -32,6 +32,7 @@ export default function UserDashboard({ onBack }: { onBack: () => void }) {
   }
 
   const pageTitle = USER_NAV_ITEMS.find(item => item.id === activePage)?.label
+  const dashboardData = getUserDashboardData(user.email, user)
 
   return (
     <div className="min-h-screen bg-[var(--surface-alt)] flex">
@@ -94,33 +95,38 @@ export default function UserDashboard({ onBack }: { onBack: () => void }) {
         </header>
 
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-8">
-          {activePage === 'profile' && <UserProfile user={user} />}
-          {activePage === 'business' && <BusinessPage email={user.email} tab={tab} setTab={setTab} user={user} />}
-          {activePage === 'articles' && <ContentPage title="Articles" description="Read practical insights and faith-centered guidance from the KBN community." />}
-          {activePage === 'blogs' && <ContentPage title="Blogs" description="Explore stories, reflections, and experiences shared by fellow members." />}
-          {activePage === 'events' && <ContentPage title="Events" description="Stay connected with upcoming gatherings, workshops, and community events." />}
+          {activePage === 'profile' && <UserProfile data={dashboardData} />}
+          {activePage === 'business' && <BusinessPage data={dashboardData} email={user.email} tab={tab} setTab={setTab} user={user} />}
+          {activePage === 'articles' && <ArticlePage title="Articles" description="Practical insights and faith-centered guidance from your member profile." items={dashboardData.articles} />}
+          {activePage === 'blogs' && <ArticlePage title="Blogs" description="Stories, reflections, and experiences shared from your member profile." items={dashboardData.blogs} />}
+          {activePage === 'events' && <EventsPage items={dashboardData.events} />}
         </div>
       </main>
     </div>
   )
 }
 
-function UserProfile({ user }: { user: NonNullable<ReturnType<typeof useAuth>['user']> }) {
+function UserProfile({ data }: { data: UserDashboardData }) {
+  const { profile } = data
   return (
     <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6 md:p-8 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center gap-5 mb-8">
-        <img src={user.avatar} alt={user.name} className="w-24 h-24 rounded-2xl object-cover ring-4 ring-[var(--brand)]/10" />
+        <img src={profile.profilePhoto} alt={profile.fullName} className="w-24 h-24 rounded-2xl object-cover ring-4 ring-[var(--brand)]/10" />
         <div>
-          <h2 className="font-serif text-2xl text-[var(--text-primary)]">{user.name}</h2>
-          <p className="text-sm text-[var(--text-tertiary)] mt-1">{user.email}</p>
-          {user.business && <p className="text-sm text-[var(--accent-dark)] mt-2">{user.business}</p>}
+          <h2 className="font-serif text-2xl text-[var(--text-primary)]">{profile.fullName}</h2>
+          <p className="text-sm text-[var(--accent-dark)] mt-1">{profile.professionalTitle}</p>
+          <p className="text-sm text-[var(--text-tertiary)] mt-2">{profile.city}, {profile.country}</p>
         </div>
       </div>
+      <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-6 max-w-3xl">{profile.shortBio}</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <ProfileDetail label="Email address" value={user.email} />
-        <ProfileDetail label="Account type" value="Community member" />
-        <ProfileDetail label="Business" value={user.business || 'Not provided'} />
-        <ProfileDetail label="Member ID" value={user.id} />
+        <ProfileDetail label="Phone number" value={profile.phone} />
+        <ProfileDetail label="Professional experience" value={profile.professionalExperience} />
+        <ProfileDetail label="Education" value={profile.education} />
+        <ProfileDetail label="Achievements" value={profile.achievements.join(' • ') || 'Not provided'} />
+        <ProfileDetail label="Website" value={profile.website} />
+        <ProfileDetail label="Social media" value={profile.socialMedia} />
+        <ProfileDetail label="Digital slug" value={`/${profile.digitalSlug}`} />
       </div>
     </section>
   )
@@ -130,9 +136,13 @@ function ProfileDetail({ label, value }: { label: string; value: string }) {
   return <div className="bg-[var(--surface-alt)] rounded-xl border border-[var(--border-light)] p-4"><p className="text-xs text-[var(--text-tertiary)] mb-1">{label}</p><p className="text-sm font-medium text-[var(--text-primary)] break-words">{value}</p></div>
 }
 
-function BusinessPage({ email, tab, setTab, user }: { email: string; tab: Tab; setTab: (tab: Tab) => void; user: NonNullable<ReturnType<typeof useAuth>['user']> }) {
+function BusinessPage({ data, email, tab, setTab, user }: { data: UserDashboardData; email: string; tab: Tab; setTab: (tab: Tab) => void; user: NonNullable<ReturnType<typeof useAuth>['user']> }) {
   return (
     <div className="animate-fade-in">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-8">
+        {data.businesses.map(business => <BusinessCard key={business.id} business={business} />)}
+      </div>
+      {data.businesses.length === 0 && <EmptyState title="No businesses yet" description="Businesses you own or submit will appear here." />}
       <div className="flex items-center gap-1 bg-[var(--surface)] border border-[var(--border-light)] rounded-xl p-1 mb-8 overflow-x-auto hide-scrollbar w-full">
         {TABS.map(item => (
           <button key={item.id} onClick={() => setTab(item.id)} className={`flex items-center gap-2 text-sm font-medium px-3 sm:px-4 py-2 rounded-lg transition-all whitespace-nowrap ${tab === item.id ? 'bg-[var(--brand)] text-white shadow-sm' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}>
@@ -148,8 +158,43 @@ function BusinessPage({ email, tab, setTab, user }: { email: string; tab: Tab; s
   )
 }
 
-function ContentPage({ title, description }: { title: string; description: string }) {
-  return <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-8 md:p-12 text-center animate-fade-in"><div className="w-14 h-14 rounded-2xl bg-[var(--brand)]/10 text-[var(--brand)] flex items-center justify-center mx-auto mb-5"><svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6l4 2" /></svg></div><h2 className="font-serif text-2xl text-[var(--text-primary)] mb-3">{title}</h2><p className="max-w-md mx-auto text-sm text-[var(--text-secondary)] leading-relaxed">{description}</p></section>
+function BusinessCard({ business }: { business: UserBusinessData }) {
+  return <article className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden card-hover">
+    <div className="relative h-36 overflow-hidden"><img src={business.coverImage} alt="" className="w-full h-full object-cover" /><div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" /><img src={business.companyLogo} alt={business.companyName} className="absolute bottom-4 left-5 w-14 h-14 rounded-xl object-cover border-2 border-white shadow-lg" /></div>
+    <div className="p-5 pt-7"><div className="flex justify-between items-start gap-3"><div><p className="text-xs font-semibold text-[var(--accent-dark)] uppercase tracking-wide">{business.industry}</p><h3 className="font-serif text-xl text-[var(--text-primary)] mt-1">{business.companyName}</h3></div><StatusBadge status={business.status} /></div><p className="text-sm text-[var(--text-secondary)] leading-relaxed mt-3">{business.description}</p><div className="grid grid-cols-2 gap-3 mt-5 text-xs"><Info label="Leadership" value={business.founderLeadership} /><Info label="Location" value={`${business.city}, ${business.country}`} /><Info label="Website" value={business.website} /><Info label="Contact" value={business.email} /></div></div>
+  </article>
+}
+
+function ArticlePage({ title, description, items }: { title: string; description: string; items: UserArticleData[] }) {
+  return <div className="animate-fade-in"><PageIntro title={title} description={description} count={items.length} /><div className="grid grid-cols-1 md:grid-cols-2 gap-5">{items.map(item => <ArticleCard key={item.id} item={item} />)}</div>{items.length === 0 && <EmptyState title={`No ${title.toLowerCase()} yet`} description={`Your ${title.toLowerCase()} will appear here once you publish or save them.`} />}</div>
+}
+
+function ArticleCard({ item }: { item: UserArticleData }) {
+  return <article className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden card-hover"><img src={item.featuredImage} alt="" className="w-full h-44 object-cover" /><div className="p-5"><div className="flex items-center justify-between gap-2 mb-3"><span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--accent-dark)]">{item.topic}</span><StatusBadge status={item.status} /></div><h3 className="font-serif text-xl text-[var(--text-primary)] leading-tight">{item.title}</h3><p className="text-sm text-[var(--text-secondary)] leading-relaxed mt-3 line-clamp-3">{item.excerpt}</p><div className="flex items-center justify-between gap-3 text-xs text-[var(--text-tertiary)] mt-5 pt-4 border-t border-[var(--border-light)]"><span>{item.author} · {item.publishedDate}</span><span>{item.visibility}</span></div></div></article>
+}
+
+function EventsPage({ items }: { items: UserEventData[] }) {
+  return <div className="animate-fade-in"><PageIntro title="Events" description="Events you have created or organized for the KBN community." count={items.length} /><div className="grid grid-cols-1 md:grid-cols-2 gap-5">{items.map(item => <EventCard key={item.id} item={item} />)}</div>{items.length === 0 && <EmptyState title="No events yet" description="Events you create or organize will appear here." />}</div>
+}
+
+function EventCard({ item }: { item: UserEventData }) {
+  return <article className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden card-hover"><img src={item.eventImage} alt="" className="w-full h-44 object-cover" /><div className="p-5"><div className="flex items-center justify-between gap-2 mb-3"><span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--accent-dark)]">{item.eventType}</span><StatusBadge status={item.status} /></div><h3 className="font-serif text-xl text-[var(--text-primary)]">{item.title}</h3><p className="text-sm text-[var(--text-secondary)] leading-relaxed mt-3">{item.description}</p><div className="space-y-2 mt-5 text-xs text-[var(--text-tertiary)]"><Info label="Starts" value={item.startDate} /><Info label="Ends" value={item.endDate} /><Info label={item.online ? 'Online' : 'Location'} value={item.location} /></div><p className="text-xs font-medium text-[var(--brand)] mt-4">{item.eventUrl}</p></div></article>
+}
+
+function PageIntro({ title, description, count }: { title: string; description: string; count: number }) {
+  return <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-6"><div><p className="text-sm text-[var(--text-secondary)]">{description}</p></div><span className="text-xs font-semibold text-[var(--text-tertiary)] bg-[var(--surface)] border border-[var(--border-light)] px-3 py-1.5 rounded-full">{count} {count === 1 ? 'item' : 'items'}</span></div>
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+  return <div><p className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-0.5">{label}</p><p className="text-[var(--text-secondary)] break-words">{value}</p></div>
+}
+
+function StatusBadge({ status }: { status: string }) {
+  return <span className={`flex-shrink-0 text-[10px] font-semibold px-2 py-1 rounded-full ${status === 'Published' ? 'bg-emerald-100 text-emerald-700' : status === 'Pending review' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>{status}</span>
+}
+
+function EmptyState({ title, description }: { title: string; description: string }) {
+  return <div className="text-center py-12 bg-[var(--surface)] rounded-2xl border border-[var(--border-light)]"><div className="text-3xl mb-3">○</div><h2 className="font-serif text-xl text-[var(--text-primary)] mb-2">{title}</h2><p className="text-sm text-[var(--text-tertiary)]">{description}</p></div>
 }
 
 function MyCompanies({ email }: { email: string }) {
