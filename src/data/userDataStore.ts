@@ -67,6 +67,12 @@ export interface UserDashboardData {
   events: UserEventData[]
 }
 
+export type UserContentType = 'businesses' | 'articles' | 'blogs' | 'events'
+
+type UserContentItem = UserBusinessData | UserArticleData | UserEventData
+
+const DASHBOARD_DATA_KEY = 'kbn_user_dashboard_data'
+
 const DEMO_DASHBOARD_DATA: Record<string, Omit<UserDashboardData, 'profile'>> = {
   'abel@example.com': {
     businesses: [
@@ -105,6 +111,7 @@ const DEMO_DASHBOARD_DATA: Record<string, Omit<UserDashboardData, 'profile'>> = 
 
 export function getUserDashboardData(email: string, user: User): UserDashboardData {
   const demo = DEMO_DASHBOARD_DATA[email.toLowerCase()]
+  const stored = readStoredDashboardData(email)
   return {
     profile: demo ? {
       fullName: user.name,
@@ -119,8 +126,30 @@ export function getUserDashboardData(email: string, user: User): UserDashboardDa
     } : {
       fullName: user.name, phone: 'Not provided', professionalTitle: 'Community Member', profilePhoto: user.avatar, shortBio: 'A member of the Kingdom Builders Network community.', professionalExperience: 'Add your professional experience.', education: 'Add your education.', achievements: [], city: 'Not provided', country: 'Not provided', website: 'Not provided', socialMedia: 'Not provided', digitalSlug: user.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
     },
-    businesses: demo?.businesses ?? [], articles: demo?.articles ?? [], blogs: demo?.blogs ?? [], events: demo?.events ?? [],
+    businesses: stored?.businesses ?? demo?.businesses ?? [],
+    articles: stored?.articles ?? demo?.articles ?? [],
+    blogs: stored?.blogs ?? demo?.blogs ?? [],
+    events: stored?.events ?? demo?.events ?? [],
   }
+}
+
+function readStoredDashboardData(email: string): Partial<Omit<UserDashboardData, 'profile'>> | null {
+  const stored = localStorage.getItem(DASHBOARD_DATA_KEY)
+  if (!stored) return null
+  try {
+    const allData = JSON.parse(stored) as Record<string, Partial<Omit<UserDashboardData, 'profile'>>>
+    return allData[email.toLowerCase()] ?? null
+  } catch {
+    return null
+  }
+}
+
+export function updateUserContent<T extends UserContentItem>(email: string, type: UserContentType, id: string, updates: Partial<T>) {
+  const current = getUserDashboardData(email, { email, name: '', role: 'user', avatar: '' })
+  const nextItems = current[type].map(item => item.id === id ? { ...item, ...updates } : item)
+  const stored = JSON.parse(localStorage.getItem(DASHBOARD_DATA_KEY) ?? '{}') as Record<string, Partial<Omit<UserDashboardData, 'profile'>>>
+  stored[email.toLowerCase()] = { ...(stored[email.toLowerCase()] ?? {}), [type]: nextItems }
+  localStorage.setItem(DASHBOARD_DATA_KEY, JSON.stringify(stored))
 }
 
 export interface UserReview {

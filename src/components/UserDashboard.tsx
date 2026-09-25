@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../auth/AuthContext'
-import { getUserReviews, updateUserReview, deleteUserReview, submitApplication, userSubscribe, getUserDashboardData, type UserReview, type UserDashboardData, type UserBusinessData, type UserArticleData, type UserEventData } from '../data/userDataStore'
+import { getUserReviews, updateUserReview, deleteUserReview, submitApplication, userSubscribe, getUserDashboardData, updateUserContent, type UserReview, type UserDashboardData, type UserBusinessData, type UserArticleData, type UserEventData, type UserContentType } from '../data/userDataStore'
 import { getListedCompanies, adminSubscribe, type AdminCompany } from '../data/adminStore'
 import { type Category } from '../data/companies'
 
 type Tab = 'companies' | 'reviews' | 'apply'
 
 type UserPage = 'profile' | 'business' | 'articles' | 'blogs' | 'events'
+type SelectedContent = { type: UserContentType; id: string } | null
 
 const USER_NAV_ITEMS: { id: UserPage; label: string; icon: string }[] = [
   { id: 'profile', label: 'Profile', icon: 'M20 21a8 8 0 00-16 0m12-11a4 4 0 11-8 0 4 4 0 018 0z' },
@@ -26,6 +27,7 @@ export default function UserDashboard({ onBack }: { onBack: () => void }) {
   const { user, logout } = useAuth()
   const [activePage, setActivePage] = useState<UserPage>('profile')
   const [tab, setTab] = useState<Tab>('companies')
+  const [selectedContent, setSelectedContent] = useState<SelectedContent>(null)
 
   if (!user || user.role !== 'user') {
     return <div className="min-h-screen bg-[var(--surface-alt)] flex items-center justify-center text-[var(--text-tertiary)]">Access denied.</div>
@@ -95,11 +97,17 @@ export default function UserDashboard({ onBack }: { onBack: () => void }) {
         </header>
 
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-8">
-          {activePage === 'profile' && <UserProfile data={dashboardData} />}
-          {activePage === 'business' && <BusinessPage data={dashboardData} email={user.email} tab={tab} setTab={setTab} user={user} />}
-          {activePage === 'articles' && <ArticlePage title="Articles" description="Practical insights and faith-centered guidance from your member profile." items={dashboardData.articles} />}
-          {activePage === 'blogs' && <ArticlePage title="Blogs" description="Stories, reflections, and experiences shared from your member profile." items={dashboardData.blogs} />}
-          {activePage === 'events' && <EventsPage items={dashboardData.events} />}
+          {selectedContent ? (
+            <UserContentDetail key={`${selectedContent.type}-${selectedContent.id}`} data={dashboardData} email={user.email} selected={selectedContent} onBack={() => setSelectedContent(null)} />
+          ) : (
+            <>
+              {activePage === 'profile' && <UserProfile data={dashboardData} />}
+              {activePage === 'business' && <BusinessPage data={dashboardData} email={user.email} tab={tab} setTab={setTab} user={user} onOpen={(id) => setSelectedContent({ type: 'businesses', id })} />}
+              {activePage === 'articles' && <ArticlePage title="Articles" description="Practical insights and faith-centered guidance from your member profile." items={dashboardData.articles} type="articles" onOpen={(id) => setSelectedContent({ type: 'articles', id })} />}
+              {activePage === 'blogs' && <ArticlePage title="Blogs" description="Stories, reflections, and experiences shared from your member profile." items={dashboardData.blogs} type="blogs" onOpen={(id) => setSelectedContent({ type: 'blogs', id })} />}
+              {activePage === 'events' && <EventsPage items={dashboardData.events} onOpen={(id) => setSelectedContent({ type: 'events', id })} />}
+            </>
+          )}
         </div>
       </main>
     </div>
@@ -136,11 +144,63 @@ function ProfileDetail({ label, value }: { label: string; value: string }) {
   return <div className="bg-[var(--surface-alt)] rounded-xl border border-[var(--border-light)] p-4"><p className="text-xs text-[var(--text-tertiary)] mb-1">{label}</p><p className="text-sm font-medium text-[var(--text-primary)] break-words">{value}</p></div>
 }
 
-function BusinessPage({ data, email, tab, setTab, user }: { data: UserDashboardData; email: string; tab: Tab; setTab: (tab: Tab) => void; user: NonNullable<ReturnType<typeof useAuth>['user']> }) {
+function UserContentDetail({ data, email, selected, onBack }: { data: UserDashboardData; email: string; selected: { type: UserContentType; id: string }; onBack: () => void }) {
+  if (selected.type === 'businesses') {
+    const item = data.businesses.find(business => business.id === selected.id)
+    return item ? <BusinessDetail item={item} email={email} onBack={onBack} /> : <EmptyState title="Business not found" description="This business is no longer available." />
+  }
+  if (selected.type === 'events') {
+    const item = data.events.find(event => event.id === selected.id)
+    return item ? <EventDetail item={item} email={email} onBack={onBack} /> : <EmptyState title="Event not found" description="This event is no longer available." />
+  }
+  const items = selected.type === 'articles' ? data.articles : data.blogs
+  const item = items.find(article => article.id === selected.id)
+  return item ? <ArticleDetail item={item} type={selected.type} email={email} onBack={onBack} /> : <EmptyState title="Post not found" description="This post is no longer available." />
+}
+
+function DetailHeader({ title, onBack, editing, onEdit, onSave, onCancel }: { title: string; onBack: () => void; editing: boolean; onEdit: () => void; onSave: () => void; onCancel: () => void }) {
+  return <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6"><button onClick={onBack} className="inline-flex items-center gap-2 text-sm font-medium text-[var(--brand)] hover:text-[var(--brand-light)]"><span aria-hidden="true">←</span> Back to list</button><div className="flex items-center gap-2">{editing ? <><button onClick={onCancel} className="px-4 py-2 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--surface)]">Cancel</button><button onClick={onSave} className="px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--brand)] text-white hover:bg-[var(--brand-light)]">Save changes</button></> : <button onClick={onEdit} className="px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--brand)] text-white hover:bg-[var(--brand-light)]">Edit</button>}</div><h2 className="sr-only">{title}</h2></div>
+}
+
+function DetailField({ label, value, locked = false }: { label: string; value: string; locked?: boolean }) {
+  return <div className="bg-[var(--surface-alt)] rounded-xl border border-[var(--border-light)] p-4"><div className="flex items-center justify-between gap-2 mb-1"><p className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)]">{label}</p>{locked && <span className="inline-flex items-center gap-1 text-[10px] font-medium text-[var(--text-tertiary)] normal-case tracking-normal" title="This field cannot be edited"><svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4m-2 0h12v9H6v-9z" /></svg>Cannot be edited</span>}</div><p className="text-sm text-[var(--text-primary)] break-words whitespace-pre-wrap">{value || 'Not provided'}</p></div>
+}
+
+function EditField({ label, value, onChange, multiline = false }: { label: string; value: string; onChange: (value: string) => void; multiline?: boolean }) {
+  const className = "w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-3 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
+  return <label className="block"><span className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">{label}</span>{multiline ? <textarea value={value} onChange={event => onChange(event.target.value)} rows={4} className={`${className} resize-y`} /> : <input value={value} onChange={event => onChange(event.target.value)} className={className} />}</label>
+  return <div className="animate-fade-in"><DetailHeader title={form.title} onBack={onBack} editing={editing} onEdit={() => setEditing(true)} onSave={save} onCancel={() => { setForm(item); setEditing(false) }} /><div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden"><img src={form.featuredImage} alt="" className="w-full h-56 object-cover" /><div className="p-6 md:p-8">{editing ? <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><EditField label="Title" value={form.title} onChange={value => update('title', value)} /><EditField label="Topic" value={form.topic} onChange={value => update('topic', value)} /><EditField label="Featured image URL" value={form.featuredImage} onChange={value => update('featuredImage', value)} /><EditField label="Author" value={form.author} onChange={value => update('author', value)} /><DetailField label="Published date" value={form.publishedDate} locked /><EditField label="Status" value={form.status} onChange={value => update('status', value as UserArticleData['status'])} /><EditField label="Visibility" value={form.visibility} onChange={value => update('visibility', value as UserArticleData['visibility'])} /><div className="sm:col-span-2"><EditField label="Excerpt" value={form.excerpt} onChange={value => update('excerpt', value)} multiline /></div></div> : <><div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-4"><div><p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-dark)]">{form.topic}</p><h1 className="font-serif text-3xl text-[var(--text-primary)] mt-1">{form.title}</h1></div><StatusBadge status={form.status} /></div><p className="text-base text-[var(--text-secondary)] leading-relaxed mb-7">{form.excerpt}</p><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><DetailField label="Author" value={form.author} /><DetailField label="Published date" value={form.publishedDate} locked /><DetailField label="Visibility" value={form.visibility} /><DetailField label="Content type" value={type === 'blogs' ? 'Blog post' : 'Article'} /></div></>}</div></div></div>
+}
+
+function BusinessDetail({ item, email, onBack }: { item: UserBusinessData; email: string; onBack: () => void }) {
+  const [editing, setEditing] = useState(false)
+  const [form, setForm] = useState(item)
+  function update<K extends keyof UserBusinessData>(key: K, value: UserBusinessData[K]) { setForm(current => ({ ...current, [key]: value })) }
+  function save() { updateUserContent<UserBusinessData>(email, 'businesses', item.id, form); onBack() }
+  return <div className="animate-fade-in"><DetailHeader title={form.companyName} onBack={onBack} editing={editing} onEdit={() => setEditing(true)} onSave={save} onCancel={() => { setForm(item); setEditing(false) }} /><div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden"><div className="relative h-48"><img src={form.coverImage} alt="" className="w-full h-full object-cover" /><div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" /><img src={form.companyLogo} alt={form.companyName} className="absolute bottom-5 left-6 w-20 h-20 rounded-2xl object-cover border-4 border-white shadow-lg" /></div><div className="p-6 md:p-8 pt-10">{editing ? <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><EditField label="Company name" value={form.companyName} onChange={value => update('companyName', value)} /><EditField label="Industry" value={form.industry} onChange={value => update('industry', value)} /><EditField label="Company logo URL" value={form.companyLogo} onChange={value => update('companyLogo', value)} /><EditField label="Cover image URL" value={form.coverImage} onChange={value => update('coverImage', value)} /><EditField label="Founder / leadership" value={form.founderLeadership} onChange={value => update('founderLeadership', value)} /><EditField label="City" value={form.city} onChange={value => update('city', value)} /><EditField label="Country" value={form.country} onChange={value => update('country', value)} /><EditField label="Website" value={form.website} onChange={value => update('website', value)} /><EditField label="Phone" value={form.phone} onChange={value => update('phone', value)} /><EditField label="Email" value={form.email} onChange={value => update('email', value)} /><EditField label="Status" value={form.status} onChange={value => update('status', value as UserBusinessData['status'])} /><div className="sm:col-span-2"><EditField label="Description" value={form.description} onChange={value => update('description', value)} multiline /></div></div> : <><div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-6"><div><p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-dark)]">{form.industry}</p><h1 className="font-serif text-3xl text-[var(--text-primary)] mt-1">{form.companyName}</h1><p className="text-sm text-[var(--text-tertiary)] mt-2">{form.city}, {form.country}</p></div><StatusBadge status={form.status} /></div><p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-7">{form.description}</p><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><DetailField label="Founder / leadership" value={form.founderLeadership} /><DetailField label="Website" value={form.website} /><DetailField label="Phone" value={form.phone} /><DetailField label="Email" value={form.email} /><DetailField label="City" value={form.city} /><DetailField label="Country" value={form.country} /><DetailField label="Company logo" value={form.companyLogo} /><DetailField label="Cover image" value={form.coverImage} /></div></>}</div></div></div>
+}
+
+function ArticleDetail({ item, type, email, onBack }: { item: UserArticleData; type: 'articles' | 'blogs'; email: string; onBack: () => void }) {
+  const [editing, setEditing] = useState(false)
+  const [form, setForm] = useState(item)
+  function update<K extends keyof UserArticleData>(key: K, value: UserArticleData[K]) { setForm(current => ({ ...current, [key]: value })) }
+  function save() { updateUserContent<UserArticleData>(email, type, item.id, form); onBack() }
+  return <div className="animate-fade-in"><DetailHeader title={form.title} onBack={onBack} editing={editing} onEdit={() => setEditing(true)} onSave={save} onCancel={() => { setForm(item); setEditing(false) }} /><div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden"><img src={form.featuredImage} alt="" className="w-full h-56 object-cover" /><div className="p-6 md:p-8">{editing ? <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><EditField label="Title" value={form.title} onChange={value => update('title', value)} /><EditField label="Topic" value={form.topic} onChange={value => update('topic', value)} /><EditField label="Featured image URL" value={form.featuredImage} onChange={value => update('featuredImage', value)} /><EditField label="Author" value={form.author} onChange={value => update('author', value)} /><DetailField label="Published date" value={form.publishedDate} /><EditField label="Status" value={form.status} onChange={value => update('status', value as UserArticleData['status'])} /><EditField label="Visibility" value={form.visibility} onChange={value => update('visibility', value as UserArticleData['visibility'])} /><div className="sm:col-span-2"><EditField label="Excerpt" value={form.excerpt} onChange={value => update('excerpt', value)} multiline /></div></div> : <><div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-4"><div><p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-dark)]">{form.topic}</p><h1 className="font-serif text-3xl text-[var(--text-primary)] mt-1">{form.title}</h1></div><StatusBadge status={form.status} /></div><p className="text-base text-[var(--text-secondary)] leading-relaxed mb-7">{form.excerpt}</p><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><DetailField label="Author" value={form.author} /><DetailField label="Published date" value={form.publishedDate} /><DetailField label="Visibility" value={form.visibility} /><DetailField label="Featured image" value={form.featuredImage} /></div></>}</div></div></div>
+}
+
+function EventDetail({ item, email, onBack }: { item: UserEventData; email: string; onBack: () => void }) {
+  const [editing, setEditing] = useState(false)
+  const [form, setForm] = useState(item)
+  function update<K extends keyof UserEventData>(key: K, value: UserEventData[K]) { setForm(current => ({ ...current, [key]: value })) }
+  function save() { updateUserContent<UserEventData>(email, 'events', item.id, form); onBack() }
+  return <div className="animate-fade-in"><DetailHeader title={form.title} onBack={onBack} editing={editing} onEdit={() => setEditing(true)} onSave={save} onCancel={() => { setForm(item); setEditing(false) }} /><div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden"><img src={form.eventImage} alt="" className="w-full h-56 object-cover" /><div className="p-6 md:p-8">{editing ? <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><EditField label="Event title" value={form.title} onChange={value => update('title', value)} /><EditField label="Event type" value={form.eventType} onChange={value => update('eventType', value)} /><EditField label="Event image URL" value={form.eventImage} onChange={value => update('eventImage', value)} /><EditField label="Start date and time" value={form.startDate} onChange={value => update('startDate', value)} /><EditField label="End date and time" value={form.endDate} onChange={value => update('endDate', value)} /><EditField label="Location" value={form.location} onChange={value => update('location', value)} /><EditField label="Event URL" value={form.eventUrl} onChange={value => update('eventUrl', value)} /><EditField label="Status" value={form.status} onChange={value => update('status', value as UserEventData['status'])} /><label className="flex items-center gap-3 text-sm text-[var(--text-secondary)] sm:col-span-2"><input type="checkbox" checked={form.online} onChange={event => update('online', event.target.checked)} className="w-4 h-4 accent-[var(--brand)]" /> This is an online event</label><div className="sm:col-span-2"><EditField label="Description" value={form.description} onChange={value => update('description', value)} multiline /></div></div> : <><div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-4"><div><p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-dark)]">{form.eventType}</p><h1 className="font-serif text-3xl text-[var(--text-primary)] mt-1">{form.title}</h1></div><StatusBadge status={form.status} /></div><p className="text-base text-[var(--text-secondary)] leading-relaxed mb-7">{form.description}</p><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><DetailField label="Starts" value={form.startDate} /><DetailField label="Ends" value={form.endDate} /><DetailField label={form.online ? 'Online event' : 'Location'} value={form.location} /><DetailField label="Event URL" value={form.eventUrl} /><DetailField label="Event image" value={form.eventImage} /></div></>}</div></div></div>
+}
+
+function BusinessPage({ data, email, tab, setTab, user, onOpen }: { data: UserDashboardData; email: string; tab: Tab; setTab: (tab: Tab) => void; user: NonNullable<ReturnType<typeof useAuth>['user']>; onOpen: (id: string) => void }) {
   return (
     <div className="animate-fade-in">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-8">
-        {data.businesses.map(business => <BusinessCard key={business.id} business={business} />)}
+        {data.businesses.map(business => <BusinessCard key={business.id} business={business} onOpen={onOpen} />)}
       </div>
       {data.businesses.length === 0 && <EmptyState title="No businesses yet" description="Businesses you own or submit will appear here." />}
       <div className="flex items-center gap-1 bg-[var(--surface)] border border-[var(--border-light)] rounded-xl p-1 mb-8 overflow-x-auto hide-scrollbar w-full">
@@ -158,27 +218,27 @@ function BusinessPage({ data, email, tab, setTab, user }: { data: UserDashboardD
   )
 }
 
-function BusinessCard({ business }: { business: UserBusinessData }) {
-  return <article className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden card-hover">
+function BusinessCard({ business, onOpen }: { business: UserBusinessData; onOpen: (id: string) => void }) {
+  return <article role="button" tabIndex={0} onClick={() => onOpen(business.id)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') onOpen(business.id) }} className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden card-hover cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--brand)]">
     <div className="relative h-36 overflow-hidden"><img src={business.coverImage} alt="" className="w-full h-full object-cover" /><div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" /><img src={business.companyLogo} alt={business.companyName} className="absolute bottom-4 left-5 w-14 h-14 rounded-xl object-cover border-2 border-white shadow-lg" /></div>
     <div className="p-5 pt-7"><div className="flex justify-between items-start gap-3"><div><p className="text-xs font-semibold text-[var(--accent-dark)] uppercase tracking-wide">{business.industry}</p><h3 className="font-serif text-xl text-[var(--text-primary)] mt-1">{business.companyName}</h3></div><StatusBadge status={business.status} /></div><p className="text-sm text-[var(--text-secondary)] leading-relaxed mt-3">{business.description}</p><div className="grid grid-cols-2 gap-3 mt-5 text-xs"><Info label="Leadership" value={business.founderLeadership} /><Info label="Location" value={`${business.city}, ${business.country}`} /><Info label="Website" value={business.website} /><Info label="Contact" value={business.email} /></div></div>
   </article>
 }
 
-function ArticlePage({ title, description, items }: { title: string; description: string; items: UserArticleData[] }) {
-  return <div className="animate-fade-in"><PageIntro title={title} description={description} count={items.length} /><div className="grid grid-cols-1 md:grid-cols-2 gap-5">{items.map(item => <ArticleCard key={item.id} item={item} />)}</div>{items.length === 0 && <EmptyState title={`No ${title.toLowerCase()} yet`} description={`Your ${title.toLowerCase()} will appear here once you publish or save them.`} />}</div>
+function ArticlePage({ title, description, items, type, onOpen }: { title: string; description: string; items: UserArticleData[]; type: 'articles' | 'blogs'; onOpen: (id: string) => void }) {
+  return <div className="animate-fade-in"><PageIntro title={title} description={description} count={items.length} /><div className="grid grid-cols-1 md:grid-cols-2 gap-5">{items.map(item => <ArticleCard key={item.id} item={item} onOpen={onOpen} />)}</div>{items.length === 0 && <EmptyState title={`No ${title.toLowerCase()} yet`} description={`Your ${title.toLowerCase()} will appear here once you publish or save them.`} />}</div>
 }
 
-function ArticleCard({ item }: { item: UserArticleData }) {
-  return <article className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden card-hover"><img src={item.featuredImage} alt="" className="w-full h-44 object-cover" /><div className="p-5"><div className="flex items-center justify-between gap-2 mb-3"><span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--accent-dark)]">{item.topic}</span><StatusBadge status={item.status} /></div><h3 className="font-serif text-xl text-[var(--text-primary)] leading-tight">{item.title}</h3><p className="text-sm text-[var(--text-secondary)] leading-relaxed mt-3 line-clamp-3">{item.excerpt}</p><div className="flex items-center justify-between gap-3 text-xs text-[var(--text-tertiary)] mt-5 pt-4 border-t border-[var(--border-light)]"><span>{item.author} · {item.publishedDate}</span><span>{item.visibility}</span></div></div></article>
+function ArticleCard({ item, onOpen }: { item: UserArticleData; onOpen: (id: string) => void }) {
+  return <article role="button" tabIndex={0} onClick={() => onOpen(item.id)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') onOpen(item.id) }} className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden card-hover cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--brand)]"><img src={item.featuredImage} alt="" className="w-full h-44 object-cover" /><div className="p-5"><div className="flex items-center justify-between gap-2 mb-3"><span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--accent-dark)]">{item.topic}</span><StatusBadge status={item.status} /></div><h3 className="font-serif text-xl text-[var(--text-primary)] leading-tight">{item.title}</h3><p className="text-sm text-[var(--text-secondary)] leading-relaxed mt-3 line-clamp-3">{item.excerpt}</p><div className="flex items-center justify-between gap-3 text-xs text-[var(--text-tertiary)] mt-5 pt-4 border-t border-[var(--border-light)]"><span>{item.author} · {item.publishedDate}</span><span>{item.visibility}</span></div></div></article>
 }
 
-function EventsPage({ items }: { items: UserEventData[] }) {
-  return <div className="animate-fade-in"><PageIntro title="Events" description="Events you have created or organized for the KBN community." count={items.length} /><div className="grid grid-cols-1 md:grid-cols-2 gap-5">{items.map(item => <EventCard key={item.id} item={item} />)}</div>{items.length === 0 && <EmptyState title="No events yet" description="Events you create or organize will appear here." />}</div>
+function EventsPage({ items, onOpen }: { items: UserEventData[]; onOpen: (id: string) => void }) {
+  return <div className="animate-fade-in"><PageIntro title="Events" description="Events you have created or organized for the KBN community." count={items.length} /><div className="grid grid-cols-1 md:grid-cols-2 gap-5">{items.map(item => <EventCard key={item.id} item={item} onOpen={onOpen} />)}</div>{items.length === 0 && <EmptyState title="No events yet" description="Events you create or organize will appear here." />}</div>
 }
 
-function EventCard({ item }: { item: UserEventData }) {
-  return <article className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden card-hover"><img src={item.eventImage} alt="" className="w-full h-44 object-cover" /><div className="p-5"><div className="flex items-center justify-between gap-2 mb-3"><span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--accent-dark)]">{item.eventType}</span><StatusBadge status={item.status} /></div><h3 className="font-serif text-xl text-[var(--text-primary)]">{item.title}</h3><p className="text-sm text-[var(--text-secondary)] leading-relaxed mt-3">{item.description}</p><div className="space-y-2 mt-5 text-xs text-[var(--text-tertiary)]"><Info label="Starts" value={item.startDate} /><Info label="Ends" value={item.endDate} /><Info label={item.online ? 'Online' : 'Location'} value={item.location} /></div><p className="text-xs font-medium text-[var(--brand)] mt-4">{item.eventUrl}</p></div></article>
+function EventCard({ item, onOpen }: { item: UserEventData; onOpen: (id: string) => void }) {
+  return <article role="button" tabIndex={0} onClick={() => onOpen(item.id)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') onOpen(item.id) }} className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden card-hover cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--brand)]"><img src={item.eventImage} alt="" className="w-full h-44 object-cover" /><div className="p-5"><div className="flex items-center justify-between gap-2 mb-3"><span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--accent-dark)]">{item.eventType}</span><StatusBadge status={item.status} /></div><h3 className="font-serif text-xl text-[var(--text-primary)]">{item.title}</h3><p className="text-sm text-[var(--text-secondary)] leading-relaxed mt-3">{item.description}</p><div className="space-y-2 mt-5 text-xs text-[var(--text-tertiary)]"><Info label="Starts" value={item.startDate} /><Info label="Ends" value={item.endDate} /><Info label={item.online ? 'Online' : 'Location'} value={item.location} /></div><p className="text-xs font-medium text-[var(--brand)] mt-4">{item.eventUrl}</p></div></article>
 }
 
 function PageIntro({ title, description, count }: { title: string; description: string; count: number }) {
