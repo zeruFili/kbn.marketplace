@@ -4,7 +4,6 @@ import { type UserRole } from '../auth/auth'
 import knbLogo from '../assets/kbn logo.jpg'
 
 const MOCK_CREDENTIALS = [
-  { email: 'admin@kbn.org', name: 'Admin KBN', role: 'admin' as UserRole },
   { email: 'abel@example.com', name: 'Abel Tesfaye', role: 'user' as UserRole },
 ]
 
