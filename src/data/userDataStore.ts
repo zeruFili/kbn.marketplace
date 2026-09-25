@@ -39,6 +39,7 @@ export interface UserArticleData {
   title: string
   topic: string
   excerpt: string
+  content?: string
   author: string
   publishedDate: string
   status: 'Published' | 'Draft'
@@ -127,8 +128,8 @@ export function getUserDashboardData(email: string, user: User): UserDashboardDa
       fullName: user.name, phone: 'Not provided', professionalTitle: 'Community Member', profilePhoto: user.avatar, shortBio: 'A member of the Kingdom Builders Network community.', professionalExperience: 'Add your professional experience.', education: 'Add your education.', achievements: [], city: 'Not provided', country: 'Not provided', website: 'Not provided', socialMedia: 'Not provided', digitalSlug: user.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
     }),
     businesses: stored?.businesses ?? demo?.businesses ?? [],
-    articles: stored?.articles ?? demo?.articles ?? [],
-    blogs: stored?.blogs ?? demo?.blogs ?? [],
+    articles: (stored?.articles ?? demo?.articles ?? []).map(item => { const content = item.content ?? buildPostContent(item.title, item.topic, item.author, 'article'); return { ...item, content, excerpt: content } }),
+    blogs: (stored?.blogs ?? demo?.blogs ?? []).map(item => { const content = item.content ?? buildPostContent(item.title, item.topic, item.author, 'blog'); return { ...item, content, excerpt: content } }),
     events: stored?.events ?? demo?.events ?? [],
   }
 }
@@ -153,11 +154,26 @@ export function getPublicUserDashboardData(): UserDashboardData[] {
       fullName: name, phone: `+251 91${String(1000000 + index * 13741).slice(0, 7)}`, professionalTitle: titles[index % titles.length], profilePhoto: avatar,
       shortBio: `${name} helps people and purposeful organizations turn good ideas into practical community impact.`, professionalExperience: `${5 + (index % 11)} years serving in business, leadership, and community development.`, education: 'Graduate of a local university and lifelong learner.', achievements: ['KBN community contributor', 'Mentor to emerging leaders'], city, country: 'Ethiopia', website: `${name.toLowerCase().replace(/[^a-z]+/g, '')}.et`, socialMedia: `@${name.toLowerCase().replace(/[^a-z]+/g, '')}`, digitalSlug: name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
     }
-    const article = { id: `public-article-${index + 1}`, featuredImage: image, title: articleTitles[index], topic, excerpt: `A practical reflection from ${name} on ${topic.toLowerCase()} and meaningful work in the community.`, author: name, publishedDate: `September ${index + 1}, 2025`, status: 'Published' as const, visibility: 'Public' as const }
-    const blog = { id: `public-blog-${index + 1}`, featuredImage: image, title: blogTitles[index], topic, excerpt: `${name} shares a personal story about learning, serving, and growing alongside other members.`, author: name, publishedDate: `August ${index + 1}, 2025`, status: 'Published' as const, visibility: 'Public' as const }
+    const articleContent = buildPostContent(articleTitles[index], topic, name, 'article')
+    const blogContent = buildPostContent(blogTitles[index], topic, name, 'blog')
+    const article = { id: `public-article-${index + 1}`, featuredImage: image, title: articleTitles[index], topic, excerpt: articleContent, content: articleContent, author: name, publishedDate: `September ${index + 1}, 2025`, status: 'Published' as const, visibility: 'Public' as const }
+    const blog = { id: `public-blog-${index + 1}`, featuredImage: image, title: blogTitles[index], topic, excerpt: blogContent, content: blogContent, author: name, publishedDate: `August ${index + 1}, 2025`, status: 'Published' as const, visibility: 'Public' as const }
     const event = { id: `public-event-${index + 1}`, eventImage: image, title: eventTitles[index], description: `Join ${name} and fellow members for an encouraging gathering focused on practical faith, connection, and service.`, eventType: topics[index % topics.length], startDate: `October ${index + 1}, 2025 at ${8 + (index % 5)}:00 AM`, endDate: `October ${index + 1}, 2025 at ${10 + (index % 5)}:00 AM`, location: index % 3 === 0 ? 'Online via Zoom' : `${city} Community Center`, online: index % 3 === 0, eventUrl: `kbn.org/events/${eventTitles[index].toLowerCase().replace(/[^a-z]+/g, '-')}`, status: 'Published' as const }
     return { profile, businesses: [], articles: [article], blogs: [blog], events: [event] }
   })
+}
+
+function buildPostContent(title: string, topic: string, author: string, kind: 'article' | 'blog'): string {
+  const opening = kind === 'article'
+    ? `${title} examines how ${topic.toLowerCase()} can become a practical discipline rather than a slogan. In conversations with founders, team leads, and community members, ${author} kept returning to the same question: what does this look like in the ordinary decisions that shape our work?`
+    : `${title} began with an ordinary conversation and became a reflection on ${topic.toLowerCase()}. ${author} writes from the middle of the work, where plans change, people surprise us, and meaningful progress is usually built through small faithful choices.`
+  const middle = kind === 'article'
+    ? `The first lesson is to make the idea specific. Instead of measuring ${topic.toLowerCase()} only by ambition or visibility, leaders can name the people they serve, the problem they are solving, and the habits that will keep the work honest. That clarity helps a team choose better priorities when time and resources are limited.\n\nThe second lesson is to build a rhythm of listening. Regular conversations with customers, colleagues, and neighbors reveal what a spreadsheet cannot: where a process creates friction, which opportunities are truly useful, and what kind of support will help people flourish. Strong work grows when feedback is treated as material for improvement rather than a threat to authority.`
+    : `One moment made the theme especially clear. A simple act of attention changed the direction of a project and reminded the team that progress is not always dramatic. Sometimes it is a well-made introduction, a patient answer, or the decision to leave room for someone else’s contribution.\n\nThese moments also reveal the connection between personal formation and public work. The way we welcome people, handle disappointment, and share credit becomes part of the story our organizations tell. When those habits are practiced consistently, ${topic.toLowerCase()} moves from an idea on the wall into a culture people can feel.`
+  const closing = kind === 'article'
+    ? `A useful next step is to choose one practice and make it visible this week. Invite a trusted person to challenge the plan, define a simple measure of progress, and return to the conversation after the first attempt. Meaningful change rarely arrives all at once, but it becomes durable when good intentions are translated into repeatable action.`
+    : `I left the conversation grateful for the reminder that good work has a longer horizon than a single result. There is room to begin again, to ask better questions, and to notice the people who make the journey possible. That is where the next chapter of this story starts.`
+  return `${opening}\n\n${middle}\n\n${closing}`
 }
 
 function readStoredDashboardData(email: string): Partial<UserDashboardData> | null {

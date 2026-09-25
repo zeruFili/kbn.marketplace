@@ -275,6 +275,7 @@ function PublicContentPage({ page, onBack, onSelectCompany, onSelectContent }: {
 }
 
 function PublicDetailField({ label, value }: { label: string; value: string }) {
+  if (label === 'Publication status' || label === 'Audience') return null
   return <div className="relative overflow-hidden bg-white rounded-2xl border border-[var(--border-light)] p-5 shadow-[0_8px_24px_rgba(15,29,58,0.04)]"><div className="absolute left-0 top-0 h-full w-1 bg-[var(--accent)]" /><p className="text-[10px] uppercase tracking-[0.14em] text-[var(--text-tertiary)] mb-2">{label}</p><p className="text-sm text-[var(--text-primary)] break-words whitespace-pre-wrap leading-relaxed">{value || 'Not provided'}</p></div>
 }
 
