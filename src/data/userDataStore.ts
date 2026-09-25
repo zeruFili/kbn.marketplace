@@ -133,6 +133,14 @@ export function getUserDashboardData(email: string, user: User): UserDashboardDa
   }
 }
 
+export function getPublicUserDashboardData(): UserDashboardData[] {
+  const publicUsers: User[] = [
+    { id: 'regular1', email: 'abel@example.com', name: 'Abel Tesfaye', avatar: 'https://i.pravatar.cc/96?img=3', role: 'user' },
+    { id: 'regular2', email: 'tigist@example.com', name: 'Tigist Lemma', avatar: 'https://i.pravatar.cc/96?img=9', role: 'user' },
+  ]
+  return publicUsers.map(publicUser => getUserDashboardData(publicUser.email, publicUser))
+}
+
 function readStoredDashboardData(email: string): Partial<UserDashboardData> | null {
   const stored = localStorage.getItem(DASHBOARD_DATA_KEY)
   if (!stored) return null

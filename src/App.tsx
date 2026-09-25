@@ -11,8 +11,17 @@ import { useAuth } from './auth/AuthContext'
 import { type UserRole } from './auth/auth'
 import { getCompanies, subscribe } from './data/companyStore'
 import { CATEGORIES, type Company, type Category } from './data/companies'
+import { getPublicUserDashboardData, type UserDashboardData } from './data/userDataStore'
 
-const NAV_ITEMS = ['Home', 'About Us', 'Community & Membership', 'Events'] as const
+type PublicPage = 'companies' | 'people' | 'blogs' | 'events' | 'articles'
+
+const NAV_ITEMS: { id: PublicPage; label: string }[] = [
+  { id: 'companies', label: 'Companies' },
+  { id: 'people', label: 'People' },
+  { id: 'blogs', label: 'Blogs' },
+  { id: 'events', label: 'Events' },
+  { id: 'articles', label: 'Articles' },
+]
 
 const EVENTS = [
   { image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=600&h=400&fit=crop&auto=format', date: 'Aug 15, 2025', time: '7:30 AM – 9:30 AM', location: 'Abren Cafe, Addis Ababa', title: 'Quarterly Networking Breakfast', description: 'Start your morning with fellowship, prayer, and purposeful connections with fellow Christian entrepreneurs over coffee and breakfast at our quarterly gathering.' },
@@ -23,7 +32,7 @@ const EVENTS = [
   { image: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=600&h=400&fit=crop&auto=format', date: 'Dec 19, 2025', time: '6:00 PM – 8:00 PM', location: 'Abren Cafe, Addis Ababa', title: 'Year-End Celebration & Prayer', description: 'Wind down the year with fellowship and celebration. Share testimonies of God\'s faithfulness and look ahead to the new year together.' },
 ]
 
-function Navbar({ onLogin, onSignUp, onHome, onAboutUs, onAllMembers, onDashboard }: { onLogin: () => void; onSignUp: () => void; onHome: () => void; onAboutUs: () => void; onAllMembers: () => void; onDashboard: () => void }) {
+function Navbar({ onLogin, onSignUp, onHome, onPublicPage, onDashboard }: { onLogin: () => void; onSignUp: () => void; onHome: () => void; onPublicPage: (page: PublicPage) => void; onDashboard: () => void }) {
   const { user, logout } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
@@ -36,21 +45,7 @@ function Navbar({ onLogin, onSignUp, onHome, onAboutUs, onAllMembers, onDashboar
         </button>
 
         <nav className="hidden lg:flex items-center gap-1">
-          {NAV_ITEMS.map(item =>
-            item === 'About Us' ? (
-              <button key={item} onClick={onAboutUs} className="text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-alt)] px-3 py-2 rounded-xl transition-all cursor-pointer">
-                {item}
-              </button>
-            ) : item === 'Community & Membership' ? (
-              <button key={item} onClick={onAllMembers} className="text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-alt)] px-3 py-2 rounded-xl transition-all cursor-pointer">
-                {item}
-              </button>
-            ) : (
-              <a key={item} href={`#${item.toLowerCase().replace(/\s+/g, '-')}`} className="text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-alt)] px-3 py-2 rounded-xl transition-all">
-                {item}
-              </a>
-            )
-          )}
+          {NAV_ITEMS.map(item => <button key={item.id} onClick={() => onPublicPage(item.id)} className="text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-alt)] px-3 py-2 rounded-xl transition-all">{item.label}</button>)}
         </nav>
 
         <div className="flex items-center gap-2">
@@ -95,15 +90,7 @@ function Navbar({ onLogin, onSignUp, onHome, onAboutUs, onAllMembers, onDashboar
       </div>
       {menuOpen && (
         <div className="lg:hidden border-t border-[var(--border-light)] bg-[var(--surface)] px-4 py-4 space-y-2 animate-slide-down">
-          {NAV_ITEMS.map(item =>
-            item === 'About Us' ? (
-              <button key={item} onClick={() => { onAboutUs(); setMenuOpen(false) }} className="block w-full text-left text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-3 py-2.5 rounded-xl hover:bg-[var(--surface-alt)] transition-colors">{item}</button>
-            ) : item === 'Community & Membership' ? (
-              <button key={item} onClick={() => { onAllMembers(); setMenuOpen(false) }} className="block w-full text-left text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-3 py-2.5 rounded-xl hover:bg-[var(--surface-alt)] transition-colors">{item}</button>
-            ) : (
-              <a key={item} href={`#${item.toLowerCase().replace(/\s+/g, '-')}`} onClick={() => setMenuOpen(false)} className="block w-full text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-3 py-2.5 rounded-xl hover:bg-[var(--surface-alt)] transition-colors">{item}</a>
-            )
-          )}
+          {NAV_ITEMS.map(item => <button key={item.id} onClick={() => { onPublicPage(item.id); setMenuOpen(false) }} className="block w-full text-left text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-3 py-2.5 rounded-xl hover:bg-[var(--surface-alt)] transition-colors">{item.label}</button>)}
           <div className="pt-2 border-t border-[var(--border-light)] space-y-2">
             {user ? (
               <>
@@ -133,7 +120,7 @@ function SectionHeading({ overline, title, subtitle, light }: { overline?: strin
   )
 }
 
-function DirectoryPage({ onBack, onSelectCompany }: { onBack: () => void; onSelectCompany: (c: Company) => void }) {
+function DirectoryPage({ onBack, onSelectCompany, title = 'All Members' }: { onBack: () => void; onSelectCompany: (c: Company) => void; title?: string }) {
   const [dirCategory, setDirCategory] = useState<Category | null>(null)
   const [dirSearch, setDirSearch] = useState('')
   const [dirSort, setDirSort] = useState<'rating' | 'reviews' | 'name'>('rating')
@@ -167,7 +154,7 @@ function DirectoryPage({ onBack, onSelectCompany }: { onBack: () => void; onSele
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
             Back to Home
           </button>
-          <h1 className="font-serif text-3xl md:text-5xl text-white mb-3">All Members</h1>
+          <h1 className="font-serif text-3xl md:text-5xl text-white mb-3">{title}</h1>
           <p className="text-[#94A3B8] text-lg">Browse all {allCompanies.length} businesses in our network</p>
         </div>
       </div>
@@ -213,10 +200,52 @@ function DirectoryPage({ onBack, onSelectCompany }: { onBack: () => void; onSele
   )
 }
 
+function PublicContentPage({ page, onBack, onSelectCompany }: { page: PublicPage; onBack: () => void; onSelectCompany: (company: Company) => void }) {
+  const memberData = getPublicUserDashboardData()
+  const title = page === 'people' ? 'People' : page.charAt(0).toUpperCase() + page.slice(1)
+  const description = page === 'people'
+    ? 'Meet the people building purposeful businesses and communities through the KBN network.'
+    : `Explore ${page} shared by members of the Kingdom Builders Network.`
+
+  if (page === 'companies') return <DirectoryPage title="Companies" onBack={onBack} onSelectCompany={onSelectCompany} />
+
+  return (
+    <main className="min-h-screen bg-[var(--surface-alt)]">
+      <div className="bg-[var(--brand-dark)] py-12 md:py-16">
+        <div className="max-w-7xl mx-auto px-4 md:px-8">
+          <button onClick={onBack} className="flex items-center gap-2 text-white/80 hover:text-white text-sm font-medium mb-6"><span aria-hidden="true">←</span> Back to Home</button>
+          <p className="text-xs font-semibold uppercase tracking-widest text-[var(--accent)] mb-3">KBN Community</p>
+          <h1 className="font-serif text-4xl md:text-5xl text-white mb-3">{title}</h1>
+          <p className="text-[#94A3B8] text-lg max-w-2xl">{description}</p>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 md:px-8 py-10 md:py-14">
+        {page === 'people' && <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 animate-stagger">
+          {memberData.map(({ profile }) => <div key={profile.digitalSlug} className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6">
+            <div className="flex items-center gap-4 mb-5"><img src={profile.profilePhoto} alt={profile.fullName} className="w-16 h-16 rounded-2xl object-cover" /><div><h2 className="font-serif text-xl text-[var(--text-primary)]">{profile.fullName}</h2><p className="text-sm text-[var(--accent-dark)]">{profile.professionalTitle}</p></div></div>
+            <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-5 line-clamp-3">{profile.shortBio}</p>
+            <div className="flex items-center justify-between text-xs text-[var(--text-tertiary)]"><span>{profile.city}, {profile.country}</span><span>{profile.digitalSlug}</span></div>
+          </div>)}
+        </div>}
+
+        {(page === 'articles' || page === 'blogs') && <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-stagger">
+          {memberData.flatMap(data => (page === 'articles' ? data.articles : data.blogs)).map(item => <article key={item.id} className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden"><img src={item.featuredImage} alt={item.title} className="w-full h-44 object-cover" /><div className="p-5"><p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-dark)] mb-2">{item.topic}</p><h2 className="font-serif text-xl text-[var(--text-primary)] mb-3">{item.title}</h2><p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-5 line-clamp-3">{item.excerpt}</p><div className="flex items-center justify-between text-xs text-[var(--text-tertiary)]"><span>{item.author}</span><span>{item.publishedDate}</span></div></div></article>)}
+        </div>}
+
+        {page === 'events' && <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-stagger">
+          {memberData.flatMap(data => data.events).map(event => <article key={event.id} className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden"><img src={event.eventImage} alt={event.title} className="w-full h-44 object-cover" /><div className="p-5"><div className="flex items-center justify-between gap-3 mb-3"><span className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-dark)]">{event.eventType}</span><span className="text-xs text-[var(--text-tertiary)]">{event.online ? 'Online' : 'In person'}</span></div><h2 className="font-serif text-xl text-[var(--text-primary)] mb-3">{event.title}</h2><p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-5 line-clamp-3">{event.description}</p><div className="space-y-1 text-xs text-[var(--text-tertiary)]"><p>{event.startDate}</p><p>{event.location}</p></div></div></article>)}
+        </div>}
+      </div>
+    </main>
+  )
+}
+
 export default function App() {
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null)
   const [showDirectory, setShowDirectory] = useState(false)
   const [showAboutUs, setShowAboutUs] = useState(false)
+  const [publicPage, setPublicPage] = useState<PublicPage | null>(null)
   const [authPage, setAuthPage] = useState<'login' | 'signup' | null>(null)
   const [dashboard, setDashboard] = useState<UserRole | null>(null)
   const { user, loading } = useAuth()
@@ -272,6 +301,15 @@ export default function App() {
     return <CompanyProfile company={selectedCompany} onBack={() => setSelectedCompany(null)} />
   }
 
+  if (publicPage) {
+    return (
+      <div className="min-h-screen bg-[var(--surface-alt)]">
+        <Navbar onLogin={() => setAuthPage('login')} onSignUp={() => setAuthPage('signup')} onHome={() => setPublicPage(null)} onPublicPage={setPublicPage} onDashboard={() => setDashboard(user?.role ?? null)} />
+        <PublicContentPage page={publicPage} onBack={() => setPublicPage(null)} onSelectCompany={company => { setSelectedCompany(company); setPublicPage(null) }} />
+      </div>
+    )
+  }
+
   if (showDirectory) {
     return (
       <div className="min-h-screen bg-[var(--surface-alt)]">
@@ -294,9 +332,8 @@ export default function App() {
       <Navbar
         onLogin={() => setAuthPage('login')}
         onSignUp={() => setAuthPage('signup')}
-        onHome={() => { setShowDirectory(false); setAuthPage(null); setShowAboutUs(false) }}
-        onAboutUs={() => { setShowAboutUs(true); window.scrollTo(0, 0) }}
-        onAllMembers={() => { setShowDirectory(true); window.scrollTo(0, 0) }}
+        onHome={() => { setShowDirectory(false); setAuthPage(null); setShowAboutUs(false); setPublicPage(null) }}
+        onPublicPage={page => { setPublicPage(page); setShowDirectory(false); setShowAboutUs(false); window.scrollTo(0, 0) }}
         onDashboard={() => setDashboard(user?.role ?? null)}
       />
 
