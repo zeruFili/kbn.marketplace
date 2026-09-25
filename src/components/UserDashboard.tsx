@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../auth/AuthContext'
-import { getUserReviews, updateUserReview, deleteUserReview, submitApplication, userSubscribe, getUserDashboardData, updateUserContent, type UserReview, type UserDashboardData, type UserBusinessData, type UserArticleData, type UserEventData, type UserContentType } from '../data/userDataStore'
+import { getUserReviews, updateUserReview, deleteUserReview, submitApplication, userSubscribe, getUserDashboardData, updateUserContent, updateUserProfile, type UserReview, type UserDashboardData, type UserProfileData, type UserBusinessData, type UserArticleData, type UserEventData, type UserContentType } from '../data/userDataStore'
 import { getListedCompanies, adminSubscribe, type AdminCompany } from '../data/adminStore'
 import { type Category } from '../data/companies'
 
@@ -101,7 +101,7 @@ export default function UserDashboard({ onBack }: { onBack: () => void }) {
             <UserContentDetail key={`${selectedContent.type}-${selectedContent.id}`} data={dashboardData} email={user.email} selected={selectedContent} onBack={() => setSelectedContent(null)} />
           ) : (
             <>
-              {activePage === 'profile' && <UserProfile data={dashboardData} />}
+              {activePage === 'profile' && <UserProfile data={dashboardData} email={user.email} />}
               {activePage === 'business' && <BusinessPage data={dashboardData} email={user.email} tab={tab} setTab={setTab} user={user} onOpen={(id) => setSelectedContent({ type: 'businesses', id })} />}
               {activePage === 'articles' && <ArticlePage title="Articles" description="Practical insights and faith-centered guidance from your member profile." items={dashboardData.articles} type="articles" onOpen={(id) => setSelectedContent({ type: 'articles', id })} />}
               {activePage === 'blogs' && <ArticlePage title="Blogs" description="Stories, reflections, and experiences shared from your member profile." items={dashboardData.blogs} type="blogs" onOpen={(id) => setSelectedContent({ type: 'blogs', id })} />}
@@ -114,30 +114,46 @@ export default function UserDashboard({ onBack }: { onBack: () => void }) {
   )
 }
 
-function UserProfile({ data }: { data: UserDashboardData }) {
-  const { profile } = data
+function UserProfile({ data, email }: { data: UserDashboardData; email: string }) {
+  const [editing, setEditing] = useState(false)
+  const [form, setForm] = useState<UserProfileData>(data.profile)
+  const { profile } = editing ? { profile: form } : data
+
+  function update<K extends keyof UserProfileData>(key: K, value: UserProfileData[K]) {
+    setForm(current => ({ ...current, [key]: value }))
+  }
+
+  function save() {
+    updateUserProfile(email, form)
+    setEditing(false)
+  }
+
+  function cancel() {
+    setForm(data.profile)
+    setEditing(false)
+  }
+
   return (
     <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6 md:p-8 animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-5 mb-8">
-        <img src={profile.profilePhoto} alt={profile.fullName} className="w-24 h-24 rounded-2xl object-cover ring-4 ring-[var(--brand)]/10" />
-        <div>
-          <h2 className="font-serif text-2xl text-[var(--text-primary)]">{profile.fullName}</h2>
-          <p className="text-sm text-[var(--accent-dark)] mt-1">{profile.professionalTitle}</p>
-          <p className="text-sm text-[var(--text-tertiary)] mt-2">{profile.city}, {profile.country}</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 mb-8">
+        <div className="flex items-center gap-5">
+          <img src={profile.profilePhoto} alt={profile.fullName} className="w-24 h-24 rounded-2xl object-cover ring-4 ring-[var(--brand)]/10" />
+          <div>
+            <h2 className="font-serif text-2xl text-[var(--text-primary)]">{profile.fullName}</h2>
+            <p className="text-sm text-[var(--accent-dark)] mt-1">{profile.professionalTitle}</p>
+            <p className="text-sm text-[var(--text-tertiary)] mt-2">{profile.city}, {profile.country}</p>
+          </div>
         </div>
+        {editing ? <div className="flex items-center gap-2"><button onClick={cancel} className="px-4 py-2 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-alt)]">Cancel</button><button onClick={save} className="px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--brand)] text-white hover:bg-[var(--brand-light)]">Save changes</button></div> : <button onClick={() => setEditing(true)} className="px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--brand)] text-white hover:bg-[var(--brand-light)]">Edit</button>}
       </div>
-      <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-6 max-w-3xl">{profile.shortBio}</p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <ProfileDetail label="Phone number" value={profile.phone} />
-        <ProfileDetail label="Professional experience" value={profile.professionalExperience} />
-        <ProfileDetail label="Education" value={profile.education} />
-        <ProfileDetail label="Achievements" value={profile.achievements.join(' • ') || 'Not provided'} />
-        <ProfileDetail label="Website" value={profile.website} />
-        <ProfileDetail label="Social media" value={profile.socialMedia} />
-        <ProfileDetail label="Digital slug" value={`/${profile.digitalSlug}`} />
-      </div>
+      {editing ? <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><ProfileEditField label="Full name" value={form.fullName} onChange={value => update('fullName', value)} /><ProfileEditField label="Phone number" value={form.phone} onChange={value => update('phone', value)} /><ProfileEditField label="Professional title" value={form.professionalTitle} onChange={value => update('professionalTitle', value)} /><ProfileEditField label="Profile photo URL" value={form.profilePhoto} onChange={value => update('profilePhoto', value)} /><ProfileEditField label="City" value={form.city} onChange={value => update('city', value)} /><ProfileEditField label="Country" value={form.country} onChange={value => update('country', value)} /><ProfileEditField label="Website" value={form.website} onChange={value => update('website', value)} /><ProfileEditField label="Social media" value={form.socialMedia} onChange={value => update('socialMedia', value)} /><ProfileEditField label="Digital slug" value={form.digitalSlug} onChange={value => update('digitalSlug', value)} /><div className="sm:col-span-2"><ProfileEditField label="Short bio" value={form.shortBio} onChange={value => update('shortBio', value)} multiline /></div><ProfileEditField label="Professional experience" value={form.professionalExperience} onChange={value => update('professionalExperience', value)} multiline /><ProfileEditField label="Education" value={form.education} onChange={value => update('education', value)} multiline /><div className="sm:col-span-2"><ProfileEditField label="Achievements (one per line)" value={form.achievements.join('\n')} onChange={value => update('achievements', value.split('\n').map(item => item.trim()).filter(Boolean))} multiline /></div></div> : <><p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-6 max-w-3xl">{profile.shortBio}</p><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><ProfileDetail label="Phone number" value={profile.phone} /><ProfileDetail label="Professional experience" value={profile.professionalExperience} /><ProfileDetail label="Education" value={profile.education} /><ProfileDetail label="Achievements" value={profile.achievements.join(' • ') || 'Not provided'} /><ProfileDetail label="Website" value={profile.website} /><ProfileDetail label="Social media" value={profile.socialMedia} /><ProfileDetail label="Digital slug" value={`/${profile.digitalSlug}`} /></div></>}
     </section>
   )
+}
+
+function ProfileEditField({ label, value, onChange, multiline = false }: { label: string; value: string; onChange: (value: string) => void; multiline?: boolean }) {
+  const className = "w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-3 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
+  return <label className="block"><span className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">{label}</span>{multiline ? <textarea value={value} onChange={event => onChange(event.target.value)} rows={4} className={`${className} resize-y`} /> : <input value={value} onChange={event => onChange(event.target.value)} className={className} />}</label>
 }
 
 function ProfileDetail({ label, value }: { label: string; value: string }) {
