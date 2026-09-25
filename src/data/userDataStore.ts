@@ -134,11 +134,30 @@ export function getUserDashboardData(email: string, user: User): UserDashboardDa
 }
 
 export function getPublicUserDashboardData(): UserDashboardData[] {
-  const publicUsers: User[] = [
-    { id: 'regular1', email: 'abel@example.com', name: 'Abel Tesfaye', avatar: 'https://i.pravatar.cc/96?img=3', role: 'user' },
-    { id: 'regular2', email: 'tigist@example.com', name: 'Tigist Lemma', avatar: 'https://i.pravatar.cc/96?img=9', role: 'user' },
-  ]
-  return publicUsers.map(publicUser => getUserDashboardData(publicUser.email, publicUser))
+  const names = ['Abel Tesfaye', 'Tigist Lemma', 'Samuel Bekele', 'Mimi Assefa', 'Dawit Girma', 'Ruth Worku', 'Yonas Haile', 'Hanna Solomon', 'Michael Tadesse', 'Liya Desta', 'Daniel Kebede', 'Sara Mengistu', 'Nathaniel Alemu', 'Bethlehem Kassa', 'Eyob Fikre', 'Martha Yohannes', 'Robel Tamiru', 'Selamawit Zewde', 'Caleb Getachew', 'Rahel Abebe']
+  const titles = ['Community Builder', 'Creative Director', 'Business Consultant', 'Social Entrepreneur', 'Technology Founder', 'Operations Leader', 'Architect and Designer', 'Financial Advisor', 'Marketing Strategist', 'Education Advocate']
+  const cities = ['Addis Ababa', 'Hawassa', 'Bahir Dar', 'Adama', 'Mekelle']
+  const topics = ['Leadership', 'Faith and work', 'Creativity', 'Business growth', 'Community impact']
+  const articleTitles = ['Leading with Purpose in a Changing Market', 'The Small Habits Behind Sustainable Growth', 'Making Room for Better Collaboration', 'Why Community Is a Business Advantage', 'Building Teams That Can Flourish', 'A Practical Guide to Ethical Growth', 'From Vision to Faithful Action', 'The Courage to Start Again', 'Designing Work Around People', 'Lessons from a Local Founder', 'Stewardship in Everyday Decisions', 'How Mentorship Multiplies Impact', 'Creating a Culture of Excellence', 'What Healthy Leadership Looks Like', 'Turning Ideas into Useful Service', 'The Long View of Kingdom Work', 'Growing Without Losing Your Values', 'A Better Way to Measure Success', 'Learning from the People We Serve', 'Purposeful Work in Practice']
+  const blogTitles = ['Notes from a New Season', 'A Morning with Local Makers', 'What I Learned from Our First Workshop', 'Stories That Keep Us Going', 'Reflections from the Community Table', 'The People Behind the Progress', 'Finding Joy in Faithful Work', 'A Founder’s Guide to Rest', 'Small Beginnings, Lasting Roots', 'When Collaboration Changes Everything', 'A Walk Through Our Neighborhood', 'The Beauty of Shared Wisdom', 'Making Time for the Important Work', 'A Letter to the Next Generation', 'What Hospitality Has Taught Me', 'The Work Behind the Work', 'Celebrating Quiet Milestones', 'A More Generous Definition of Success', 'Lessons from Listening Well', 'Looking Ahead with Gratitude']
+  const eventTitles = ['Purpose and Practice Breakfast', 'Women in Enterprise Circle', 'Creative Business Workshop', 'Founders Prayer Room', 'Community Leadership Forum', 'Local Makers Market', 'Faith at Work Roundtable', 'Young Professionals Connect', 'Ethical Growth Masterclass', 'Stories of Impact Night', 'Build and Serve Summit', 'Mentor Match Evening', 'Design for Good Workshop', 'Regional Business Gathering', 'Stewardship and Strategy', 'Leaders Retreat Day', 'Community Service Saturday', 'The Next Chapter Panel', 'Entrepreneurship and Calling', 'Year-End Celebration']
+  const images = ['1541888946425-d81bb19240f5', '1556761175-b413da4baf72', '1500534623283-312aade485b7', '1515169067868-5387ec356754', '1475721027785-f74eccf877e2', '1487412720507-e7ab37603c6f', '1529139574466-a303027c1d8b', '1517457373958-b7bdd4587205']
+
+  return names.map((name, index) => {
+    const email = `public-member-${index + 1}@kbn.demo`
+    const avatar = `https://i.pravatar.cc/96?img=${index + 10}`
+    const image = `https://images.unsplash.com/photo-${images[index % images.length]}?w=900&h=520&fit=crop&auto=format`
+    const topic = topics[index % topics.length]
+    const city = cities[index % cities.length]
+    const profile: UserProfileData = {
+      fullName: name, phone: `+251 91${String(1000000 + index * 13741).slice(0, 7)}`, professionalTitle: titles[index % titles.length], profilePhoto: avatar,
+      shortBio: `${name} helps people and purposeful organizations turn good ideas into practical community impact.`, professionalExperience: `${5 + (index % 11)} years serving in business, leadership, and community development.`, education: 'Graduate of a local university and lifelong learner.', achievements: ['KBN community contributor', 'Mentor to emerging leaders'], city, country: 'Ethiopia', website: `${name.toLowerCase().replace(/[^a-z]+/g, '')}.et`, socialMedia: `@${name.toLowerCase().replace(/[^a-z]+/g, '')}`, digitalSlug: name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+    }
+    const article = { id: `public-article-${index + 1}`, featuredImage: image, title: articleTitles[index], topic, excerpt: `A practical reflection from ${name} on ${topic.toLowerCase()} and meaningful work in the community.`, author: name, publishedDate: `September ${index + 1}, 2025`, status: 'Published' as const, visibility: 'Public' as const }
+    const blog = { id: `public-blog-${index + 1}`, featuredImage: image, title: blogTitles[index], topic, excerpt: `${name} shares a personal story about learning, serving, and growing alongside other members.`, author: name, publishedDate: `August ${index + 1}, 2025`, status: 'Published' as const, visibility: 'Public' as const }
+    const event = { id: `public-event-${index + 1}`, eventImage: image, title: eventTitles[index], description: `Join ${name} and fellow members for an encouraging gathering focused on practical faith, connection, and service.`, eventType: topics[index % topics.length], startDate: `October ${index + 1}, 2025 at ${8 + (index % 5)}:00 AM`, endDate: `October ${index + 1}, 2025 at ${10 + (index % 5)}:00 AM`, location: index % 3 === 0 ? 'Online via Zoom' : `${city} Community Center`, online: index % 3 === 0, eventUrl: `kbn.org/events/${eventTitles[index].toLowerCase().replace(/[^a-z]+/g, '-')}`, status: 'Published' as const }
+    return { profile, businesses: [], articles: [article], blogs: [blog], events: [event] }
+  })
 }
 
 function readStoredDashboardData(email: string): Partial<UserDashboardData> | null {

@@ -202,12 +202,29 @@ function DirectoryPage({ onBack, onSelectCompany, title = 'All Members' }: { onB
 
 function PublicContentPage({ page, onBack, onSelectCompany }: { page: PublicPage; onBack: () => void; onSelectCompany: (company: Company) => void }) {
   const memberData = getPublicUserDashboardData()
+  const [search, setSearch] = useState('')
+  const [category, setCategory] = useState('All')
   const title = page === 'people' ? 'People' : page.charAt(0).toUpperCase() + page.slice(1)
   const description = page === 'people'
     ? 'Meet the people building purposeful businesses and communities through the KBN network.'
     : `Explore ${page} shared by members of the Kingdom Builders Network.`
 
   if (page === 'companies') return <DirectoryPage title="Companies" onBack={onBack} onSelectCompany={onSelectCompany} />
+
+  const people = memberData.map(data => data.profile)
+  const articles = memberData.flatMap(data => page === 'articles' ? data.articles : data.blogs)
+  const events = memberData.flatMap(data => data.events)
+  const categories = page === 'people'
+    ? [...new Set(people.map(person => person.professionalTitle))]
+    : page === 'events'
+      ? [...new Set(events.map(event => event.eventType))]
+      : [...new Set(articles.map(article => article.topic))]
+  const query = search.trim().toLowerCase()
+  const filteredPeople = people.filter(person => (!query || `${person.fullName} ${person.professionalTitle} ${person.shortBio} ${person.city}`.toLowerCase().includes(query)) && (category === 'All' || person.professionalTitle === category))
+  const filteredArticles = articles.filter(article => (!query || `${article.title} ${article.author} ${article.topic} ${article.excerpt}`.toLowerCase().includes(query)) && (category === 'All' || article.topic === category))
+  const filteredEvents = events.filter(event => (!query || `${event.title} ${event.eventType} ${event.location} ${event.description}`.toLowerCase().includes(query)) && (category === 'All' || event.eventType === category))
+  const resultCount = page === 'people' ? filteredPeople.length : page === 'events' ? filteredEvents.length : filteredArticles.length
+  const placeholder = page === 'people' ? 'Search people by name, title, or city...' : page === 'events' ? 'Search events by title, type, or location...' : `Search ${page} by title, topic, or author...`
 
   return (
     <main className="min-h-screen bg-[var(--surface-alt)]">
@@ -221,8 +238,19 @@ function PublicContentPage({ page, onBack, onSelectCompany }: { page: PublicPage
       </div>
 
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-10 md:py-14">
+        <div className="flex flex-col md:flex-row gap-3 mb-8">
+          <div className="relative flex-1">
+            <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            <input value={search} onChange={event => setSearch(event.target.value)} placeholder={placeholder} className="w-full bg-[var(--surface)] border border-[var(--border-default)] rounded-xl py-3 pl-11 pr-4 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20" />
+          </div>
+          <select value={category} onChange={event => setCategory(event.target.value)} className="md:w-64 bg-[var(--surface)] border border-[var(--border-default)] rounded-xl px-4 py-3 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20">
+            <option value="All">All categories</option>
+            {categories.map(item => <option key={item} value={item}>{item}</option>)}
+          </select>
+        </div>
+        <p className="text-sm text-[var(--text-tertiary)] mb-6">Showing {resultCount} of {page === 'people' ? people.length : page === 'events' ? events.length : articles.length} {page}</p>
         {page === 'people' && <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 animate-stagger">
-          {memberData.map(({ profile }) => <div key={profile.digitalSlug} className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6">
+          {filteredPeople.map(profile => <div key={profile.digitalSlug} className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6">
             <div className="flex items-center gap-4 mb-5"><img src={profile.profilePhoto} alt={profile.fullName} className="w-16 h-16 rounded-2xl object-cover" /><div><h2 className="font-serif text-xl text-[var(--text-primary)]">{profile.fullName}</h2><p className="text-sm text-[var(--accent-dark)]">{profile.professionalTitle}</p></div></div>
             <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-5 line-clamp-3">{profile.shortBio}</p>
             <div className="flex items-center justify-between text-xs text-[var(--text-tertiary)]"><span>{profile.city}, {profile.country}</span><span>{profile.digitalSlug}</span></div>
@@ -230,12 +258,13 @@ function PublicContentPage({ page, onBack, onSelectCompany }: { page: PublicPage
         </div>}
 
         {(page === 'articles' || page === 'blogs') && <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-stagger">
-          {memberData.flatMap(data => (page === 'articles' ? data.articles : data.blogs)).map(item => <article key={item.id} className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden"><img src={item.featuredImage} alt={item.title} className="w-full h-44 object-cover" /><div className="p-5"><p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-dark)] mb-2">{item.topic}</p><h2 className="font-serif text-xl text-[var(--text-primary)] mb-3">{item.title}</h2><p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-5 line-clamp-3">{item.excerpt}</p><div className="flex items-center justify-between text-xs text-[var(--text-tertiary)]"><span>{item.author}</span><span>{item.publishedDate}</span></div></div></article>)}
+          {filteredArticles.map(item => <article key={item.id} className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden"><img src={item.featuredImage} alt={item.title} className="w-full h-44 object-cover" /><div className="p-5"><p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-dark)] mb-2">{item.topic}</p><h2 className="font-serif text-xl text-[var(--text-primary)] mb-3">{item.title}</h2><p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-5 line-clamp-3">{item.excerpt}</p><div className="flex items-center justify-between text-xs text-[var(--text-tertiary)]"><span>{item.author}</span><span>{item.publishedDate}</span></div></div></article>)}
         </div>}
 
         {page === 'events' && <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-stagger">
-          {memberData.flatMap(data => data.events).map(event => <article key={event.id} className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden"><img src={event.eventImage} alt={event.title} className="w-full h-44 object-cover" /><div className="p-5"><div className="flex items-center justify-between gap-3 mb-3"><span className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-dark)]">{event.eventType}</span><span className="text-xs text-[var(--text-tertiary)]">{event.online ? 'Online' : 'In person'}</span></div><h2 className="font-serif text-xl text-[var(--text-primary)] mb-3">{event.title}</h2><p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-5 line-clamp-3">{event.description}</p><div className="space-y-1 text-xs text-[var(--text-tertiary)]"><p>{event.startDate}</p><p>{event.location}</p></div></div></article>)}
+          {filteredEvents.map(event => <article key={event.id} className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden"><img src={event.eventImage} alt={event.title} className="w-full h-44 object-cover" /><div className="p-5"><div className="flex items-center justify-between gap-3 mb-3"><span className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-dark)]">{event.eventType}</span><span className="text-xs text-[var(--text-tertiary)]">{event.online ? 'Online' : 'In person'}</span></div><h2 className="font-serif text-xl text-[var(--text-primary)] mb-3">{event.title}</h2><p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-5 line-clamp-3">{event.description}</p><div className="space-y-1 text-xs text-[var(--text-tertiary)]"><p>{event.startDate}</p><p>{event.location}</p></div></div></article>)}
         </div>}
+        {resultCount === 0 && <div className="text-center py-20 text-[var(--text-tertiary)]">No matching {page} found.</div>}
       </div>
     </main>
   )
