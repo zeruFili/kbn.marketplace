@@ -30,6 +30,12 @@ export default function UserDashboard({ onBack }: { onBack: () => void }) {
   const [selectedContent, setSelectedContent] = useState<SelectedContent>(null)
   const [addingContent, setAddingContent] = useState<UserContentType | null>(null)
 
+  function navigateToPage(page: UserPage) {
+    setActivePage(page)
+    setSelectedContent(null)
+    setAddingContent(null)
+  }
+
   if (!user || user.role !== 'user') {
     return <div className="min-h-screen bg-[var(--surface-alt)] flex items-center justify-center text-[var(--text-tertiary)]">Access denied.</div>
   }
@@ -51,7 +57,7 @@ export default function UserDashboard({ onBack }: { onBack: () => void }) {
         </div>
         <nav className="flex-1 p-4 space-y-1">
           {USER_NAV_ITEMS.map(item => (
-            <button key={item.id} onClick={() => setActivePage(item.id)}
+            <button key={item.id} onClick={() => navigateToPage(item.id)}
               className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all text-left ${activePage === item.id ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[#94A3B8] hover:bg-white/5 hover:text-white'}`}>
               <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={item.icon} /></svg>
               <span>{item.label}</span>
@@ -90,7 +96,7 @@ export default function UserDashboard({ onBack }: { onBack: () => void }) {
           </div>
           <nav className="md:hidden max-w-5xl mx-auto mt-5 flex gap-2 overflow-x-auto hide-scrollbar">
             {USER_NAV_ITEMS.map(item => (
-              <button key={item.id} onClick={() => setActivePage(item.id)} className={`flex-shrink-0 text-sm font-medium px-3 py-2 rounded-lg ${activePage === item.id ? 'bg-[var(--accent)] text-[var(--brand-dark)]' : 'bg-white/10 text-white/75'}`}>
+              <button key={item.id} onClick={() => navigateToPage(item.id)} className={`flex-shrink-0 text-sm font-medium px-3 py-2 rounded-lg ${activePage === item.id ? 'bg-[var(--accent)] text-[var(--brand-dark)]' : 'bg-white/10 text-white/75'}`}>
                 {item.label}
               </button>
             ))}
