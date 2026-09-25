@@ -29,11 +29,13 @@ export default function UserDashboard({ onBack }: { onBack: () => void }) {
   const [tab, setTab] = useState<Tab>('companies')
   const [selectedContent, setSelectedContent] = useState<SelectedContent>(null)
   const [addingContent, setAddingContent] = useState<UserContentType | null>(null)
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   function navigateToPage(page: UserPage) {
     setActivePage(page)
     setSelectedContent(null)
     setAddingContent(null)
+    setMobileOpen(false)
   }
 
   if (!user || user.role !== 'user') {
@@ -84,24 +86,47 @@ export default function UserDashboard({ onBack }: { onBack: () => void }) {
               <h1 className="font-serif text-2xl sm:text-3xl">{pageTitle}</h1>
             </div>
             <div className="md:hidden flex items-center gap-2">
-              <button onClick={() => { void logout() }} className="flex items-center gap-2 bg-white/10 text-white text-sm font-medium px-3 py-2 rounded-xl border border-white/15">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4m-5-4l5-5-5-5m5 5H3" /></svg>
-                Log out
-              </button>
-              <button onClick={onBack} className="flex items-center gap-2 bg-white/10 text-white text-sm font-medium px-3 py-2 rounded-xl border border-white/15">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-                Back
+              <button onClick={() => setMobileOpen(true)} aria-label="Open dashboard navigation" className="flex items-center gap-2 bg-white/10 text-white text-sm font-medium px-3 py-2 rounded-xl border border-white/15">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                Menu
               </button>
             </div>
           </div>
-          <nav className="md:hidden max-w-5xl mx-auto mt-5 flex gap-2 overflow-x-auto hide-scrollbar">
-            {USER_NAV_ITEMS.map(item => (
-              <button key={item.id} onClick={() => navigateToPage(item.id)} className={`flex-shrink-0 text-sm font-medium px-3 py-2 rounded-lg ${activePage === item.id ? 'bg-[var(--accent)] text-[var(--brand-dark)]' : 'bg-white/10 text-white/75'}`}>
-                {item.label}
-              </button>
-            ))}
-          </nav>
         </header>
+
+        {mobileOpen && <div className="md:hidden fixed inset-0 z-50">
+          <button aria-label="Close dashboard navigation" onClick={() => setMobileOpen(false)} className="absolute inset-0 bg-black/50" />
+          <aside className="absolute left-0 top-0 bottom-0 w-[min(20rem,88vw)] bg-[var(--brand-dark)] text-white flex flex-col shadow-2xl animate-slide-down">
+            <div className="p-5 border-b border-white/10 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <img src={user.avatar} alt="" className="w-10 h-10 rounded-xl object-cover ring-2 ring-white/20" />
+                <div className="min-w-0">
+                  <p className="font-semibold truncate">{user.name}</p>
+                  <p className="text-xs text-[#94A3B8] truncate">Member account</p>
+                </div>
+              </div>
+              <button onClick={() => setMobileOpen(false)} aria-label="Close dashboard navigation" className="w-9 h-9 rounded-lg text-[#94A3B8] hover:bg-white/10 hover:text-white flex items-center justify-center">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <nav className="flex-1 p-4 space-y-1">
+              {USER_NAV_ITEMS.map(item => <button key={item.id} onClick={() => navigateToPage(item.id)} className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-left transition-all ${activePage === item.id ? 'bg-[var(--accent)]/20 text-[var(--accent)]' : 'text-[#94A3B8] hover:bg-white/5 hover:text-white'}`}>
+                <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={item.icon} /></svg>
+                {item.label}
+              </button>)}
+            </nav>
+            <div className="p-4 border-t border-white/10 space-y-1">
+              <button onClick={() => { void logout() }} className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-[#94A3B8] hover:bg-white/5 hover:text-white transition-all text-left">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4m-5-4l5-5-5-5m5 5H3" /></svg>
+                Log out
+              </button>
+              <button onClick={onBack} className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-[#94A3B8] hover:bg-white/5 hover:text-white transition-all text-left">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                Back to Site
+              </button>
+            </div>
+          </aside>
+        </div>}
 
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-8">
           {addingContent ? (
