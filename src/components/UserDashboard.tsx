@@ -166,7 +166,17 @@ function ProfileEditField({ label, value, onChange, multiline = false }: { label
 }
 
 function ProfileDetail({ label, value }: { label: string; value: string }) {
-  return <div className="bg-[var(--surface-alt)] rounded-xl border border-[var(--border-light)] p-4"><p className="text-xs text-[var(--text-tertiary)] mb-1">{label}</p><p className="text-sm font-medium text-[var(--text-primary)] break-words">{value}</p></div>
+  const iconPaths: Record<string, string> = {
+    'Phone number': 'M22 16.92v3a2 2 0 01-2.18 2 19.8 19.8 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.8 19.8 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.12.9.33 1.78.62 2.63a2 2 0 01-.45 2.11L8 9.73a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0122 16.92z',
+    'Professional experience': 'M20 7h-4V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2H4a2 2 0 00-2 2v9a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2zm-10-2h4v2h-4V5z',
+    Education: 'M22 10l-10-5-10 5 10 5 10-5zm-16 3v4l6 3 6-3v-4',
+    City: 'M3 21h18M5 21V7a2 2 0 017-2h0a2 2 0 012 2v14M9 9h2m-2 4h2m4-4h2m-2 4h2',
+    Country: 'M12 21a9 9 0 100-18 9 9 0 000 18zm0 0c2.21-2.49 3.5-5.53 3.5-9S14.21 5.49 12 3m0 18c-2.21-2.49-3.5-5.53-3.5-9S9.79 5.49 12 3m-9 9h18',
+    Website: 'M12 21a9 9 0 100-18 9 9 0 000 18zm0 0c2.21-2.49 3.5-5.53 3.5-9S14.21 5.49 12 3m0 18c-2.21-2.49-3.5-5.53-3.5-9S9.79 5.49 12 3m-9 9h18',
+    'Social media': 'M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z',
+    'Digital slug': 'M4 7a5 5 0 015-5h6a5 5 0 010 10h-2m7 5a5 5 0 01-5 5H9a5 5 0 010-10h2',
+  }
+  return <div className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-5 shadow-[0_8px_24px_rgba(15,29,58,0.05)]"><div className="flex items-start gap-3"><span className="grid place-items-center w-10 h-10 rounded-xl bg-[var(--accent-light)] text-[var(--accent-dark)] flex-shrink-0"><svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d={iconPaths[label] ?? 'M12 2a10 10 0 100 20 10 10 0 000-20z'} /></svg></span><div className="min-w-0"><p className="text-[10px] uppercase tracking-[0.14em] text-[var(--text-tertiary)] mb-1">{label}</p><p className="text-sm font-semibold text-[var(--text-primary)] break-words leading-relaxed">{value || 'Not provided'}</p></div></div></div>
 }
 
 function UserContentDetail({ data, email, selected, onBack }: { data: UserDashboardData; email: string; selected: { type: UserContentType; id: string }; onBack: () => void }) {
