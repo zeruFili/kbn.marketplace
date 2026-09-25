@@ -158,6 +158,14 @@ export function updateUserContent<T extends UserContentItem>(email: string, type
   localStorage.setItem(DASHBOARD_DATA_KEY, JSON.stringify(stored))
 }
 
+export function deleteUserContent(email: string, type: UserContentType, id: string) {
+  const current = getUserDashboardData(email, { email, name: '', role: 'user', avatar: '' })
+  const nextItems = current[type].filter(item => item.id !== id)
+  const stored = JSON.parse(localStorage.getItem(DASHBOARD_DATA_KEY) ?? '{}') as Record<string, Partial<UserDashboardData>>
+  stored[email.toLowerCase()] = { ...(stored[email.toLowerCase()] ?? {}), [type]: nextItems }
+  localStorage.setItem(DASHBOARD_DATA_KEY, JSON.stringify(stored))
+}
+
 export interface UserReview {
   id: string
   companyId: string
