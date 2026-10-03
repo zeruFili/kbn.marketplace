@@ -4,12 +4,13 @@ import { getUserReviews, updateUserReview, deleteUserReview, submitApplication, 
 import { getListedCompanies, adminSubscribe, type AdminCompany } from '../data/adminStore'
 import { type Category } from '../data/companies'
 
-type UserPage = 'profile' | 'business'
+type UserPage = 'profile' | 'business' | 'payment'
 type SelectedContent = { type: UserContentType; id: string } | null
 
 const USER_NAV_ITEMS: { id: UserPage; label: string; icon: string }[] = [
   { id: 'profile', label: 'Profile', icon: 'M20 21a8 8 0 00-16 0m12-11a4 4 0 11-8 0 4 4 0 018 0z' },
   { id: 'business', label: 'Business', icon: 'M3 21h18M5 21V7a2 2 0 012-2h10a2 2 0 012 2v14M9 9h2m-2 4h2m4-4h2m-2 4h2M9 21v-4h6v4' },
+  { id: 'payment', label: 'Payment', icon: 'M2 7h20M5 11h2m-2 4h5m10-8v10a2 2 0 01-2 2H4a2 2 0 01-2-2V7a2 2 0 012-2h14a3 3 0 013 3z' },
 ]
 
 export default function UserDashboard({ onBack }: { onBack: () => void }) {
@@ -125,12 +126,78 @@ export default function UserDashboard({ onBack }: { onBack: () => void }) {
             <>
               {activePage === 'profile' && <UserProfile data={dashboardData} email={user.email} />}
               {activePage === 'business' && <BusinessPage data={dashboardData} onOpen={(id) => setSelectedContent({ type: 'businesses', id })} onAdd={() => setAddingContent('businesses')} />}
+              {activePage === 'payment' && <PaymentPage />}
             </>
           )}
         </div>
       </main>
     </div>
   )
+}
+
+function PaymentPage() {
+  const today = new Date()
+  const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+  const nextPaymentDate = new Date(today.getFullYear(), today.getMonth() + 1, 1)
+  const daysUntilPayment = Math.max(0, Math.ceil((nextPaymentDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)))
+  const paidMonths = [1, 2, 3].map(offset => new Date(today.getFullYear(), today.getMonth() - offset, 1))
+  const formatMonth = (date: Date) => date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  const formatDate = (date: Date) => date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+
+  return (
+    <div className="animate-fade-in space-y-6">
+      <div className="bg-[var(--brand)] rounded-2xl p-6 md:p-8 text-white overflow-hidden relative">
+        <div className="relative z-10 max-w-2xl">
+          <p className="text-sm text-white/65 mb-2">Next payment due</p>
+          <div className="flex items-end gap-3 mb-3">
+            <span className="font-serif text-5xl md:text-6xl leading-none">{daysUntilPayment}</span>
+            <span className="text-sm text-white/70 pb-1.5">days remaining</span>
+          </div>
+          <p className="text-sm text-white/75">Your next membership payment is due on {formatDate(nextPaymentDate)}.</p>
+        </div>
+        <div className="absolute right-8 top-1/2 -translate-y-1/2 w-28 h-28 rounded-full border border-white/10 flex items-center justify-center">
+          <svg className="w-12 h-12 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.4} d="M12 6v6l4 2m5-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        </div>
+      </div>
+
+      <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6 md:p-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+          <div>
+            <h2 className="font-serif text-2xl text-[var(--text-primary)]">Current billing period</h2>
+            <p className="text-sm text-[var(--text-tertiary)] mt-1">Your active membership billing cycle.</p>
+          </div>
+          <span className="inline-flex items-center gap-2 text-xs font-semibold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Active</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <PaymentDetail label="Billing period" value={formatMonth(currentMonth)} />
+          <PaymentDetail label="Next payment" value={formatDate(nextPaymentDate)} />
+          <PaymentDetail label="Payment status" value="Up to date" />
+        </div>
+      </section>
+
+      <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6 md:p-8">
+        <div className="mb-6">
+          <h2 className="font-serif text-2xl text-[var(--text-primary)]">Paid months</h2>
+          <p className="text-sm text-[var(--text-tertiary)] mt-1">Your recent membership payment history.</p>
+        </div>
+        <div className="space-y-3">
+          {paidMonths.map(month => (
+            <div key={month.toISOString()} className="flex items-center justify-between gap-4 p-4 bg-[var(--surface-alt)] rounded-xl border border-[var(--border-light)]">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="grid place-items-center w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex-shrink-0"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg></span>
+                <div className="min-w-0"><p className="text-sm font-semibold text-[var(--text-primary)] truncate">{formatMonth(month)}</p><p className="text-xs text-[var(--text-tertiary)] mt-0.5">Membership payment</p></div>
+              </div>
+              <span className="text-xs font-semibold text-emerald-700 whitespace-nowrap">Paid</span>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function PaymentDetail({ label, value }: { label: string; value: string }) {
+  return <div className="bg-[var(--surface-alt)] rounded-xl border border-[var(--border-light)] p-4"><p className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)] mb-1">{label}</p><p className="text-sm font-semibold text-[var(--text-primary)]">{value}</p></div>
 }
 
 function UserProfile({ data, email }: { data: UserDashboardData; email: string }) {
