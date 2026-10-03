@@ -4,8 +4,6 @@ import { getUserReviews, updateUserReview, deleteUserReview, submitApplication, 
 import { getListedCompanies, adminSubscribe, type AdminCompany } from '../data/adminStore'
 import { type Category } from '../data/companies'
 
-type Tab = 'companies' | 'reviews' | 'apply'
-
 type UserPage = 'profile' | 'business'
 type SelectedContent = { type: UserContentType; id: string } | null
 
@@ -14,16 +12,9 @@ const USER_NAV_ITEMS: { id: UserPage; label: string; icon: string }[] = [
   { id: 'business', label: 'Business', icon: 'M3 21h18M5 21V7a2 2 0 012-2h10a2 2 0 012 2v14M9 9h2m-2 4h2m4-4h2m-2 4h2M9 21v-4h6v4' },
 ]
 
-const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'companies', label: 'My Companies', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
-  { id: 'reviews', label: 'My Reviews', icon: 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z' },
-  { id: 'apply', label: 'Register Company', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
-]
-
 export default function UserDashboard({ onBack }: { onBack: () => void }) {
   const { user, logout } = useAuth()
   const [activePage, setActivePage] = useState<UserPage>('profile')
-  const [tab, setTab] = useState<Tab>('companies')
   const [selectedContent, setSelectedContent] = useState<SelectedContent>(null)
   const [addingContent, setAddingContent] = useState<UserContentType | null>(null)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -133,7 +124,7 @@ export default function UserDashboard({ onBack }: { onBack: () => void }) {
           ) : (
             <>
               {activePage === 'profile' && <UserProfile data={dashboardData} email={user.email} />}
-              {activePage === 'business' && <BusinessPage data={dashboardData} email={user.email} tab={tab} setTab={setTab} user={user} onOpen={(id) => setSelectedContent({ type: 'businesses', id })} onAdd={() => setAddingContent('businesses')} />}
+              {activePage === 'business' && <BusinessPage data={dashboardData} onOpen={(id) => setSelectedContent({ type: 'businesses', id })} onAdd={() => setAddingContent('businesses')} />}
             </>
           )}
         </div>
@@ -251,7 +242,7 @@ function EventDetail({ item, email, onBack }: { item: UserEventData; email: stri
 }
 
 function AddContentForm({ type, email, user, onCancel, onCreated }: { type: UserContentType; email: string; user: NonNullable<ReturnType<typeof useAuth>['user']>; onCancel: () => void; onCreated: () => void }) {
-  if (type === 'businesses') return <BusinessCreateForm email={email} onCancel={onCancel} onCreated={onCreated} />
+  if (type === 'businesses') return <ApplyCompany user={user} />
   if (type === 'events') return <EventCreateForm email={email} onCancel={onCancel} onCreated={onCreated} />
   return <ArticleCreateForm email={email} author={user.name} type={type} onCancel={onCancel} onCreated={onCreated} />
 }
@@ -281,7 +272,7 @@ function EventCreateForm({ email, onCancel, onCreated }: { email: string; onCanc
   return <CreateShell title="Event" onCancel={onCancel} onSubmit={save}><EditField label="Event title" value={form.title} onChange={value => update('title', value)} /><EditField label="Event type" value={form.eventType} onChange={value => update('eventType', value)} /><EditField label="Event image URL" value={form.eventImage} onChange={value => update('eventImage', value)} /><EditField label="Start date and time" value={form.startDate} onChange={value => update('startDate', value)} /><EditField label="End date and time" value={form.endDate} onChange={value => update('endDate', value)} /><EditField label="Location" value={form.location} onChange={value => update('location', value)} /><EditField label="Event URL" value={form.eventUrl} onChange={value => update('eventUrl', value)} /><EditField label="Status" value={form.status} onChange={value => update('status', value as UserEventData['status'])} /><label className="flex items-center gap-3 text-sm text-[var(--text-secondary)] sm:col-span-2"><input type="checkbox" checked={form.online} onChange={event => update('online', event.target.checked)} className="w-4 h-4 accent-[var(--brand)]" /> This is an online event</label><div className="sm:col-span-2"><EditField label="Description" value={form.description} onChange={value => update('description', value)} multiline /></div></CreateShell>
 }
 
-function BusinessPage({ data, email, tab, setTab, user, onOpen, onAdd }: { data: UserDashboardData; email: string; tab: Tab; setTab: (tab: Tab) => void; user: NonNullable<ReturnType<typeof useAuth>['user']>; onOpen: (id: string) => void; onAdd: () => void }) {
+function BusinessPage({ data, onOpen, onAdd }: { data: UserDashboardData; onOpen: (id: string) => void; onAdd: () => void }) {
   return (
     <div className="animate-fade-in">
       <PageIntro title="Business" description="Businesses and companies owned by your member profile." count={data.businesses.length} onAdd={onAdd} />
@@ -289,17 +280,6 @@ function BusinessPage({ data, email, tab, setTab, user, onOpen, onAdd }: { data:
         {data.businesses.map(business => <BusinessCard key={business.id} business={business} onOpen={onOpen} />)}
       </div>
       {data.businesses.length === 0 && <EmptyState title="No businesses yet" description="Businesses you own or submit will appear here." />}
-      <div className="flex items-center gap-1 bg-[var(--surface)] border border-[var(--border-light)] rounded-xl p-1 mb-8 overflow-x-auto hide-scrollbar w-full">
-        {TABS.map(item => (
-          <button key={item.id} onClick={() => setTab(item.id)} className={`flex items-center gap-2 text-sm font-medium px-3 sm:px-4 py-2 rounded-lg transition-all whitespace-nowrap ${tab === item.id ? 'bg-[var(--brand)] text-white shadow-sm' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}>
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={item.icon} /></svg>
-            {item.label}
-          </button>
-        ))}
-      </div>
-      {tab === 'companies' && <MyCompanies email={email} />}
-      {tab === 'reviews' && <MyReviews email={email} name={user.name} avatar={user.avatar} />}
-      {tab === 'apply' && <ApplyCompany user={user} />}
     </div>
   )
 }

@@ -107,7 +107,6 @@ function RecentActivity() {
               <img src={c.logo} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium text-[var(--text-primary)] truncate">{c.name}</div>
-                <div className="text-xs text-[var(--text-tertiary)]">Rating: {c.rating.toFixed(1)} · {c.reviewCount} reviews</div>
               </div>
               <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${c.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>{c.status}</span>
             </div>

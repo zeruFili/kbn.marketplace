@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getListedCompanies, rateCompany, deactivateCompany, reactivateCompany, updateCompanyCategories, adminSubscribe, type AdminCompany } from '../../data/adminStore'
+import { getListedCompanies, deactivateCompany, reactivateCompany, updateCompanyCategories, adminSubscribe, type AdminCompany } from '../../data/adminStore'
 import { getAdminCategories } from '../../data/adminStore'
 
 export default function AdminCompanies() {
@@ -29,7 +29,6 @@ export default function AdminCompanies() {
         <CompanyDetail
           company={selected}
           onBack={() => setSelected(null)}
-          onRate={(r) => { rateCompany(selected.id, r); setSelected(prev => prev ? { ...prev, rating: Math.round(((prev.rating * prev.reviewCount + r) / (prev.reviewCount + 1)) * 10) / 10, reviewCount: prev.reviewCount + 1 } : null) }}
           onDeactivate={() => { deactivateCompany(selected.id); setSelected(null) }}
           onReactivate={() => { reactivateCompany(selected.id); setSelected(null) }}
           onUpdateCategories={(cats) => { updateCompanyCategories(selected.id, cats); setSelected(null) }}
@@ -91,8 +90,7 @@ export default function AdminCompanies() {
                 <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${c.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>{c.status}</span>
               </div>
               <p className="text-xs text-[var(--text-secondary)] line-clamp-2 mb-3">{c.description}</p>
-              <div className="flex items-center justify-between text-[10px] text-[var(--text-tertiary)]">
-                <span>{'★'.repeat(Math.round(c.rating))} {c.rating.toFixed(1)} ({c.reviewCount})</span>
+              <div className="flex items-center justify-end text-[10px] text-[var(--text-tertiary)]">
                 <span>{new Date(c.listedAt).toLocaleDateString()}</span>
               </div>
             </button>
@@ -103,16 +101,13 @@ export default function AdminCompanies() {
   )
 }
 
-function CompanyDetail({ company, onBack, onRate, onDeactivate, onReactivate, onUpdateCategories }: {
+function CompanyDetail({ company, onBack, onDeactivate, onReactivate, onUpdateCategories }: {
   company: AdminCompany
   onBack: () => void
-  onRate: (r: number) => void
   onDeactivate: () => void
   onReactivate: () => void
   onUpdateCategories: (cats: string[]) => void
 }) {
-  const [rating, setRating] = useState(0)
-  const [rated, setRated] = useState(false)
   const [showCategoryEditor, setShowCategoryEditor] = useState(false)
   const [editCats, setEditCats] = useState<string[]>([...company.category])
   const allCategories = getAdminCategories().filter(c => c.status === 'active').map(c => c.name)
@@ -126,12 +121,6 @@ function CompanyDetail({ company, onBack, onRate, onDeactivate, onReactivate, on
     const months = Math.floor(days / 30)
     return months === 1 ? '1 month' : `${months} months`
   })() : null
-
-  function handleRate() {
-    if (rating === 0) return
-    onRate(rating)
-    setRated(true)
-  }
 
   function toggleCategory(cat: string) {
     setEditCats(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat])
@@ -189,25 +178,6 @@ function CompanyDetail({ company, onBack, onRate, onDeactivate, onReactivate, on
         </div>
 
         <div className="md:col-span-2 space-y-5">
-          <div className="bg-[var(--surface-alt)] rounded-2xl border border-[var(--border-light)] p-5">
-            <h3 className="font-semibold text-[var(--text-primary)] mb-3">Rating</h3>
-            <div className="flex items-center gap-2 mb-3">
-              {[1, 2, 3, 4, 5].map(s => (
-                <button key={s} onClick={() => !rated && setRating(s)}
-                  className={`text-2xl transition-all ${!rated ? 'cursor-pointer hover:scale-110' : 'cursor-default'} ${s <= (rated ? company.rating : rating) ? 'text-[var(--accent)]' : 'text-[var(--border-default)]'}`}>
-                  ★
-                </button>
-              ))}
-              <span className="text-sm text-[var(--text-tertiary)] ml-2">{company.rating.toFixed(1)} ({company.reviewCount})</span>
-            </div>
-            {!rated && rating > 0 && (
-              <button onClick={handleRate} className="w-full bg-[var(--accent)] text-[var(--brand-dark)] text-sm font-bold py-2 rounded-xl hover:bg-[var(--accent-dark)] transition-colors">
-                Submit Rating
-              </button>
-            )}
-            {rated && <p className="text-xs text-emerald-600 font-medium">Rating submitted!</p>}
-          </div>
-
           <div className="bg-[var(--surface-alt)] rounded-2xl border border-[var(--border-light)] p-5">
             <h3 className="font-semibold text-[var(--text-primary)] mb-3">Contact</h3>
             <div className="space-y-2 text-sm text-[var(--text-secondary)]">

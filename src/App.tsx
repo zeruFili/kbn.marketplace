@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import knbLogo from './assets/kbn logo.jpg'
-import CompanyProfile, { CompanyCard, StarRating } from './components/CompanyProfile'
+import CompanyProfile, { CompanyCard } from './components/CompanyProfile'
 import LoginPage from './components/LoginPage'
 import SignUpPage from './components/SignUpPage'
 import CompanyDashboard from './components/CompanyDashboard'
