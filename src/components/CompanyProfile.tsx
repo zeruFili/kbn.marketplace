@@ -1,43 +1,5 @@
-import { useState, useEffect, useMemo } from 'react'
-import { type Company, type Category, type Review } from '../data/companies'
-
-interface ExtendedReview extends Review {
-  helpful: number
-  verified: boolean
-  title: string
-}
-
-function StarRating({ rating, size = 'sm', interactive = false, onRate }: { rating: number; size?: 'sm' | 'md' | 'lg'; interactive?: boolean; onRate?: (r: number) => void }) {
-  const sz = size === 'lg' ? 'text-xl' : size === 'md' ? 'text-sm' : 'text-xs'
-  const [hovered, setHovered] = useState(0)
-  return (
-    <span className={`inline-flex items-center gap-0.5 ${sz}`}>
-      {[1, 2, 3, 4, 5].map((star) => {
-        const filled = (interactive ? hovered || rating : rating) >= star
-        const partial = !filled && rating > star - 1
-        return (
-          <span
-            key={star}
-            className={`relative inline-block ${interactive ? 'cursor-pointer' : ''}`}
-            onMouseEnter={() => interactive && setHovered(star)}
-            onMouseLeave={() => interactive && setHovered(0)}
-            onClick={() => interactive && onRate?.(star)}
-          >
-            <span className="text-[#CBD5E1]">★</span>
-            {(filled || partial) && (
-              <span
-                className="absolute inset-0 text-[#D4A853] overflow-hidden"
-                style={{ width: filled ? '100%' : `${(rating - Math.floor(rating)) * 100}%` }}
-              >
-                ★
-              </span>
-            )}
-          </span>
-        )
-      })}
-    </span>
-  )
-}
+import { useState, useEffect } from 'react'
+import { type Company, type Category } from '../data/companies'
 
 function CategoryIcon({ category }: { category: Category }) {
   const icons: Record<Category, string> = {
@@ -140,61 +102,13 @@ function CompanyCard({ company, onClick }: { company: Company; onClick: () => vo
           {company.name}
         </h3>
         <p className="text-xs text-[var(--text-tertiary)] leading-relaxed mb-4 line-clamp-2">{company.description}</p>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <StarRating rating={company.rating} size="sm" />
-            <span className="font-bold text-[var(--text-primary)] text-[13px]">{company.rating.toFixed(1)}</span>
-            <span className="text-[11px] text-[var(--text-tertiary)]">({company.reviewCount})</span>
-          </div>
+        <div className="flex items-center justify-end">
           <span className="text-xs font-medium text-[var(--brand)] opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-1 group-hover:translate-x-0">
             View →
           </span>
         </div>
       </div>
     </article>
-  )
-}
-
-function ReviewCard({ review, showActions = false }: { review: ExtendedReview; showActions?: boolean }) {
-  const [helpful, setHelpful] = useState(review.helpful || 0)
-  const [liked, setLiked] = useState(false)
-  return (
-    <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6 hover:border-[var(--border-default)] transition-colors">
-      <div className="flex items-start gap-4">
-        <img src={review.avatar} alt={review.reviewer} className="w-11 h-11 rounded-xl object-cover flex-shrink-0 bg-[var(--border-light)] ring-2 ring-[var(--surface)]" />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
-            <div>
-              <span className="font-semibold text-[var(--text-primary)] text-sm">{review.reviewer}</span>
-              {review.verified && (
-                <span className="ml-2 text-[10px] font-medium text-[var(--success)] bg-green-50 dark:bg-green-900/20 px-1.5 py-0.5 rounded-full">Verified</span>
-              )}
-            </div>
-            <span className="text-xs text-[var(--text-tertiary)]">{review.date}</span>
-          </div>
-          <div className="mb-2">
-            <StarRating rating={review.rating} size="md" />
-          </div>
-          {review.title && <h4 className="font-semibold text-[var(--text-primary)] text-sm mb-1.5">{review.title}</h4>}
-          <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{review.text}</p>
-          {showActions && (
-            <div className="flex items-center gap-4 mt-4 pt-3 border-t border-[var(--border-light)]">
-              <button
-                onClick={() => { if (!liked) { setHelpful((h: number) => h + 1); setLiked(true) } else { setHelpful((h: number) => h - 1); setLiked(false) } }}
-                className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${liked ? 'text-[var(--brand)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}`}
-              >
-                <svg className="w-4 h-4" fill={liked ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" /></svg>
-                Helpful ({helpful})
-              </button>
-              <button className="flex items-center gap-1.5 text-xs font-medium text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
-                Reply
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
   )
 }
 
@@ -224,29 +138,7 @@ function FAQItem({ q, a }: { q: string; a: string }) {
 }
 
 export default function CompanyProfile({ company, onBack }: { company: Company; onBack: () => void }) {
-  const [reviewSort, setReviewSort] = useState<'newest' | 'highest' | 'lowest'>('newest')
-  const [reviewFilter, setReviewFilter] = useState<number | null>(null)
-
   useEffect(() => { window.scrollTo(0, 0) }, [company.id])
-
-  const sortedReviews = useMemo(() => {
-    let r: ExtendedReview[] = company.reviews.map(rv => ({ ...rv, helpful: Math.floor(Math.random() * 25), verified: Math.random() > 0.4, title: ['Exceptional experience', 'Great quality and service', 'Highly recommended', 'Good but room for improvement', 'Decent overall'][Math.floor(Math.random() * 5)] }))
-    if (reviewFilter) r = r.filter(rv => Math.floor(rv.rating) === reviewFilter)
-    if (reviewSort === 'highest') r.sort((a, b) => b.rating - a.rating)
-    else if (reviewSort === 'lowest') r.sort((a, b) => a.rating - b.rating)
-    return r
-  }, [company.reviews, reviewSort, reviewFilter])
-
-  const ratingCounts = useMemo(() => {
-    const counts: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
-    company.reviews.forEach((r: Review) => {
-      const star = Math.floor(r.rating)
-      if (star >= 1 && star <= 5) counts[star]++
-    })
-    return counts
-  }, [company.reviews])
-
-  const total = Object.values(ratingCounts).reduce((a, b) => a + b, 0)
 
   return (
     <div className="min-h-screen bg-[var(--surface-alt)]">
@@ -282,11 +174,6 @@ export default function CompanyProfile({ company, onBack }: { company: Company; 
               {company.ownerName && (
                 <p className="text-white/70 text-sm mt-1">Owned by <span className="font-medium text-white">{company.ownerName}</span></p>
               )}
-              <div className="flex items-center gap-3 mt-3">
-                <StarRating rating={company.rating} size="lg" />
-                <span className="text-white font-bold text-xl">{company.rating.toFixed(1)}</span>
-                <span className="text-white/60 text-sm">({company.reviewCount.toLocaleString()} reviews)</span>
-              </div>
               {company.missionStatement && (
                 <p className="text-white/50 text-sm italic mt-2 max-w-xl leading-relaxed">"{company.missionStatement}"</p>
               )}
@@ -345,42 +232,6 @@ export default function CompanyProfile({ company, onBack }: { company: Company; 
               </section>
             )}
 
-            <section className="animate-fade-in-up">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                <div>
-                  <h2 className="font-serif text-2xl text-[var(--text-primary)]">Customer Reviews</h2>
-                  <p className="text-sm text-[var(--text-tertiary)] mt-1">{total} reviews from verified customers</p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <select
-                    value={reviewSort}
-                    onChange={e => setReviewSort(e.target.value as typeof reviewSort)}
-                    className="text-xs font-medium text-[var(--text-secondary)] bg-[var(--surface)] border border-[var(--border-default)] rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer"
-                  >
-                    <option value="newest">Newest first</option>
-                    <option value="highest">Highest rated</option>
-                    <option value="lowest">Lowest rated</option>
-                  </select>
-                  <div className="flex items-center gap-1 flex-wrap">
-                    {[5, 4, 3, 2, 1].map(star => (
-                      <button
-                        key={star}
-                        onClick={() => setReviewFilter(reviewFilter === star ? null : star)}
-                        className={`text-xs font-medium px-2.5 py-1.5 rounded-xl border transition-all ${reviewFilter === star ? 'bg-[var(--brand)] text-white border-[var(--brand)]' : 'text-[var(--text-tertiary)] border-[var(--border-default)] hover:border-[var(--brand)]/50'}`}
-                      >
-                        {star}★
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-4">
-                {sortedReviews.map((review) => (
-                  <ReviewCard key={review.id} review={review} showActions />
-                ))}
-              </div>
-            </section>
-
             <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6 md:p-8 animate-fade-in-up">
               <h2 className="font-serif text-2xl text-[var(--text-primary)] mb-5">Frequently Asked Questions</h2>
               <div className="space-y-3">
@@ -417,35 +268,7 @@ export default function CompanyProfile({ company, onBack }: { company: Company; 
                   </div>
                 ))}
               </div>
-              <a
-                href={`mailto:${company.email}`}
-                className="w-full mt-6 bg-[var(--brand)] text-white text-sm font-semibold py-3 rounded-xl hover:bg-[var(--brand-dark)] transition-colors flex items-center justify-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-                Send Message
-              </a>
-            </div>
-
-            <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6 animate-fade-in-up">
-              <h3 className="font-semibold text-[var(--text-primary)] mb-4">Rating Breakdown</h3>
-              <div className="text-center mb-5">
-                <div className="font-serif text-5xl text-[var(--text-primary)]">{company.rating.toFixed(1)}</div>
-                <div className="flex justify-center my-1.5"><StarRating rating={company.rating} size="lg" /></div>
-                <p className="text-xs text-[var(--text-tertiary)]">{company.reviewCount.toLocaleString()} reviews</p>
-              </div>
-              {[5, 4, 3, 2, 1].map(star => {
-                const pct = total > 0 ? Math.round((ratingCounts[star] / total) * 100) : 0
-                return (
-                  <div key={star} className="flex items-center gap-3 mb-2.5">
-                    <span className="text-xs font-medium text-[var(--text-secondary)] w-3">{star}</span>
-                    <span className="text-[#D4A853] text-xs">★</span>
-                    <div className="flex-1 h-2 bg-[var(--surface-alt)] rounded-full overflow-hidden">
-                      <div className="h-full bg-[#D4A853] rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
-                    </div>
-                    <span className="text-xs text-[var(--text-tertiary)] w-8 text-right">{pct}%</span>
-                  </div>
-                )
-              })}
+              
             </div>
 
             <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6 animate-fade-in-up">
@@ -468,4 +291,4 @@ export default function CompanyProfile({ company, onBack }: { company: Company; 
   )
 }
 
-export { CompanyCard, ReviewCard, StarRating, CategoryIcon, getCategoryColor }
+export { CompanyCard, CategoryIcon, getCategoryColor }
