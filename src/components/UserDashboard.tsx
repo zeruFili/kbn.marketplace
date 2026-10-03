@@ -4,7 +4,7 @@ import { getUserReviews, updateUserReview, deleteUserReview, submitApplication, 
 import { getListedCompanies, adminSubscribe, type AdminCompany } from '../data/adminStore'
 import { type Category } from '../data/companies'
 
-type Tab = 'companies' | 'reviews' | 'apply'
+type Tab = 'apply'
 
 type UserPage = 'profile' | 'business'
 type SelectedContent = { type: UserContentType; id: string } | null
@@ -15,15 +15,13 @@ const USER_NAV_ITEMS: { id: UserPage; label: string; icon: string }[] = [
 ]
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'companies', label: 'My Companies', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
-  { id: 'reviews', label: 'My Reviews', icon: 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z' },
   { id: 'apply', label: 'Register Company', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
 ]
 
 export default function UserDashboard({ onBack }: { onBack: () => void }) {
   const { user, logout } = useAuth()
   const [activePage, setActivePage] = useState<UserPage>('profile')
-  const [tab, setTab] = useState<Tab>('companies')
+  const [tab, setTab] = useState<Tab>('apply')
   const [selectedContent, setSelectedContent] = useState<SelectedContent>(null)
   const [addingContent, setAddingContent] = useState<UserContentType | null>(null)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -297,8 +295,6 @@ function BusinessPage({ data, email, tab, setTab, user, onOpen, onAdd }: { data:
           </button>
         ))}
       </div>
-      {tab === 'companies' && <MyCompanies email={email} />}
-      {tab === 'reviews' && <MyReviews email={email} name={user.name} avatar={user.avatar} />}
       {tab === 'apply' && <ApplyCompany user={user} />}
     </div>
   )
