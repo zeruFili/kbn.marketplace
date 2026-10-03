@@ -6,15 +6,12 @@ import { type Category } from '../data/companies'
 
 type Tab = 'companies' | 'reviews' | 'apply'
 
-type UserPage = 'profile' | 'business' | 'articles' | 'blogs' | 'events'
+type UserPage = 'profile' | 'business'
 type SelectedContent = { type: UserContentType; id: string } | null
 
 const USER_NAV_ITEMS: { id: UserPage; label: string; icon: string }[] = [
   { id: 'profile', label: 'Profile', icon: 'M20 21a8 8 0 00-16 0m12-11a4 4 0 11-8 0 4 4 0 018 0z' },
   { id: 'business', label: 'Business', icon: 'M3 21h18M5 21V7a2 2 0 012-2h10a2 2 0 012 2v14M9 9h2m-2 4h2m4-4h2m-2 4h2M9 21v-4h6v4' },
-  { id: 'articles', label: 'Articles', icon: 'M4 5a2 2 0 012-2h11a2 2 0 012 2v15a1 1 0 01-1 1H6a2 2 0 01-2-2V5zm3 2h8m-8 4h8m-8 4h5' },
-  { id: 'blogs', label: 'Blogs', icon: 'M4 5a2 2 0 012-2h12a2 2 0 012 2v14a1 1 0 01-1 1H6a2 2 0 01-2-2V5zm4 3h8m-8 4h8m-8 4h5' },
-  { id: 'events', label: 'Events', icon: 'M7 3v3m10-3v3M4 9h16M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1zm3 8h3m-3 4h3m2-4h3m-3 4h3' },
 ]
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
@@ -137,9 +134,6 @@ export default function UserDashboard({ onBack }: { onBack: () => void }) {
             <>
               {activePage === 'profile' && <UserProfile data={dashboardData} email={user.email} />}
               {activePage === 'business' && <BusinessPage data={dashboardData} email={user.email} tab={tab} setTab={setTab} user={user} onOpen={(id) => setSelectedContent({ type: 'businesses', id })} onAdd={() => setAddingContent('businesses')} />}
-              {activePage === 'articles' && <ArticlePage title="Articles" description="Practical insights and faith-centered guidance from your member profile." items={dashboardData.articles} type="articles" onOpen={(id) => setSelectedContent({ type: 'articles', id })} onAdd={() => setAddingContent('articles')} />}
-              {activePage === 'blogs' && <ArticlePage title="Blogs" description="Stories, reflections, and experiences shared from your member profile." items={dashboardData.blogs} type="blogs" onOpen={(id) => setSelectedContent({ type: 'blogs', id })} onAdd={() => setAddingContent('blogs')} />}
-              {activePage === 'events' && <EventsPage items={dashboardData.events} onOpen={(id) => setSelectedContent({ type: 'events', id })} onAdd={() => setAddingContent('events')} />}
             </>
           )}
         </div>
