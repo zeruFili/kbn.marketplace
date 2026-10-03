@@ -174,3 +174,7 @@ body {
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+
+.flex.flex-wrap.items-center.gap-x-5.gap-y-3.text-sm.border-b.pb-7.mb-8 > span:first-child {
+  display: none;
+}

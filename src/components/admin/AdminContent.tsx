@@ -70,8 +70,8 @@ export default function AdminContent({ kind }: { kind: ContentKind }) {
                 <h2 className="font-serif text-xl text-[var(--text-primary)] leading-tight">{item.title}</h2>
                 <p className="text-sm text-[var(--text-secondary)] leading-relaxed mt-3 line-clamp-3">{'eventType' in item ? item.description : item.excerpt}</p>
                 <div className="flex items-center justify-between gap-3 mt-5 pt-4 border-t border-[var(--border-light)] text-xs text-[var(--text-tertiary)]">
-                  <span>{'eventType' in item ? item.startDate : item.author}</span>
-                  <span>{'eventType' in item ? item.location : item.publishedDate}</span>
+                  <span>{'eventType' in item ? item.startDate : item.publishedDate}</span>
+                  {'eventType' in item && <span>{item.location}</span>}
                 </div>
               </div>
             </article>
