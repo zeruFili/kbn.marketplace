@@ -238,8 +238,21 @@ function UserProfile({ data, email }: { data: UserDashboardData; email: string }
 }
 
 function ProfileEditField({ label, value, onChange, multiline = false }: { label: string; value: string; onChange: (value: string) => void; multiline?: boolean }) {
-  const className = "w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-3 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
-  return <label className="block"><span className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">{label}</span>{multiline ? <textarea value={value} onChange={event => onChange(event.target.value)} rows={4} className={`${className} resize-y`} /> : <input value={value} onChange={event => onChange(event.target.value)} className={className} />}</label>
+  const className = "w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 pl-10 pr-3 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
+  return <label className="block"><FieldLabelIcon label={label} /><span className="relative block"><FieldControlIcon label={label} />{multiline ? <textarea value={value} onChange={event => onChange(event.target.value)} rows={4} className={`${className} resize-y`} /> : <input value={value} onChange={event => onChange(event.target.value)} className={className} />}</span></label>
+}
+
+function fieldIconPath(label: string) {
+  const text = label.toLowerCase()
+  return text.includes('name') || text.includes('author') ? 'M16 21v-2a4 4 0 00-8 0v2m4-11a4 4 0 100-8 4 4 0 000 8z' : text.includes('email') || text.includes('website') || text.includes('social') ? 'M4 6h16v12H4zM4 7l8 6 8-6' : text.includes('phone') ? 'M22 16.92v3a2 2 0 01-2.18 2 19.8 19.8 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.8 19.8 0 014.11 2h3a2 2 0 012 2v3l-2 1a16 16 0 006 6l1-2h3a2 2 0 012 2z' : text.includes('date') || text.includes('month') ? 'M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z' : text.includes('city') || text.includes('country') || text.includes('address') || text.includes('location') ? 'M12 21s7-5.2 7-11a7 7 0 10-14 0c0 5.8 7 11 7 11zm0-8a3 3 0 100-6 3 3 0 000 6z' : text.includes('company') || text.includes('industry') ? 'M3 21h18M5 21V7a2 2 0 012-2h10a2 2 0 012 2v14' : 'M4 6h16M4 12h16M4 18h16'
+}
+
+function FieldLabelIcon({ label }: { label: string }) {
+  return <span className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)] mb-1.5"><svg className="w-3.5 h-3.5 text-[var(--brand)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d={fieldIconPath(label)} /></svg>{label}</span>
+}
+
+function FieldControlIcon({ label }: { label: string }) {
+  return <svg className="absolute left-3 top-3 w-4 h-4 text-[var(--brand)] pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d={fieldIconPath(label)} /></svg>
 }
 
 function ProfileDetail({ label, value }: { label: string; value: string }) {
@@ -279,8 +292,8 @@ function DetailField({ label, value, locked = false }: { label: string; value: s
 }
 
 function EditField({ label, value, onChange, multiline = false }: { label: string; value: string; onChange: (value: string) => void; multiline?: boolean }) {
-  const className = "w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-3 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
-  return <label className="block"><span className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">{label}</span>{multiline ? <textarea value={value} onChange={event => onChange(event.target.value)} rows={4} className={`${className} resize-y`} /> : <input value={value} onChange={event => onChange(event.target.value)} className={className} />}</label>
+  const className = "w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 pl-10 pr-3 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
+  return <label className="block"><FieldLabelIcon label={label} /><span className="relative block"><FieldControlIcon label={label} />{multiline ? <textarea value={value} onChange={event => onChange(event.target.value)} rows={4} className={`${className} resize-y`} /> : <input value={value} onChange={event => onChange(event.target.value)} className={className} />}</span></label>
   return <div className="animate-fade-in"><DetailHeader title={form.title} onBack={onBack} editing={editing} onEdit={() => setEditing(true)} onSave={save} onCancel={() => { setForm(item); setEditing(false) }} /><div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden"><img src={form.featuredImage} alt="" className="w-full h-56 object-cover" /><div className="p-6 md:p-8">{editing ? <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><EditField label="Title" value={form.title} onChange={value => update('title', value)} /><EditField label="Topic" value={form.topic} onChange={value => update('topic', value)} /><EditField label="Featured image URL" value={form.featuredImage} onChange={value => update('featuredImage', value)} /><EditField label="Author" value={form.author} onChange={value => update('author', value)} /><DetailField label="Published date" value={form.publishedDate} locked /><EditField label="Status" value={form.status} onChange={value => update('status', value as UserArticleData['status'])} /><EditField label="Visibility" value={form.visibility} onChange={value => update('visibility', value as UserArticleData['visibility'])} /><div className="sm:col-span-2"><EditField label="Excerpt" value={form.excerpt} onChange={value => update('excerpt', value)} multiline /></div></div> : <><div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-4"><div><p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-dark)]">{form.topic}</p><h1 className="font-serif text-3xl text-[var(--text-primary)] mt-1">{form.title}</h1></div><StatusBadge status={form.status} /></div><p className="text-base text-[var(--text-secondary)] leading-relaxed mb-7">{form.excerpt}</p><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><DetailField label="Author" value={form.author} /><DetailField label="Published date" value={form.publishedDate} locked /><DetailField label="Visibility" value={form.visibility} /><DetailField label="Content type" value={type === 'blogs' ? 'Blog post' : 'Article'} /></div></>}</div></div></div>
 }
 
@@ -777,7 +790,7 @@ function ApplyCompany({ user }: { user: { name: string; email: string } }) {
 
               <div>
                 <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-                  Services / Products {errors.services && <span className="text-red-500 text-xs">{errors.services}</span>}
+                  <FieldLabelIcon label="Services / Products" />{errors.services && <span className="text-red-500 text-xs">{errors.services}</span>}
                 </label>
                 <div className="space-y-2">
                   {form.services.map((s, i) => (
@@ -800,7 +813,7 @@ function ApplyCompany({ user }: { user: { name: string; email: string } }) {
 
               <div>
                 <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-                  Tags / Keywords {errors.tags && <span className="text-red-500 text-xs">{errors.tags}</span>}
+                  <FieldLabelIcon label="Tags / Keywords" />{errors.tags && <span className="text-red-500 text-xs">{errors.tags}</span>}
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {form.tags.map((t, i) => (
@@ -849,7 +862,7 @@ function ApplyCompany({ user }: { user: { name: string; email: string } }) {
               </Field>
 
               <div>
-                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Social Media Links (optional)</label>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2"><FieldLabelIcon label="Social Media Links (optional)" /></label>
                 <div className="space-y-2">
                   {form.socialLinks.map((sl, i) => (
                     <div key={i} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -911,7 +924,7 @@ function Field({ label, error, children }: { label: string; error?: string; chil
   return (
     <div>
       <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-        {label} {error && <span className="text-red-500 text-xs ml-1">({error})</span>}
+        <FieldLabelIcon label={label} /> {error && <span className="text-red-500 text-xs ml-1">({error})</span>}
       </label>
       {children}
     </div>
