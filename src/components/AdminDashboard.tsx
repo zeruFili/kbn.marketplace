@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
-import knbLogo from '../assets/kbn logo.jpg'
+const knbLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
 import AdminCompanies from './admin/AdminCompanies'
 import AdminApplications from './admin/AdminApplications'
 import AdminUsers from './admin/AdminUsers'

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { type UserRole } from '../auth/auth'
-import knbLogo from '../assets/kbn logo.jpg'
+const knbLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
 
 const MOCK_CREDENTIALS = [
   { email: 'abel@example.com', name: 'Abel Tesfaye', role: 'user' as UserRole },

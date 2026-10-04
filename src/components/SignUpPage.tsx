@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
-import knbLogo from '../assets/kbn logo.jpg'
+const knbLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
 
 export default function SignUpPage({ onBack, onSwitch }: { onBack: () => void; onSwitch: () => void }) {
   const { signUp } = useAuth()

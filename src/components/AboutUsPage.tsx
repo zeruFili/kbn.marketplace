@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import knbLogo from '../assets/kbn logo.jpg'
+const knbLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
 import surafelImg from '../assets/surafel.jpg'
 import usaOneImg from '../assets/usa one.jpg'
 import usaTwoImg from '../assets/usa two.jpg'
