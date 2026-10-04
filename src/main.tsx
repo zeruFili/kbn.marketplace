@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { AuthProvider } from './auth/AuthContext'
 import App from './App'
 import './index.css'
-const kbnLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
+const kbnLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg?v=2`
 
 const favicon = document.querySelector<HTMLLinkElement>('link[rel="icon"]') ?? document.createElement('link')
 favicon.rel = 'icon'

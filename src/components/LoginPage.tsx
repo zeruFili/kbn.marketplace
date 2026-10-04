@@ -35,7 +35,7 @@ export default function LoginPage({ onSwitch, onSuccess }: { onSwitch: () => voi
   return (
     <div className="login-page-bg min-h-screen flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
-        <a href="/" className="flex items-center gap-2.5 justify-center mb-10 group">
+        <a href={import.meta.env.BASE_URL} className="flex items-center gap-2.5 justify-center mb-10 group">
           <img src={knbLogo} alt="KBN Logo" className="w-10 h-10 rounded-xl object-cover group-hover:scale-105 transition-transform shadow-lg shadow-[var(--brand)]/20" />
           <span className="font-serif text-xl text-[var(--text-primary)]">KBN</span>
         </a>
