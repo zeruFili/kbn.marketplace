@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
-import knbLogo from './assets/kbn logo.jpg'
+const knbLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
 import CompanyProfile, { CompanyCard } from './components/CompanyProfile'
 import LoginPage from './components/LoginPage'
 import SignUpPage from './components/SignUpPage'
