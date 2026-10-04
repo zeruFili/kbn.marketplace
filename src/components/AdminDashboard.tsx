@@ -24,7 +24,7 @@ const NAV_ITEMS: { id: Section; label: string; icon: string }[] = [
 
 export default function AdminDashboard({ onBack }: { onBack: () => void }) {
   const { user, logout } = useAuth()
-  const [active, setActive] = useState<Section>('overview')
+  const [active, setActive] = useState<Section>('applications')
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
 
