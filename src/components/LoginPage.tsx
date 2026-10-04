@@ -5,6 +5,7 @@ import knbLogo from '../assets/kbn logo.jpg'
 
 const MOCK_CREDENTIALS = [
   { email: 'abel@example.com', name: 'Abel Tesfaye', role: 'user' as UserRole },
+  { email: 'admin@kbn.org', name: 'Admin KBN', role: 'admin' as UserRole },
 ]
 
 export default function LoginPage({ onSwitch, onSuccess }: { onSwitch: () => void; onSuccess: (role: UserRole) => void }) {

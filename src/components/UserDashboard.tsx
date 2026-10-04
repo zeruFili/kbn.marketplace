@@ -4,12 +4,13 @@ import { getUserReviews, updateUserReview, deleteUserReview, submitApplication, 
 import { getListedCompanies, adminSubscribe, type AdminCompany } from '../data/adminStore'
 import { type Category } from '../data/companies'
 
-type UserPage = 'profile' | 'business'
+type UserPage = 'profile' | 'business' | 'payment'
 type SelectedContent = { type: UserContentType; id: string } | null
 
 const USER_NAV_ITEMS: { id: UserPage; label: string; icon: string }[] = [
   { id: 'profile', label: 'Profile', icon: 'M20 21a8 8 0 00-16 0m12-11a4 4 0 11-8 0 4 4 0 018 0z' },
   { id: 'business', label: 'Business', icon: 'M3 21h18M5 21V7a2 2 0 012-2h10a2 2 0 012 2v14M9 9h2m-2 4h2m4-4h2m-2 4h2M9 21v-4h6v4' },
+  { id: 'payment', label: 'Payment', icon: 'M2 7h20M5 11h2m-2 4h5m10-8v10a2 2 0 01-2 2H4a2 2 0 01-2-2V7a2 2 0 012-2h14a3 3 0 013 3z' },
 ]
 
 export default function UserDashboard({ onBack }: { onBack: () => void }) {
@@ -125,12 +126,78 @@ export default function UserDashboard({ onBack }: { onBack: () => void }) {
             <>
               {activePage === 'profile' && <UserProfile data={dashboardData} email={user.email} />}
               {activePage === 'business' && <BusinessPage data={dashboardData} onOpen={(id) => setSelectedContent({ type: 'businesses', id })} onAdd={() => setAddingContent('businesses')} />}
+              {activePage === 'payment' && <PaymentPage />}
             </>
           )}
         </div>
       </main>
     </div>
   )
+}
+
+function PaymentPage() {
+  const today = new Date()
+  const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+  const nextPaymentDate = new Date(today.getFullYear(), today.getMonth() + 1, 1)
+  const daysUntilPayment = Math.max(0, Math.ceil((nextPaymentDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)))
+  const paidMonths = [1, 2, 3].map(offset => new Date(today.getFullYear(), today.getMonth() - offset, 1))
+  const formatMonth = (date: Date) => date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  const formatDate = (date: Date) => date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+
+  return (
+    <div className="animate-fade-in space-y-6">
+      <div className="bg-[var(--brand)] rounded-2xl p-6 md:p-8 text-white overflow-hidden relative">
+        <div className="relative z-10 max-w-2xl">
+          <p className="text-sm text-white/65 mb-2">Next payment due</p>
+          <div className="flex items-end gap-3 mb-3">
+            <span className="font-serif text-5xl md:text-6xl leading-none">{daysUntilPayment}</span>
+            <span className="text-sm text-white/70 pb-1.5">days remaining</span>
+          </div>
+          <p className="text-sm text-white/75">Your next membership payment is due on {formatDate(nextPaymentDate)}.</p>
+        </div>
+        <div className="absolute right-8 top-1/2 -translate-y-1/2 w-28 h-28 rounded-full border border-white/10 flex items-center justify-center">
+          <svg className="w-12 h-12 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.4} d="M12 6v6l4 2m5-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        </div>
+      </div>
+
+      <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6 md:p-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+          <div>
+            <h2 className="font-serif text-2xl text-[var(--text-primary)]">Current billing period</h2>
+            <p className="text-sm text-[var(--text-tertiary)] mt-1">Your active membership billing cycle.</p>
+          </div>
+          <span className="inline-flex items-center gap-2 text-xs font-semibold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Active</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <PaymentDetail label="Billing period" value={formatMonth(currentMonth)} />
+          <PaymentDetail label="Next payment" value={formatDate(nextPaymentDate)} />
+          <PaymentDetail label="Payment status" value="Up to date" />
+        </div>
+      </section>
+
+      <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6 md:p-8">
+        <div className="mb-6">
+          <h2 className="font-serif text-2xl text-[var(--text-primary)]">Paid months</h2>
+          <p className="text-sm text-[var(--text-tertiary)] mt-1">Your recent membership payment history.</p>
+        </div>
+        <div className="space-y-3">
+          {paidMonths.map(month => (
+            <div key={month.toISOString()} className="flex items-center justify-between gap-4 p-4 bg-[var(--surface-alt)] rounded-xl border border-[var(--border-light)]">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="grid place-items-center w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex-shrink-0"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg></span>
+                <div className="min-w-0"><p className="text-sm font-semibold text-[var(--text-primary)] truncate">{formatMonth(month)}</p><p className="text-xs text-[var(--text-tertiary)] mt-0.5">Membership payment</p></div>
+              </div>
+              <span className="text-xs font-semibold text-emerald-700 whitespace-nowrap">Paid</span>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function PaymentDetail({ label, value }: { label: string; value: string }) {
+  return <div className="bg-[var(--surface-alt)] rounded-xl border border-[var(--border-light)] p-4"><p className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)] mb-1">{label}</p><p className="text-sm font-semibold text-[var(--text-primary)]">{value}</p></div>
 }
 
 function UserProfile({ data, email }: { data: UserDashboardData; email: string }) {
@@ -171,8 +238,21 @@ function UserProfile({ data, email }: { data: UserDashboardData; email: string }
 }
 
 function ProfileEditField({ label, value, onChange, multiline = false }: { label: string; value: string; onChange: (value: string) => void; multiline?: boolean }) {
-  const className = "w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-3 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
-  return <label className="block"><span className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">{label}</span>{multiline ? <textarea value={value} onChange={event => onChange(event.target.value)} rows={4} className={`${className} resize-y`} /> : <input value={value} onChange={event => onChange(event.target.value)} className={className} />}</label>
+  const className = "w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 pl-10 pr-3 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
+  return <label className="block"><FieldLabelIcon label={label} /><span className="relative block"><FieldControlIcon label={label} />{multiline ? <textarea value={value} onChange={event => onChange(event.target.value)} rows={4} className={`${className} resize-y`} /> : <input value={value} onChange={event => onChange(event.target.value)} className={className} />}</span></label>
+}
+
+function fieldIconPath(label: string) {
+  const text = label.toLowerCase()
+  return text.includes('name') || text.includes('author') ? 'M16 21v-2a4 4 0 00-8 0v2m4-11a4 4 0 100-8 4 4 0 000 8z' : text.includes('email') || text.includes('website') || text.includes('social') ? 'M4 6h16v12H4zM4 7l8 6 8-6' : text.includes('phone') ? 'M22 16.92v3a2 2 0 01-2.18 2 19.8 19.8 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.8 19.8 0 014.11 2h3a2 2 0 012 2v3l-2 1a16 16 0 006 6l1-2h3a2 2 0 012 2z' : text.includes('date') || text.includes('month') ? 'M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z' : text.includes('city') || text.includes('country') || text.includes('address') || text.includes('location') ? 'M12 21s7-5.2 7-11a7 7 0 10-14 0c0 5.8 7 11 7 11zm0-8a3 3 0 100-6 3 3 0 000 6z' : text.includes('company') || text.includes('industry') ? 'M3 21h18M5 21V7a2 2 0 012-2h10a2 2 0 012 2v14' : 'M4 6h16M4 12h16M4 18h16'
+}
+
+function FieldLabelIcon({ label }: { label: string }) {
+  return <span className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)] mb-1.5"><svg className="w-3.5 h-3.5 text-[var(--brand)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d={fieldIconPath(label)} /></svg>{label}</span>
+}
+
+function FieldControlIcon({ label }: { label: string }) {
+  return <svg className="absolute left-3 top-3 w-4 h-4 text-[var(--brand)] pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d={fieldIconPath(label)} /></svg>
 }
 
 function ProfileDetail({ label, value }: { label: string; value: string }) {
@@ -212,8 +292,8 @@ function DetailField({ label, value, locked = false }: { label: string; value: s
 }
 
 function EditField({ label, value, onChange, multiline = false }: { label: string; value: string; onChange: (value: string) => void; multiline?: boolean }) {
-  const className = "w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-3 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
-  return <label className="block"><span className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">{label}</span>{multiline ? <textarea value={value} onChange={event => onChange(event.target.value)} rows={4} className={`${className} resize-y`} /> : <input value={value} onChange={event => onChange(event.target.value)} className={className} />}</label>
+  const className = "w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 pl-10 pr-3 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
+  return <label className="block"><FieldLabelIcon label={label} /><span className="relative block"><FieldControlIcon label={label} />{multiline ? <textarea value={value} onChange={event => onChange(event.target.value)} rows={4} className={`${className} resize-y`} /> : <input value={value} onChange={event => onChange(event.target.value)} className={className} />}</span></label>
   return <div className="animate-fade-in"><DetailHeader title={form.title} onBack={onBack} editing={editing} onEdit={() => setEditing(true)} onSave={save} onCancel={() => { setForm(item); setEditing(false) }} /><div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden"><img src={form.featuredImage} alt="" className="w-full h-56 object-cover" /><div className="p-6 md:p-8">{editing ? <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><EditField label="Title" value={form.title} onChange={value => update('title', value)} /><EditField label="Topic" value={form.topic} onChange={value => update('topic', value)} /><EditField label="Featured image URL" value={form.featuredImage} onChange={value => update('featuredImage', value)} /><EditField label="Author" value={form.author} onChange={value => update('author', value)} /><DetailField label="Published date" value={form.publishedDate} locked /><EditField label="Status" value={form.status} onChange={value => update('status', value as UserArticleData['status'])} /><EditField label="Visibility" value={form.visibility} onChange={value => update('visibility', value as UserArticleData['visibility'])} /><div className="sm:col-span-2"><EditField label="Excerpt" value={form.excerpt} onChange={value => update('excerpt', value)} multiline /></div></div> : <><div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-4"><div><p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-dark)]">{form.topic}</p><h1 className="font-serif text-3xl text-[var(--text-primary)] mt-1">{form.title}</h1></div><StatusBadge status={form.status} /></div><p className="text-base text-[var(--text-secondary)] leading-relaxed mb-7">{form.excerpt}</p><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><DetailField label="Author" value={form.author} /><DetailField label="Published date" value={form.publishedDate} locked /><DetailField label="Visibility" value={form.visibility} /><DetailField label="Content type" value={type === 'blogs' ? 'Blog post' : 'Article'} /></div></>}</div></div></div>
 }
 
@@ -710,7 +790,7 @@ function ApplyCompany({ user }: { user: { name: string; email: string } }) {
 
               <div>
                 <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-                  Services / Products {errors.services && <span className="text-red-500 text-xs">{errors.services}</span>}
+                  <FieldLabelIcon label="Services / Products" />{errors.services && <span className="text-red-500 text-xs">{errors.services}</span>}
                 </label>
                 <div className="space-y-2">
                   {form.services.map((s, i) => (
@@ -733,7 +813,7 @@ function ApplyCompany({ user }: { user: { name: string; email: string } }) {
 
               <div>
                 <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-                  Tags / Keywords {errors.tags && <span className="text-red-500 text-xs">{errors.tags}</span>}
+                  <FieldLabelIcon label="Tags / Keywords" />{errors.tags && <span className="text-red-500 text-xs">{errors.tags}</span>}
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {form.tags.map((t, i) => (
@@ -782,7 +862,7 @@ function ApplyCompany({ user }: { user: { name: string; email: string } }) {
               </Field>
 
               <div>
-                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Social Media Links (optional)</label>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2"><FieldLabelIcon label="Social Media Links (optional)" /></label>
                 <div className="space-y-2">
                   {form.socialLinks.map((sl, i) => (
                     <div key={i} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -844,7 +924,7 @@ function Field({ label, error, children }: { label: string; error?: string; chil
   return (
     <div>
       <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-        {label} {error && <span className="text-red-500 text-xs ml-1">({error})</span>}
+        <FieldLabelIcon label={label} /> {error && <span className="text-red-500 text-xs ml-1">({error})</span>}
       </label>
       {children}
     </div>
