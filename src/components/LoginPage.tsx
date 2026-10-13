@@ -9,9 +9,11 @@ const MOCK_CREDENTIALS = [
 ]
 
 export default function LoginPage({
+  onBack,
   onSwitch,
   onSuccess,
 }: {
+  onBack?: () => void
   onSwitch: () => void
   onSuccess: (role: UserRole) => void
 }) {
@@ -47,9 +49,31 @@ export default function LoginPage({
   return (
     <div className="login-page-bg min-h-screen flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
-        <a
-          href={import.meta.env.BASE_URL}
-          className="flex items-center gap-2.5 justify-center mb-10 group"
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1 text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors mb-6"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10 19l-7-7m0 0l7-7m-7 7h18"
+              />
+            </svg>
+            Back to Home
+          </button>
+        )}
+        <button
+          onClick={onBack}
+          type="button"
+          className="flex items-center gap-2.5 justify-center mb-10 group mx-auto"
         >
           <img
             src={knbLogo}
@@ -59,7 +83,8 @@ export default function LoginPage({
           <span className="font-serif text-xl text-[var(--text-primary)]">
             KBN
           </span>
-        </a>
+        </button>
+
 
         <div className="bg-white rounded-2xl border border-[var(--accent)]/20 p-5 sm:p-8 shadow-[0_18px_45px_rgba(15,29,58,0.08)]">
           <h1 className="font-serif text-2xl text-[var(--text-primary)] mb-1">

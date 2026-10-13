@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react"
+import { useState, useMemo, useEffect } from "react"
 const knbLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
 import CompanyProfile, { CompanyCard } from "./components/CompanyProfile"
 import LoginPage from "./components/LoginPage"
@@ -1415,7 +1415,6 @@ export default function App() {
   const [dashboard, setDashboard] = useState<UserRole | null>(null)
   const { user, loading } = useAuth()
   const [liveCompanies, setLiveCompanies] = useState(getCompanies())
-  const loginExplicitRef = useRef(false)
 
   useEffect(() => {
     setLiveCompanies(getCompanies())
@@ -1423,25 +1422,25 @@ export default function App() {
     return unsub
   }, [])
 
-  function handleLoginSuccess(role: UserRole) {
-    loginExplicitRef.current = true
+  function handleLoginSuccess(_role?: UserRole) {
+
     setAuthPage(null)
     setDashboard(null)
+    setSelectedCompany(null)
+    setCompanyReturnProfile(null)
+    setSelectedPublicContent(null)
+    setShowDirectory(false)
+    setShowAboutUs(false)
+    setPublicPage(null)
   }
 
   useEffect(() => {
     if (loading) return
-    if (user) {
-      if (loginExplicitRef.current) {
-        loginExplicitRef.current = false
-      } else {
-        setDashboard(user.role)
-      }
-    } else {
+    if (!user) {
       setDashboard(null)
-      setAuthPage((current) => current ?? "login")
     }
   }, [loading, user])
+
 
   if (loading) {
     return (
@@ -1479,6 +1478,7 @@ export default function App() {
   if (authPage === "login") {
     return (
       <LoginPage
+        onBack={() => setAuthPage(null)}
         onSwitch={() => setAuthPage("signup")}
         onSuccess={handleLoginSuccess}
       />
@@ -1490,7 +1490,7 @@ export default function App() {
       <SignUpPage
         onBack={() => setAuthPage(null)}
         onSwitch={() => setAuthPage("login")}
-        onSuccess={() => setAuthPage(null)}
+        onSuccess={handleLoginSuccess}
       />
     )
   }
