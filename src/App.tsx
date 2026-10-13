@@ -99,7 +99,7 @@ const EVENTS = [
     image:
       "https://images.unsplash.com/photo-1559223607-a43c990c692c?w=600&h=400&fit=crop&auto=format",
     date: "Nov 11, 2025",
-    time: "9:00 AM – 12:30 PM",
+    time: "9:00 AM – 12:30 jjPM",
     location: "Hawassa, SNNPR, Ethiopia",
     title: "Hawassa Regional Networking Event",
     description:
