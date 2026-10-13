@@ -5,9 +5,11 @@ const knbLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
 export default function SignUpPage({
   onBack,
   onSwitch,
+  onSuccess,
 }: {
   onBack: () => void
   onSwitch: () => void
+  onSuccess?: () => void
 }) {
   const { signUp } = useAuth()
   const [name, setName] = useState("")
@@ -30,12 +32,33 @@ export default function SignUpPage({
       setError("Please enter your email address.")
       return
     }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email.trim())) {
+      setError("Please enter a valid email address.")
+      return
+    }
     if (!password) {
       setError("Please enter a password.")
       return
     }
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters.")
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters long.")
+      return
+    }
+    if (!/[A-Z]/.test(password)) {
+      setError("Password must contain at least one uppercase letter.")
+      return
+    }
+    if (!/[a-z]/.test(password)) {
+      setError("Password must contain at least one lowercase letter.")
+      return
+    }
+    if (!/\d/.test(password)) {
+      setError("Password must contain at least one number.")
+      return
+    }
+    if (!/[^\da-zA-Z]/.test(password)) {
+      setError("Password must contain at least one special character (!@#$%^&* etc.).")
       return
     }
     if (password !== confirm) {
@@ -50,12 +73,14 @@ export default function SignUpPage({
         password,
         business: business.trim() || undefined,
       })
+      onSuccess?.()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Sign up failed.")
     } finally {
       setLoading(false)
     }
   }
+
 
   return (
     <div className="min-h-screen bg-[var(--surface-alt)] flex items-center justify-center px-4 py-12">
@@ -171,7 +196,7 @@ export default function SignUpPage({
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 6 characters"
+                  placeholder="At least 8 chars (upper, lower, digit, symbol)"
                   autoComplete="new-password"
                   className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-4 pr-12 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]/50 transition-all"
                 />
@@ -217,6 +242,9 @@ export default function SignUpPage({
                   )}
                 </button>
               </div>
+              <p className="text-xs text-[var(--text-tertiary)] mt-1.5">
+                Must include 8+ characters, uppercase, lowercase, number, and special symbol.
+              </p>
             </div>
             <div>
               <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">

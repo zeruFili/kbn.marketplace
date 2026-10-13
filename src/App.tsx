@@ -1490,6 +1490,7 @@ export default function App() {
       <SignUpPage
         onBack={() => setAuthPage(null)}
         onSwitch={() => setAuthPage("login")}
+        onSuccess={() => setAuthPage(null)}
       />
     )
   }

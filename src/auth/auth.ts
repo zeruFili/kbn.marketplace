@@ -108,6 +108,24 @@ function saveStoredUsers(users: StoredUser[]) {
   localStorage.setItem("kbn_users", JSON.stringify(users))
 }
 
+const API_BASE =
+  import.meta.env.VITE_API_URL ||
+  (typeof window !== "undefined" && window.location.port === "3001"
+    ? "/api/v1"
+    : "http://localhost:3001/api/v1")
+
+export function getStoredToken(): string | null {
+  return localStorage.getItem("kbn_token")
+}
+
+export function saveToken(token: string) {
+  localStorage.setItem("kbn_token", token)
+}
+
+export function clearToken() {
+  localStorage.removeItem("kbn_token")
+}
+
 export function getStoredSession(): User | null {
   const s = localStorage.getItem("kbn_session")
   if (!s) return null
@@ -124,18 +142,65 @@ function saveSession(user: User) {
 
 export function clearSession() {
   localStorage.removeItem("kbn_session")
+  clearToken()
 }
 
 export async function login(email: string, password: string): Promise<User> {
-  await new Promise((r) => setTimeout(r, 800))
-  const users = getStoredUsers()
-  const user = users.find((u) => u.email.toLowerCase() === email.toLowerCase())
-  if (!user) throw new Error("No account found with this email address.")
-  if (user.password !== password)
-    throw new Error("Incorrect password. Please try again.")
-  const { password: _, ...safeUser } = user
-  saveSession(safeUser)
-  return safeUser
+  try {
+    const res = await fetch(`${API_BASE}/auth/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email: email.trim(), password }),
+    })
+
+    const json = await res.json()
+
+    if (res.ok && json.success) {
+      const apiData = json.data
+      const safeUser = apiData.user
+      const token = apiData.accessToken
+
+      const user: User = {
+        id: safeUser.id,
+        email: safeUser.email || email.trim(),
+        name: safeUser.full_name || safeUser.fullName || email.split("@")[0],
+        avatar: `https://i.pravatar.cc/96?u=${safeUser.id}`,
+        role: (safeUser.role as UserRole) || "user",
+      }
+
+      if (token) {
+        saveToken(token)
+      }
+      saveSession(user)
+      return user
+    } else if (res.status === 401 || res.status === 403 || res.status === 400) {
+      // Check if it's one of the built-in demo credentials before failing
+      const mockUser = getStoredUsers().find(
+        (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password,
+      )
+      if (mockUser) {
+        const { password: _, ...safeMock } = mockUser
+        saveSession(safeMock)
+        return safeMock
+      }
+      throw new Error(json.message || "Invalid email or password.")
+    } else {
+      throw new Error(json.message || "Login failed.")
+    }
+  } catch (err: unknown) {
+    // If backend request fails (e.g. offline/network), fall back to demo accounts
+    const mockUser = getStoredUsers().find(
+      (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password,
+    )
+    if (mockUser) {
+      const { password: _, ...safeMock } = mockUser
+      saveSession(safeMock)
+      return safeMock
+    }
+    throw err
+  }
 }
 
 export async function signUp(data: {
@@ -144,31 +209,58 @@ export async function signUp(data: {
   password: string
   business?: string
 }): Promise<User> {
-  await new Promise((r) => setTimeout(r, 800))
-  const users = getStoredUsers()
-  if (users.find((u) => u.email.toLowerCase() === data.email.toLowerCase())) {
-    throw new Error("An account with this email already exists.")
+  const role: UserRole = data.business ? "company" : "user"
+
+  try {
+    const res = await fetch(`${API_BASE}/auth/register`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        full_name: data.name.trim(),
+        email: data.email.trim(),
+        password: data.password,
+        role,
+        business: data.business?.trim() || undefined,
+      }),
+    })
+
+    const json = await res.json()
+
+    if (!res.ok || !json.success) {
+      let message = json.message || "Sign up failed."
+      if (Array.isArray(json.errors) && json.errors.length > 0) {
+        message = json.errors.join(". ")
+      }
+      throw new Error(message)
+    }
+
+    const apiData = json.data
+    const safeUser = apiData.user
+    const token = apiData.accessToken
+
+    const user: User = {
+      id: safeUser.id,
+      email: safeUser.email || data.email.trim(),
+      name: safeUser.full_name || safeUser.fullName || data.name.trim(),
+      avatar: `https://i.pravatar.cc/96?u=${safeUser.id}`,
+      role: (safeUser.role as UserRole) || role,
+      business: data.business?.trim() || undefined,
+    }
+
+    if (token) {
+      saveToken(token)
+    }
+    saveSession(user)
+    return user
+  } catch (err: unknown) {
+    throw err
   }
-  if (data.password.length < 6)
-    throw new Error("Password must be at least 6 characters.")
-  const imgIdx = ((users.length + 1) * 7) % 70
-  const newUser: StoredUser = {
-    id: "u" + (users.length + 1),
-    email: data.email,
-    name: data.name,
-    avatar: `https://i.pravatar.cc/96?img=${imgIdx}`,
-    password: data.password,
-    role: "user",
-    business: data.business,
-  }
-  users.push(newUser)
-  saveStoredUsers(users)
-  const { password: _, ...safeUser } = newUser
-  saveSession(safeUser)
-  return safeUser
 }
 
 export async function logout(): Promise<void> {
-  await new Promise((r) => setTimeout(r, 300))
+  await new Promise((r) => setTimeout(r, 200))
   clearSession()
 }
+
