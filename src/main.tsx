@@ -1,17 +1,19 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import { AuthProvider } from './auth/AuthContext'
-import App from './App'
-import './index.css'
+import React from "react"
+import ReactDOM from "react-dom/client"
+import { AuthProvider } from "./auth/AuthContext"
+import App from "./App"
+import "./index.css"
 const kbnLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg?v=2`
 
-const favicon = document.querySelector<HTMLLinkElement>('link[rel="icon"]') ?? document.createElement('link')
-favicon.rel = 'icon'
-favicon.type = 'image/jpeg'
+const favicon =
+  document.querySelector<HTMLLinkElement>('link[rel="icon"]') ??
+  document.createElement("link")
+favicon.rel = "icon"
+favicon.type = "image/jpeg"
 favicon.href = kbnLogo
 document.head.appendChild(favicon)
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <AuthProvider>
       <App />
