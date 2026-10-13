@@ -89,3 +89,88 @@ export async function submitCompanyCreation(
 
   return json
 }
+
+export function resolveFileUrl(filePath?: string): string {
+  if (!filePath) return ""
+  if (
+    filePath.startsWith("http://") ||
+    filePath.startsWith("https://") ||
+    filePath.startsWith("blob:") ||
+    filePath.startsWith("data:")
+  ) {
+    return filePath
+  }
+  const base = API_BASE.replace(/\/api\/v1\/?$/, "")
+  return `${base}${filePath.startsWith("/") ? "" : "/"}${filePath}`
+}
+
+export async function fetchMyCompanies(): Promise<CompanyApiResponse[]> {
+  try {
+    const token = getStoredToken()
+    if (!token) return []
+
+    const res = await fetch(`${API_BASE}/companies/my-companies`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    const json = await res.json()
+    if (res.ok && json.success && Array.isArray(json.data)) {
+      return json.data
+    }
+    return []
+  } catch (err) {
+    console.warn("Could not fetch my companies from backend:", err)
+    return []
+  }
+}
+
+export async function updateCompanyApi(
+  id: string,
+  payload: Record<string, unknown>
+): Promise<CompanyApiResponse | null> {
+  try {
+    const token = getStoredToken()
+    if (!token) return null
+
+    const res = await fetch(`${API_BASE}/companies/${id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    })
+
+    const json = await res.json()
+    if (res.ok && json.success && json.data) {
+      return json.data
+    }
+    return null
+  } catch (err) {
+    console.warn("Could not update company on backend:", err)
+    return null
+  }
+}
+
+export async function deleteCompanyApi(id: string): Promise<boolean> {
+  try {
+    const token = getStoredToken()
+    if (!token) return false
+
+    const res = await fetch(`${API_BASE}/companies/${id}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    const json = await res.json()
+    return !!(res.ok && json.success)
+  } catch (err) {
+    console.warn("Could not delete company on backend:", err)
+    return false
+  }
+}

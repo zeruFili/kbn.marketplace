@@ -1,6 +1,13 @@
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { useAuth } from "../auth/AuthContext"
 import CreateBusinessPage from "./CreateBusinessPage"
+import {
+  fetchMyCompanies,
+  updateCompanyApi,
+  deleteCompanyApi,
+  resolveFileUrl,
+  type CompanyApiResponse,
+} from "../data/companyApi"
 import {
   getUserReviews,
   updateUserReview,
@@ -48,6 +55,49 @@ const USER_NAV_ITEMS: { id: UserPage label: string icon: string }[] = [
   },
 ]
 
+function mapCompanyToBusiness(
+  company: CompanyApiResponse,
+  fallbackUser?: { name: string; email: string },
+): UserBusinessData {
+  const rawLogo = resolveFileUrl(company.company_logo)
+  const logo =
+    rawLogo ||
+    "https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=120&h=120&fit=crop&auto=format"
+  const cover =
+    "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1200&h=420&fit=crop&auto=format"
+
+  const addressParts = (company.physical_address || "").split(",")
+  const city = addressParts[0]?.trim() || "Addis Ababa"
+  const country =
+    addressParts.length > 1
+      ? addressParts.slice(1).join(", ").trim()
+      : "Ethiopia"
+
+  let statusText: "Published" | "Pending review" = "Pending review"
+  if (company.verification_status === "verified") {
+    statusText = "Published"
+  } else if (company.verification_status === "pending") {
+    statusText = "Pending review"
+  }
+
+  return {
+    id: company.id,
+    companyLogo: logo,
+    coverImage: cover,
+    companyName: company.company_name,
+    industry: company.business_category?.name || "Business",
+    description: company.description || "",
+    founderLeadership:
+      company.owner_primary_contact || fallbackUser?.name || "Founder",
+    city,
+    country,
+    website: company.website || "",
+    phone: company.phone_number || "",
+    email: company.email || fallbackUser?.email || "",
+    status: statusText,
+  }
+}
+
 export default function UserDashboard({ onBack }: { onBack: () => void }) {
   const { user, logout } = useAuth()
   const [activePage, setActivePage] = useState<UserPage>("profile")
@@ -56,6 +106,25 @@ export default function UserDashboard({ onBack }: { onBack: () => void }) {
     null,
   )
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [backendBusinesses, setBackendBusinesses] = useState<UserBusinessData[]>([])
+  const [loadingBusinesses, setLoadingBusinesses] = useState<boolean>(true)
+
+  const reloadBusinesses = useCallback(async () => {
+    setLoadingBusinesses(true)
+    try {
+      const apiCompanies = await fetchMyCompanies()
+      const mapped = apiCompanies.map((c) => mapCompanyToBusiness(c, user ?? undefined))
+      setBackendBusinesses(mapped)
+    } catch (err) {
+      console.warn("Failed to fetch my companies from backend:", err)
+    } finally {
+      setLoadingBusinesses(false)
+    }
+  }, [user])
+
+  useEffect(() => {
+    void reloadBusinesses()
+  }, [reloadBusinesses])
 
   function navigateToPage(page: UserPage) {
     setActivePage(page)
@@ -78,6 +147,14 @@ export default function UserDashboard({ onBack }: { onBack: () => void }) {
 
   const pageTitle = USER_NAV_ITEMS.find((item) => item.id === activePage)?.label
   const dashboardData = getUserDashboardData(user.email, user)
+
+  const allBusinesses = useMemo(() => {
+    const backendIds = new Set(backendBusinesses.map((b) => b.id))
+    const uniqueLocals = dashboardData.businesses.filter(
+      (b) => !backendIds.has(b.id),
+    )
+    return [...backendBusinesses, ...uniqueLocals]
+  }, [backendBusinesses, dashboardData.businesses])
 
   return (
     <div className="min-h-screen bg-[var(--surface-alt)] flex">
@@ -322,15 +399,21 @@ export default function UserDashboard({ onBack }: { onBack: () => void }) {
               email={user.email}
               user={user}
               onCancel={() => setAddingContent(null)}
-              onCreated={() => setAddingContent(null)}
+              onCreated={() => {
+                setAddingContent(null)
+                void reloadBusinesses()
+              }}
             />
           ) : selectedContent ? (
             <UserContentDetail
               key={`${selectedContent.type}-${selectedContent.id}`}
               data={dashboardData}
+              businesses={allBusinesses}
               email={user.email}
               selected={selectedContent}
               onBack={() => setSelectedContent(null)}
+              onBusinessUpdated={() => void reloadBusinesses()}
+              onBusinessDeleted={() => void reloadBusinesses()}
             />
           ) : (
             <>
@@ -339,7 +422,8 @@ export default function UserDashboard({ onBack }: { onBack: () => void }) {
               )}
               {activePage === "business" && (
                 <BusinessPage
-                  data={dashboardData}
+                  businesses={allBusinesses}
+                  loading={loadingBusinesses}
                   onOpen={(id) =>
                     setSelectedContent({ type: "businesses", id })
                   }
@@ -852,19 +936,32 @@ function ProfileDetail({ label, value }: { label: string value: string }) {
 
 function UserContentDetail({
   data,
+  businesses,
   email,
   selected,
   onBack,
+  onBusinessUpdated,
+  onBusinessDeleted,
 }: {
   data: UserDashboardData
+  businesses?: UserBusinessData[]
   email: string
   selected: { type: UserContentType id: string }
   onBack: () => void
+  onBusinessUpdated?: () => void
+  onBusinessDeleted?: () => void
 }) {
   if (selected.type === "businesses") {
-    const item = data.businesses.find((business) => business.id === selected.id)
+    const list = businesses ?? data.businesses
+    const item = list.find((business) => business.id === selected.id)
     return item ? (
-      <BusinessDetail item={item} email={email} onBack={onBack} />
+      <BusinessDetail
+        item={item}
+        email={email}
+        onBack={onBack}
+        onSaved={onBusinessUpdated}
+        onDeleted={onBusinessDeleted}
+      />
     ) : (
       <EmptyState
         title="Business not found"
@@ -1161,23 +1258,61 @@ function BusinessDetail({
   item,
   email,
   onBack,
+  onSaved,
+  onDeleted,
 }: {
   item: UserBusinessData
   email: string
   onBack: () => void
+  onSaved?: (updated: UserBusinessData) => void
+  onDeleted?: (id: string) => void
 }) {
   const [editing, setEditing] = useState(false)
+  const [, setSaving] = useState(false)
   const [form, setForm] = useState(item)
+
   function update<K extends keyof UserBusinessData>(
     key: K,
     value: UserBusinessData[K],
   ) {
     setForm((current) => ({ ...current, [key]: value }))
   }
-  function save() {
+
+  async function save() {
+    setSaving(true)
+    try {
+      await updateCompanyApi(item.id, {
+        company_name: form.companyName,
+        description: form.description,
+        owner_primary_contact: form.founderLeadership,
+        website: form.website,
+        phone_number: form.phone,
+        email: form.email,
+        physical_address: `${form.city}, ${form.country}`,
+      })
+    } catch (e) {
+      console.warn("Backend update error:", e)
+    } finally {
+      setSaving(false)
+    }
     updateUserContent<UserBusinessData>(email, "businesses", item.id, form)
+    onSaved?.(form)
     onBack()
   }
+
+  async function handleDelete() {
+    if (window.confirm(`Delete ${form.companyName}?`)) {
+      try {
+        await deleteCompanyApi(item.id)
+      } catch (e) {
+        console.warn("Backend delete error:", e)
+      }
+      deleteUserContent(email, "businesses", item.id)
+      onDeleted?.(item.id)
+      onBack()
+    }
+  }
+
   return (
     <div className="animate-fade-in">
       <DetailHeader
@@ -1185,17 +1320,12 @@ function BusinessDetail({
         onBack={onBack}
         editing={editing}
         onEdit={() => setEditing(true)}
-        onSave={save}
+        onSave={() => void save()}
         onCancel={() => {
           setForm(item)
           setEditing(false)
         }}
-        onDelete={() => {
-          if (window.confirm(`Delete ${form.companyName}?`)) {
-            deleteUserContent(email, "businesses", item.id)
-            onBack()
-          }
-        }}
+        onDelete={() => void handleDelete()}
       />
       <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden">
         <div className="relative h-48">
@@ -2017,11 +2147,13 @@ function EventCreateForm({
 }
 
 function BusinessPage({
-  data,
+  businesses,
+  loading,
   onOpen,
   onAdd,
 }: {
-  data: UserDashboardData
+  businesses: UserBusinessData[]
+  loading?: boolean
   onOpen: (id: string) => void
   onAdd: () => void
 }) {
@@ -2030,19 +2162,32 @@ function BusinessPage({
       <PageIntro
         title="Business"
         description="Businesses and companies owned by your member profile."
-        count={data.businesses.length}
+        count={businesses.length}
         onAdd={onAdd}
       />
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-8">
-        {data.businesses.map((business) => (
-          <BusinessCard key={business.id} business={business} onOpen={onOpen} />
-        ))}
-      </div>
-      {data.businesses.length === 0 && (
-        <EmptyState
-          title="No businesses yet"
-          description="Businesses you own or submit will appear here."
-        />
+      {loading ? (
+        <div className="py-16 text-center text-[var(--text-tertiary)] flex flex-col items-center justify-center gap-3">
+          <div className="w-8 h-8 border-2 border-[var(--brand)]/30 border-t-[var(--brand)] rounded-full animate-spin" />
+          <p className="text-sm">Loading your businesses...</p>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-8">
+            {businesses.map((business) => (
+              <BusinessCard
+                key={business.id}
+                business={business}
+                onOpen={onOpen}
+              />
+            ))}
+          </div>
+          {businesses.length === 0 && (
+            <EmptyState
+              title="No businesses yet"
+              description="Businesses you own or submit will appear here."
+            />
+          )}
+        </>
       )}
     </div>
   )
@@ -2321,14 +2466,22 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <span
       className={`flex-shrink-0 text-[10px] font-semibold px-2 py-1 rounded-full ${
-        status === "Published"
+        status === "Published" || status === "Verified" || status === "verified"
           ? "bg-emerald-100 text-emerald-700"
-          : status === "Pending review"
+          : status === "Pending review" || status === "pending"
             ? "bg-amber-100 text-amber-700"
-            : "bg-slate-100 text-slate-600"
+            : status === "Rejected" || status === "rejected"
+              ? "bg-red-100 text-red-700"
+              : "bg-slate-100 text-slate-600"
       }`}
     >
-      {status}
+      {status === "verified"
+        ? "Verified"
+        : status === "pending"
+          ? "Pending review"
+          : status === "rejected"
+            ? "Rejected"
+            : status}
     </span>
   )
 }
