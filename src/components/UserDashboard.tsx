@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react"
 import { useAuth } from "../auth/AuthContext"
+import CreateBusinessPage from "./CreateBusinessPage"
 import {
   getUserReviews,
   updateUserReview,
@@ -1606,7 +1607,17 @@ function AddContentForm({
   onCancel: () => void
   onCreated: () => void
 }) {
-  if (type === "businesses") return <ApplyCompany user={user} />
+  if (type === "businesses") {
+    return (
+      <CreateBusinessPage
+        onBack={onCancel}
+        onSuccess={() => {
+          onCreated()
+          onCancel()
+        }}
+      />
+    )
+  }
   if (type === "events")
     return (
       <EventCreateForm

@@ -7,6 +7,7 @@ import CompanyDashboard from "./components/CompanyDashboard"
 import AdminDashboard from "./components/AdminDashboard"
 import UserDashboard from "./components/UserDashboard"
 import AboutUsPage from "./components/AboutUsPage"
+import CreateBusinessPage from "./components/CreateBusinessPage"
 import { useAuth } from "./auth/AuthContext"
 import { type UserRole } from "./auth/auth"
 import { getCompanies, subscribe } from "./data/companyStore"
@@ -133,12 +134,14 @@ function Navbar({
   onHome,
   onPublicPage,
   onDashboard,
+  onCreateBusiness,
 }: {
   onLogin: () => void
   onSignUp: () => void
   onHome: () => void
   onPublicPage: (page: PublicPage) => void
   onDashboard: () => void
+  onCreateBusiness?: () => void
 }) {
   const { user, logout } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -173,6 +176,18 @@ function Navbar({
         </nav>
 
         <div className="flex items-center gap-2">
+          {onCreateBusiness && (
+            <button
+              onClick={onCreateBusiness}
+              className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-3 py-2 rounded-xl shadow-sm transition-all"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span className="hidden sm:inline">Register Business</span>
+              <span className="sm:hidden">Register</span>
+            </button>
+          )}
           {user ? (
             <>
               <button
@@ -323,6 +338,17 @@ function Navbar({
               {item.label}
             </button>
           ))}
+          {onCreateBusiness && (
+            <button
+              onClick={() => {
+                onCreateBusiness()
+                setMenuOpen(false)
+              }}
+              className="block w-full text-left text-sm font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-3 py-2.5 rounded-xl hover:bg-amber-100 transition-colors"
+            >
+              + Register Business
+            </button>
+          )}
           <div className="pt-2 border-t border-[var(--border-light)] space-y-2">
             {user ? (
               <>
@@ -1410,6 +1436,7 @@ export default function App() {
     useState<PublicSelection | null>(null)
   const [showDirectory, setShowDirectory] = useState(false)
   const [showAboutUs, setShowAboutUs] = useState(false)
+  const [showCreateBusiness, setShowCreateBusiness] = useState(false)
   const [publicPage, setPublicPage] = useState<PublicPage | null>(null)
   const [authPage, setAuthPage] = useState<"login" | "signup" | null>(null)
   const [dashboard, setDashboard] = useState<UserRole | null>(null)
@@ -1431,6 +1458,7 @@ export default function App() {
     setSelectedPublicContent(null)
     setShowDirectory(false)
     setShowAboutUs(false)
+    setShowCreateBusiness(false)
     setPublicPage(null)
   }
 
@@ -1516,14 +1544,23 @@ export default function App() {
           onHome={() => {
             setSelectedCompany(null)
             setCompanyReturnProfile(null)
+            setShowCreateBusiness(false)
           }}
           onPublicPage={(page) => {
             setSelectedCompany(null)
             setCompanyReturnProfile(null)
             setSelectedPublicContent(null)
+            setShowCreateBusiness(false)
             setPublicPage(page)
           }}
           onDashboard={handleOpenDashboard}
+          onCreateBusiness={() => {
+            setSelectedCompany(null)
+            setCompanyReturnProfile(null)
+            setSelectedPublicContent(null)
+            setPublicPage(null)
+            setShowCreateBusiness(true)
+          }}
         />
         <CompanyProfile
           company={selectedCompany}
@@ -1550,12 +1587,19 @@ export default function App() {
           onHome={() => {
             setSelectedPublicContent(null)
             setPublicPage(null)
+            setShowCreateBusiness(false)
           }}
           onPublicPage={(page) => {
             setSelectedPublicContent(null)
+            setShowCreateBusiness(false)
             setPublicPage(page)
           }}
           onDashboard={handleOpenDashboard}
+          onCreateBusiness={() => {
+            setSelectedPublicContent(null)
+            setPublicPage(null)
+            setShowCreateBusiness(true)
+          }}
         />
         {selectedPublicContent ? (
           <PublicContentDetail
@@ -1609,6 +1653,36 @@ export default function App() {
     return <AboutUsPage onBack={() => setShowAboutUs(false)} />
   }
 
+  if (showCreateBusiness) {
+    return (
+      <div className="min-h-screen bg-[var(--surface-alt)]">
+        <Navbar
+          onLogin={() => {
+            setShowCreateBusiness(false)
+            setAuthPage("login")
+          }}
+          onSignUp={() => {
+            setShowCreateBusiness(false)
+            setAuthPage("signup")
+          }}
+          onHome={() => setShowCreateBusiness(false)}
+          onPublicPage={(page) => {
+            setShowCreateBusiness(false)
+            setPublicPage(page)
+          }}
+          onDashboard={handleOpenDashboard}
+          onCreateBusiness={() => setShowCreateBusiness(true)}
+        />
+        <CreateBusinessPage
+          onBack={() => setShowCreateBusiness(false)}
+          onSuccess={() => {
+            setShowCreateBusiness(false)
+          }}
+        />
+      </div>
+    )
+  }
+
   const featured = liveCompanies.filter((c) => c.featured)
 
   return (
@@ -1620,15 +1694,21 @@ export default function App() {
           setShowDirectory(false)
           setAuthPage(null)
           setShowAboutUs(false)
+          setShowCreateBusiness(false)
           setPublicPage(null)
         }}
         onPublicPage={(page) => {
           setPublicPage(page)
           setShowDirectory(false)
           setShowAboutUs(false)
+          setShowCreateBusiness(false)
           window.scrollTo(0, 0)
         }}
         onDashboard={handleOpenDashboard}
+        onCreateBusiness={() => {
+          setShowCreateBusiness(true)
+          window.scrollTo(0, 0)
+        }}
       />
 
       {/* Featured Members */}
@@ -1648,7 +1728,7 @@ export default function App() {
               />
             ))}
           </div>
-          <div className="text-center mt-10">
+          <div className="flex flex-wrap items-center justify-center gap-3 mt-10">
             <button
               onClick={() => setShowDirectory(true)}
               className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand)] border border-[var(--brand)] px-6 py-3 rounded-xl hover:bg-[var(--brand)] hover:text-white transition-colors"
@@ -1667,6 +1747,18 @@ export default function App() {
                   d="M13 7l5 5m0 0l-5 5m5-5H6"
                 />
               </svg>
+            </button>
+            <button
+              onClick={() => {
+                setShowCreateBusiness(true)
+                window.scrollTo(0, 0)
+              }}
+              className="inline-flex items-center gap-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-6 py-3 rounded-xl transition-colors shadow-lg shadow-amber-600/20"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Register Your Business
             </button>
           </div>
         </div>
