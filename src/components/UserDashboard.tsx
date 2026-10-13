@@ -1690,40 +1690,6 @@ function BusinessDetail({
                 <DetailField label="Email" value={form.email} />
                 <DetailField label="City" value={form.city} />
                 <DetailField label="Country" value={form.country} />
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs font-semibold text-[var(--text-tertiary)]">
-                    Company logo
-                  </span>
-                  {form.companyLogo ? (
-                    <div className="flex items-center gap-2 mt-1">
-                      <img
-                        src={form.companyLogo}
-                        alt="Logo"
-                        className="w-8 h-8 rounded-lg object-cover border border-[var(--border-light)] bg-white"
-                      />
-                      <span className="text-xs text-[var(--text-secondary)]">Uploaded</span>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-[var(--text-tertiary)]">Not provided</span>
-                  )}
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs font-semibold text-[var(--text-tertiary)]">
-                    Cover image
-                  </span>
-                  {form.coverImage ? (
-                    <div className="flex items-center gap-2 mt-1">
-                      <img
-                        src={form.coverImage}
-                        alt="Cover"
-                        className="w-16 h-8 rounded-lg object-cover border border-[var(--border-light)]"
-                      />
-                      <span className="text-xs text-[var(--text-secondary)]">Uploaded</span>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-[var(--text-tertiary)]">Not provided</span>
-                  )}
-                </div>
               </div>
             </>
           )}
