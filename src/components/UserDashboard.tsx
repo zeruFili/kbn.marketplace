@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { useAuth } from "../auth/AuthContext"
 import CreateBusinessPage from "./CreateBusinessPage"
 import {
@@ -63,7 +63,9 @@ function mapCompanyToBusiness(
   const logo =
     rawLogo ||
     "https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=120&h=120&fit=crop&auto=format"
+  const rawCover = resolveFileUrl(company.cover_image)
   const cover =
+    rawCover ||
     "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1200&h=420&fit=crop&auto=format"
 
   const addressParts = (company.physical_address || "").split(",")
@@ -1271,6 +1273,48 @@ function BusinessDetail({
   const [, setSaving] = useState(false)
   const [form, setForm] = useState(item)
 
+  // Image upload, replacement, and removal states
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [removeLogo, setRemoveLogo] = useState(false)
+
+  const [coverFile, setCoverFile] = useState<File | null>(null)
+  const [coverPreview, setCoverPreview] = useState<string | null>(null)
+  const [removeCover, setRemoveCover] = useState(false)
+
+  const logoInputRef = useRef<HTMLInputElement>(null)
+  const coverInputRef = useRef<HTMLInputElement>(null)
+
+  // Auto-cleanup object URLs
+  useEffect(() => {
+    if (!logoFile) {
+      setLogoPreview(null)
+      return
+    }
+    const url = URL.createObjectURL(logoFile)
+    setLogoPreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [logoFile])
+
+  useEffect(() => {
+    if (!coverFile) {
+      setCoverPreview(null)
+      return
+    }
+    const url = URL.createObjectURL(coverFile)
+    setCoverPreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [coverFile])
+
+  function resetImages() {
+    setLogoFile(null)
+    setRemoveLogo(false)
+    setCoverFile(null)
+    setRemoveCover(false)
+    if (logoInputRef.current) logoInputRef.current.value = ""
+    if (coverInputRef.current) coverInputRef.current.value = ""
+  }
+
   function update<K extends keyof UserBusinessData>(
     key: K,
     value: UserBusinessData[K],
@@ -1281,23 +1325,63 @@ function BusinessDetail({
   async function save() {
     setSaving(true)
     try {
-      await updateCompanyApi(item.id, {
-        company_name: form.companyName,
-        description: form.description,
-        owner_primary_contact: form.founderLeadership,
-        website: form.website,
-        phone_number: form.phone,
-        email: form.email,
-        physical_address: `${form.city}, ${form.country}`,
-      })
+      const formData = new FormData()
+      formData.append("company_name", form.companyName)
+      formData.append("description", form.description)
+      formData.append("owner_primary_contact", form.founderLeadership)
+      formData.append("website", form.website)
+      formData.append("phone_number", form.phone)
+      formData.append("email", form.email)
+      formData.append("physical_address", `${form.city}, ${form.country}`)
+
+      if (logoFile) {
+        formData.append("company_logo", logoFile)
+      } else if (removeLogo) {
+        formData.append("remove_company_logo", "true")
+        formData.append("company_logo", "")
+      }
+
+      if (coverFile) {
+        formData.append("cover_image", coverFile)
+      } else if (removeCover) {
+        formData.append("remove_cover_image", "true")
+        formData.append("cover_image", "")
+      }
+
+      const updated = await updateCompanyApi(item.id, formData)
+
+      const finalLogo =
+        updated?.company_logo !== undefined
+          ? (updated.company_logo ? resolveFileUrl(updated.company_logo) : "")
+          : (removeLogo ? "" : form.companyLogo)
+
+      const finalCover =
+        updated?.cover_image !== undefined
+          ? (updated.cover_image ? resolveFileUrl(updated.cover_image) : "")
+          : (removeCover ? "" : form.coverImage)
+
+      const updatedForm: UserBusinessData = {
+        ...form,
+        companyLogo: finalLogo,
+        coverImage: finalCover,
+        companyName: updated?.company_name || form.companyName,
+        description: updated?.description || form.description,
+        founderLeadership: updated?.owner_primary_contact || form.founderLeadership,
+        website: updated?.website || form.website,
+        phone: updated?.phone_number || form.phone,
+        email: updated?.email || form.email,
+      }
+
+      setForm(updatedForm)
+      resetImages()
+      setEditing(false)
+      updateUserContent<UserBusinessData>(email, "businesses", item.id, updatedForm)
+      onSaved?.(updatedForm)
     } catch (e) {
       console.warn("Backend update error:", e)
     } finally {
       setSaving(false)
     }
-    updateUserContent<UserBusinessData>(email, "businesses", item.id, form)
-    onSaved?.(form)
-    onBack()
   }
 
   async function handleDelete() {
@@ -1313,6 +1397,17 @@ function BusinessDetail({
     }
   }
 
+  const effectiveCover = coverPreview
+    ? coverPreview
+    : removeCover
+    ? ""
+    : form.coverImage
+  const effectiveLogo = logoPreview
+    ? logoPreview
+    : removeLogo
+    ? ""
+    : form.companyLogo
+
   return (
     <div className="animate-fade-in">
       <DetailHeader
@@ -1322,24 +1417,37 @@ function BusinessDetail({
         onEdit={() => setEditing(true)}
         onSave={() => void save()}
         onCancel={() => {
+          resetImages()
           setForm(item)
           setEditing(false)
         }}
         onDelete={() => void handleDelete()}
       />
       <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden">
-        <div className="relative h-48">
-          <img
-            src={form.coverImage}
-            alt=""
-            className="w-full h-full object-cover"
-          />
+        <div className="relative h-48 bg-gradient-to-r from-slate-700 to-slate-900">
+          {effectiveCover ? (
+            <img
+              src={effectiveCover}
+              alt=""
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-white/50 text-xs">
+              No cover image
+            </div>
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-          <img
-            src={form.companyLogo}
-            alt={form.companyName}
-            className="absolute bottom-5 left-6 w-20 h-20 rounded-2xl object-cover border-4 border-white shadow-lg"
-          />
+          {effectiveLogo ? (
+            <img
+              src={effectiveLogo}
+              alt={form.companyName}
+              className="absolute bottom-5 left-6 w-20 h-20 rounded-2xl object-cover border-4 border-white shadow-lg bg-white"
+            />
+          ) : (
+            <div className="absolute bottom-5 left-6 w-20 h-20 rounded-2xl border-4 border-white shadow-lg bg-slate-800 flex items-center justify-center text-white font-bold text-xl">
+              {form.companyName.charAt(0) || "C"}
+            </div>
+          )}
         </div>
         <div className="p-6 md:p-8 pt-10">
           {editing ? (
@@ -1354,16 +1462,159 @@ function BusinessDetail({
                 value={form.industry}
                 onChange={(value) => update("industry", value)}
               />
-              <EditField
-                label="Company logo URL"
-                value={form.companyLogo}
-                onChange={(value) => update("companyLogo", value)}
-              />
-              <EditField
-                label="Cover image URL"
-                value={form.coverImage}
-                onChange={(value) => update("coverImage", value)}
-              />
+
+              {/* Company Logo Upload / Replace / Remove */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-[var(--text-secondary)]">
+                  Company Logo
+                </label>
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) {
+                      setLogoFile(file)
+                      setRemoveLogo(false)
+                    }
+                  }}
+                />
+                <div className="p-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-alt)]/50 flex items-center gap-3">
+                  {effectiveLogo ? (
+                    <img
+                      src={effectiveLogo}
+                      alt="Logo preview"
+                      className="w-14 h-14 rounded-xl object-cover border border-[var(--border-light)] bg-white shrink-0"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 rounded-xl border border-dashed border-[var(--border-default)] flex items-center justify-center text-xs text-[var(--text-tertiary)] shrink-0">
+                      No Logo
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => logoInputRef.current?.click()}
+                        className="text-xs font-medium px-3 py-1.5 rounded-lg bg-[var(--brand)] text-white hover:bg-[var(--brand-light)] transition-colors cursor-pointer"
+                      >
+                        {effectiveLogo ? "Replace Logo" : "Upload Logo"}
+                      </button>
+                      {effectiveLogo && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLogoFile(null)
+                            setRemoveLogo(true)
+                            if (logoInputRef.current) logoInputRef.current.value = ""
+                          }}
+                          className="text-xs text-red-500 hover:text-red-600 hover:underline px-2 py-1 cursor-pointer font-medium"
+                        >
+                          Remove
+                        </button>
+                      )}
+                      {removeLogo && (
+                        <button
+                          type="button"
+                          onClick={() => setRemoveLogo(false)}
+                          className="text-xs text-[var(--brand)] hover:underline px-2 py-1 cursor-pointer"
+                        >
+                          Keep Original
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-[var(--text-tertiary)] mt-1 truncate">
+                      {logoFile
+                        ? `Selected: ${logoFile.name} (${(logoFile.size / 1024).toFixed(1)} KB)`
+                        : removeLogo
+                        ? "Logo will be removed upon save"
+                        : form.companyLogo
+                        ? "Using current uploaded logo"
+                        : "PNG, JPG, WebP up to 10MB"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Cover Image Upload / Replace / Remove */}
+              <div className="flex flex-col gap-1.5 sm:col-span-2">
+                <label className="text-xs font-semibold text-[var(--text-secondary)]">
+                  Cover Image
+                </label>
+                <input
+                  ref={coverInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) {
+                      setCoverFile(file)
+                      setRemoveCover(false)
+                    }
+                  }}
+                />
+                <div className="p-3 rounded-xl border border-[var(--border-default)] bg-[var(--surface-alt)]/50">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                    {effectiveCover ? (
+                      <img
+                        src={effectiveCover}
+                        alt="Cover preview"
+                        className="w-full sm:w-36 h-20 rounded-xl object-cover border border-[var(--border-light)] shrink-0"
+                      />
+                    ) : (
+                      <div className="w-full sm:w-36 h-20 rounded-xl border border-dashed border-[var(--border-default)] flex items-center justify-center text-xs text-[var(--text-tertiary)] shrink-0">
+                        No Cover
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => coverInputRef.current?.click()}
+                          className="text-xs font-medium px-3 py-1.5 rounded-lg bg-[var(--brand)] text-white hover:bg-[var(--brand-light)] transition-colors cursor-pointer"
+                        >
+                          {effectiveCover ? "Replace Cover Image" : "Upload Cover Image"}
+                        </button>
+                        {effectiveCover && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCoverFile(null)
+                              setRemoveCover(true)
+                              if (coverInputRef.current) coverInputRef.current.value = ""
+                            }}
+                            className="text-xs text-red-500 hover:text-red-600 hover:underline px-2 py-1 cursor-pointer font-medium"
+                          >
+                            Remove
+                          </button>
+                        )}
+                        {removeCover && (
+                          <button
+                            type="button"
+                            onClick={() => setRemoveCover(false)}
+                            className="text-xs text-[var(--brand)] hover:underline px-2 py-1 cursor-pointer"
+                          >
+                            Keep Original
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-[var(--text-tertiary)] mt-1 truncate">
+                        {coverFile
+                          ? `Selected: ${coverFile.name} (${(coverFile.size / 1024).toFixed(1)} KB)`
+                          : removeCover
+                          ? "Cover image will be removed upon save"
+                          : form.coverImage
+                          ? "Using current cover banner"
+                          : "Wide banner recommended (1200×400), JPG, PNG, WebP up to 10MB"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <EditField
                 label="Founder / leadership"
                 value={form.founderLeadership}
@@ -1439,8 +1690,40 @@ function BusinessDetail({
                 <DetailField label="Email" value={form.email} />
                 <DetailField label="City" value={form.city} />
                 <DetailField label="Country" value={form.country} />
-                <DetailField label="Company logo" value={form.companyLogo} />
-                <DetailField label="Cover image" value={form.coverImage} />
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-semibold text-[var(--text-tertiary)]">
+                    Company logo
+                  </span>
+                  {form.companyLogo ? (
+                    <div className="flex items-center gap-2 mt-1">
+                      <img
+                        src={form.companyLogo}
+                        alt="Logo"
+                        className="w-8 h-8 rounded-lg object-cover border border-[var(--border-light)] bg-white"
+                      />
+                      <span className="text-xs text-[var(--text-secondary)]">Uploaded</span>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-[var(--text-tertiary)]">Not provided</span>
+                  )}
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-semibold text-[var(--text-tertiary)]">
+                    Cover image
+                  </span>
+                  {form.coverImage ? (
+                    <div className="flex items-center gap-2 mt-1">
+                      <img
+                        src={form.coverImage}
+                        alt="Cover"
+                        className="w-16 h-8 rounded-lg object-cover border border-[var(--border-light)]"
+                      />
+                      <span className="text-xs text-[var(--text-secondary)]">Uploaded</span>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-[var(--text-tertiary)]">Not provided</span>
+                  )}
+                </div>
               </div>
             </>
           )}

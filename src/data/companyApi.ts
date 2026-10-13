@@ -26,6 +26,7 @@ export interface CompanyApiResponse {
   description: string
   website?: string
   company_logo?: string
+  cover_image?: string
   business_license?: string
   verification_status: "pending" | "verified" | "rejected"
   is_active: boolean
@@ -129,19 +130,29 @@ export async function fetchMyCompanies(): Promise<CompanyApiResponse[]> {
 
 export async function updateCompanyApi(
   id: string,
-  payload: Record<string, unknown>
+  payload: FormData | Record<string, unknown>
 ): Promise<CompanyApiResponse | null> {
   try {
     const token = getStoredToken()
     if (!token) return null
 
+    const headers: Record<string, string> = {}
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`
+    }
+
+    let body: BodyInit
+    if (payload instanceof FormData) {
+      body = payload
+    } else {
+      headers["Content-Type"] = "application/json"
+      body = JSON.stringify(payload)
+    }
+
     const res = await fetch(`${API_BASE}/companies/${id}`, {
       method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(payload),
+      headers,
+      body,
     })
 
     const json = await res.json()

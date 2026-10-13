@@ -54,6 +54,8 @@ export default function CreateBusinessPage({
   // File Uploads
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [coverFile, setCoverFile] = useState<File | null>(null)
+  const [coverPreview, setCoverPreview] = useState<string | null>(null)
   const [licenseFile, setLicenseFile] = useState<File | null>(null)
 
   // UI status
@@ -62,6 +64,7 @@ export default function CreateBusinessPage({
   const [createdCompany, setCreatedCompany] = useState<CompanyApiResponse | null>(null)
 
   const logoInputRef = useRef<HTMLInputElement>(null)
+  const coverInputRef = useRef<HTMLInputElement>(null)
   const licenseInputRef = useRef<HTMLInputElement>(null)
 
   // Load categories from backend API on mount
@@ -84,7 +87,7 @@ export default function CreateBusinessPage({
     }
   }, [])
 
-  // Auto-cleanup object URL preview
+  // Auto-cleanup object URL preview for logo
   useEffect(() => {
     if (!logoFile) {
       setLogoPreview(null)
@@ -94,6 +97,17 @@ export default function CreateBusinessPage({
     setLogoPreview(url)
     return () => URL.revokeObjectURL(url)
   }, [logoFile])
+
+  // Auto-cleanup object URL preview for cover image
+  useEffect(() => {
+    if (!coverFile) {
+      setCoverPreview(null)
+      return
+    }
+    const url = URL.createObjectURL(coverFile)
+    setCoverPreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [coverFile])
 
   function handleAddSocialLink() {
     setSocialLinks((prev) => [...prev, { platform: "telegram", link: "" }])
@@ -206,6 +220,10 @@ export default function CreateBusinessPage({
       // We append under attachmentFiles AND specific field names so both conventions succeed
       if (logoFile) {
         formData.append("company_logo", logoFile)
+      }
+
+      if (coverFile) {
+        formData.append("cover_image", coverFile)
       }
 
       if (licenseFile) {
@@ -601,6 +619,66 @@ export default function CreateBusinessPage({
                 )}
               </div>
 
+              {/* Company Cover Image Upload (Optional) */}
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2">
+                  Company Cover Image <span className="text-[var(--text-tertiary)] font-normal lowercase">(optional banner photo)</span>
+                </label>
+                <input
+                  ref={coverInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) setCoverFile(file)
+                  }}
+                />
+
+                {coverFile && coverPreview ? (
+                  <div className="relative rounded-2xl overflow-hidden border border-[var(--border-default)] bg-[var(--surface-alt)]">
+                    <img
+                      src={coverPreview}
+                      alt="Cover Preview"
+                      className="w-full h-36 object-cover"
+                    />
+                    <div className="p-3 flex items-center justify-between bg-[var(--surface)]/90 backdrop-blur-sm border-t border-[var(--border-light)]">
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-[var(--text-primary)] truncate">
+                          {coverFile.name}
+                        </p>
+                        <p className="text-[11px] text-[var(--text-tertiary)]">
+                          {(coverFile.size / 1024).toFixed(1)} KB · Banner Image
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCoverFile(null)
+                          if (coverInputRef.current) coverInputRef.current.value = ""
+                        }}
+                        className="text-xs text-red-500 hover:underline px-2 py-1 cursor-pointer font-medium"
+                      >
+                        Remove Cover
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => coverInputRef.current?.click()}
+                    className="border-2 border-dashed border-[var(--border-default)] hover:border-[var(--brand)] rounded-2xl p-6 text-center cursor-pointer transition-colors bg-[var(--surface-alt)]/50"
+                  >
+                    <div className="text-2xl mb-2">🌄</div>
+                    <p className="text-xs font-semibold text-[var(--text-primary)] mb-1">
+                      Click to choose Company Cover Image
+                    </p>
+                    <p className="text-[11px] text-[var(--text-tertiary)]">
+                      Wide banner photo (1200×400 recommended), PNG, JPG, WebP up to 10MB
+                    </p>
+                  </div>
+                )}
+              </div>
+
               {/* Business License Upload (Required) */}
               <div>
                 <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2">
@@ -669,7 +747,16 @@ export default function CreateBusinessPage({
                 4. Review & Confirm Submission
               </h2>
 
-              <div className="bg-[var(--surface-alt)] rounded-2xl p-6 space-y-4 border border-[var(--border-default)] text-sm">
+              <div className="bg-[var(--surface-alt)] rounded-2xl p-6 space-y-4 border border-[var(--border-default)] text-sm overflow-hidden">
+                {coverPreview && (
+                  <div className="-mx-6 -mt-6 mb-4 h-32 overflow-hidden border-b border-[var(--border-light)]">
+                    <img
+                      src={coverPreview}
+                      alt="Cover preview"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
                 <div className="flex justify-between items-start border-b border-[var(--border-light)] pb-3">
                   <div>
                     <h3 className="font-serif text-lg text-[var(--text-primary)]">{companyName}</h3>
@@ -709,6 +796,15 @@ export default function CreateBusinessPage({
                   <span className="text-[var(--text-tertiary)] block mb-1">Description:</span>
                   <p className="text-[var(--text-secondary)] leading-relaxed">{description}</p>
                 </div>
+
+                {coverFile && (
+                  <div className="border-t border-[var(--border-light)] pt-3 text-xs">
+                    <span className="text-[var(--text-tertiary)] block mb-1">Attached Cover Image:</span>
+                    <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                      ✓ {coverFile.name} ({(coverFile.size / 1024).toFixed(1)} KB)
+                    </span>
+                  </div>
+                )}
 
                 <div className="border-t border-[var(--border-light)] pt-3 text-xs">
                   <span className="text-[var(--text-tertiary)] block mb-1">Attached License File:</span>
