@@ -60,7 +60,8 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  if (!user || user.role !== "admin") {
+  const userRole = user?.role?.toLowerCase()
+  if (!user || userRole !== "admin") {
     return (
       <div className="min-h-screen bg-[var(--surface-alt)] flex items-center justify-center text-[var(--text-tertiary)]">
         Access denied.

@@ -1441,6 +1441,10 @@ export default function App() {
     }
   }, [loading, user])
 
+  const handleOpenDashboard = () => {
+    const role = user?.role?.toLowerCase() ?? "user"
+    setDashboard(role as UserRole)
+  }
 
   if (loading) {
     return (
@@ -1468,12 +1472,20 @@ export default function App() {
     )
   }
 
-  if (dashboard === "company")
+  const normalizedRole = dashboard?.toLowerCase()
+  if (normalizedRole === "company") {
     return <CompanyDashboard onBack={() => setDashboard(null)} />
-  if (dashboard === "admin")
+  }
+  if (normalizedRole === "admin") {
     return <AdminDashboard onBack={() => setDashboard(null)} />
-  if (dashboard === "user")
+  }
+  if (
+    normalizedRole === "user" ||
+    normalizedRole === "church" ||
+    normalizedRole === "ministry"
+  ) {
     return <UserDashboard onBack={() => setDashboard(null)} />
+  }
 
   if (authPage === "login") {
     return (
@@ -1511,7 +1523,7 @@ export default function App() {
             setSelectedPublicContent(null)
             setPublicPage(page)
           }}
-          onDashboard={() => setDashboard(user?.role ?? null)}
+          onDashboard={handleOpenDashboard}
         />
         <CompanyProfile
           company={selectedCompany}
@@ -1543,7 +1555,7 @@ export default function App() {
             setSelectedPublicContent(null)
             setPublicPage(page)
           }}
-          onDashboard={() => setDashboard(user?.role ?? null)}
+          onDashboard={handleOpenDashboard}
         />
         {selectedPublicContent ? (
           <PublicContentDetail
@@ -1616,7 +1628,7 @@ export default function App() {
           setShowAboutUs(false)
           window.scrollTo(0, 0)
         }}
-        onDashboard={() => setDashboard(user?.role ?? null)}
+        onDashboard={handleOpenDashboard}
       />
 
       {/* Featured Members */}

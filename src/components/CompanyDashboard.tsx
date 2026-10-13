@@ -2,6 +2,8 @@ import { useState, useEffect, type ReactNode } from "react"
 import { useAuth } from "../auth/AuthContext"
 import {
   getCompanyById,
+  getCompanies,
+  upsertCompany,
   updateCompany,
   subscribe,
   type Company as CompanyData,
@@ -39,27 +41,76 @@ export default function CompanyDashboard({ onBack }: { onBack: () => void }) {
   )
 
   useEffect(() => {
-    if (!user?.companyId) return
-    const c = getCompanyById(user.companyId)
-    if (c) {
-      setCompany(c)
-      setForm({
-        name: c.name,
-        description: c.description,
-        longDescription: c.longDescription,
-        phone: c.phone,
-        email: c.email,
-        website: c.website,
-        address: c.address,
-        category: c.category,
-        services: [...c.services],
-        tags: [...c.tags],
-        missionStatement: c.missionStatement,
-        ownerName: c.ownerName,
-      })
+    if (!user) return
+
+    const resolveCompany = (): CompanyData => {
+      if (user.companyId) {
+        const found = getCompanyById(user.companyId)
+        if (found) return found
+      }
+      const all = getCompanies()
+      if (user.email) {
+        const byEmail = all.find(
+          (c) => c.email.toLowerCase() === user.email.toLowerCase(),
+        )
+        if (byEmail) return byEmail
+      }
+      if (user.business) {
+        const byBiz = all.find(
+          (c) => c.name.toLowerCase() === user.business?.toLowerCase(),
+        )
+        if (byBiz) return byBiz
+      }
+      const newComp: CompanyData = {
+        id:
+          user.companyId ||
+          `company-${user.id || user.email.replace(/[^a-zA-Z0-9]/g, "-")}`,
+        name: user.business || user.name || "My Company",
+        category: "Construction",
+        logo:
+          user.avatar ||
+          "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=160&h=160&fit=crop&auto=format",
+        banner:
+          "https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=1200&h=420&fit=crop&auto=format",
+        rating: 5.0,
+        reviewCount: 0,
+        description: `Welcome to ${user.business || user.name}. Add your company description here.`,
+        longDescription: `Full information and services for ${user.business || user.name}.`,
+        phone: "+251 911 000 000",
+        email: user.email,
+        website: "",
+        address: "Addis Ababa, Ethiopia",
+        services: ["General Services"],
+        gallery: [],
+        tags: ["Member", "Christian Business"],
+        reviews: [],
+        featured: false,
+        ownerName: user.name,
+        missionStatement: "Serving God and community through business excellence.",
+      }
+      upsertCompany(newComp)
+      return newComp
     }
+
+    const c = resolveCompany()
+    setCompany(c)
+    setForm({
+      name: c.name,
+      description: c.description,
+      longDescription: c.longDescription,
+      phone: c.phone,
+      email: c.email,
+      website: c.website,
+      address: c.address,
+      category: c.category,
+      services: [...c.services],
+      tags: [...c.tags],
+      missionStatement: c.missionStatement,
+      ownerName: c.ownerName,
+    })
+
     const unsub = subscribe(() => {
-      const currentId = user.companyId
+      const currentId = user.companyId || c.id
       if (currentId) {
         const fresh = getCompanyById(currentId)
         if (fresh) setCompany(fresh)
@@ -80,9 +131,10 @@ export default function CompanyDashboard({ onBack }: { onBack: () => void }) {
     key: K,
     value: EditableFields[K],
   ) {
-    if (!user?.companyId || !form) return
+    const compId = user?.companyId || company?.id
+    if (!compId || !form) return
     const body: Partial<CompanyData> = { [key]: value }
-    updateCompany(user.companyId, body)
+    updateCompany(compId, body)
     setSaved(true)
     setTimeout(() => setSaved(false), 1500)
   }
@@ -118,7 +170,8 @@ export default function CompanyDashboard({ onBack }: { onBack: () => void }) {
     saveField("tags", t)
   }
 
-  if (!user || user.role !== "company") {
+  const userRole = user?.role?.toLowerCase()
+  if (!user || userRole !== "company") {
     return (
       <div className="min-h-screen bg-[var(--surface-alt)] flex items-center justify-center text-[var(--text-tertiary)]">
         Access denied.

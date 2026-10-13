@@ -63,7 +63,11 @@ export default function UserDashboard({ onBack }: { onBack: () => void }) {
     setMobileOpen(false)
   }
 
-  if (!user || user.role !== "user") {
+  const userRole = user?.role?.toLowerCase()
+  if (
+    !user ||
+    (userRole !== "user" && userRole !== "church" && userRole !== "ministry")
+  ) {
     return (
       <div className="min-h-screen bg-[var(--surface-alt)] flex items-center justify-center text-[var(--text-tertiary)]">
         Access denied.
