@@ -13,7 +13,7 @@ import {
   updateCompanyApi,
   fetchCompanyById,
   mapApiResponseToCompany,
-} from "../data/companyApi"
+} from "../api/companyApi"
 
 export default function EditCompanyPage() {
   const { id } = useParams<{ id: string }>()

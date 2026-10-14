@@ -5,7 +5,7 @@ import {
   submitCompanyCreation,
   type CategoryItem,
   type CompanyApiResponse,
-} from "../data/companyApi"
+} from "../api/companyApi"
 
 interface SocialLinkItem {
   platform: string

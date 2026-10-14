@@ -1,3 +1,11 @@
+import {
+  getAuthToken,
+  setAuthToken,
+  removeAuthToken,
+  ApiError,
+} from "../api/baseApi"
+import { loginApi, registerApi } from "../api/authApi"
+
 export type UserRole = "admin" | "user" | "company" | "church" | "ministry"
 
 export interface User {
@@ -108,23 +116,9 @@ function saveStoredUsers(users: StoredUser[]) {
   localStorage.setItem("kbn_users", JSON.stringify(users))
 }
 
-const API_BASE =
-  import.meta.env.VITE_API_URL ||
-  (typeof window !== "undefined" && window.location.port === "3001"
-    ? "/api/v1"
-    : "http://localhost:3001/api/v1")
-
-export function getStoredToken(): string | null {
-  return localStorage.getItem("kbn_token")
-}
-
-export function saveToken(token: string) {
-  localStorage.setItem("kbn_token", token)
-}
-
-export function clearToken() {
-  localStorage.removeItem("kbn_token")
-}
+export const getStoredToken = getAuthToken
+export const saveToken = setAuthToken
+export const clearToken = removeAuthToken
 
 export function getStoredSession(): User | null {
   const s = localStorage.getItem("kbn_session")
@@ -147,25 +141,20 @@ export function clearSession() {
 
 export async function login(email: string, password: string): Promise<User> {
   try {
-    const res = await fetch(`${API_BASE}/auth/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email: email.trim(), password }),
-    })
+    const res = await loginApi({ email, password })
 
-    const json = await res.json()
-
-    if (res.ok && json.success) {
-      const apiData = json.data
+    if (res.success && res.data) {
+      const apiData = res.data
       const safeUser = apiData.user
       const token = apiData.accessToken
 
       const user: User = {
         id: safeUser.id,
         email: safeUser.email || email.trim(),
-        name: safeUser.full_name || safeUser.fullName || email.split("@")[0],
+        name:
+          (safeUser.full_name as string) ||
+          (safeUser.fullName as string) ||
+          email.split("@")[0],
         avatar: `https://i.pravatar.cc/96?u=${safeUser.id}`,
         role: (safeUser.role as UserRole) || "user",
       }
@@ -175,24 +164,37 @@ export async function login(email: string, password: string): Promise<User> {
       }
       saveSession(user)
       return user
-    } else if (res.status === 401 || res.status === 403 || res.status === 400) {
-      // Check if it's one of the built-in demo credentials before failing
-      const mockUser = getStoredUsers().find(
-        (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password,
-      )
-      if (mockUser) {
-        const { password: _, ...safeMock } = mockUser
-        saveSession(safeMock)
-        return safeMock
-      }
-      throw new Error(json.message || "Invalid email or password.")
-    } else {
-      throw new Error(json.message || "Login failed.")
     }
+
+    throw new Error(res.message || "Login failed.")
   } catch (err: unknown) {
-    // If backend request fails (e.g. offline/network), fall back to demo accounts
+    // If backend returns 401/403/400 or network error, check if it's one of the built-in demo credentials
+    if (err instanceof ApiError) {
+      if (
+        err.status === 401 ||
+        err.status === 403 ||
+        err.status === 400 ||
+        err.isNetworkError
+      ) {
+        const mockUser = getStoredUsers().find(
+          (u) =>
+            u.email.toLowerCase() === email.toLowerCase() &&
+            u.password === password
+        )
+        if (mockUser) {
+          const { password: _, ...safeMock } = mockUser
+          saveSession(safeMock)
+          return safeMock
+        }
+      }
+      throw new Error(err.message || "Invalid email or password.")
+    }
+
+    // Fall back to demo accounts on unexpected error
     const mockUser = getStoredUsers().find(
-      (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password,
+      (u) =>
+        u.email.toLowerCase() === email.toLowerCase() &&
+        u.password === password
     )
     if (mockUser) {
       const { password: _, ...safeMock } = mockUser
@@ -212,38 +214,33 @@ export async function signUp(data: {
   const role: UserRole = data.business ? "company" : "user"
 
   try {
-    const res = await fetch(`${API_BASE}/auth/register`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        full_name: data.name.trim(),
-        email: data.email.trim(),
-        password: data.password,
-        role,
-        business: data.business?.trim() || undefined,
-      }),
+    const res = await registerApi({
+      name: data.name,
+      email: data.email,
+      password: data.password,
+      role,
+      business: data.business,
     })
 
-    const json = await res.json()
-
-    if (!res.ok || !json.success) {
-      let message = json.message || "Sign up failed."
-      if (Array.isArray(json.errors) && json.errors.length > 0) {
-        message = json.errors.join(". ")
+    if (!res.success || !res.data) {
+      let message = res.message || "Sign up failed."
+      if (Array.isArray(res.errors) && res.errors.length > 0) {
+        message = res.errors.join(". ")
       }
       throw new Error(message)
     }
 
-    const apiData = json.data
+    const apiData = res.data
     const safeUser = apiData.user
     const token = apiData.accessToken
 
     const user: User = {
       id: safeUser.id,
       email: safeUser.email || data.email.trim(),
-      name: safeUser.full_name || safeUser.fullName || data.name.trim(),
+      name:
+        (safeUser.full_name as string) ||
+        (safeUser.fullName as string) ||
+        data.name.trim(),
       avatar: `https://i.pravatar.cc/96?u=${safeUser.id}`,
       role: (safeUser.role as UserRole) || role,
       business: data.business?.trim() || undefined,
@@ -255,6 +252,13 @@ export async function signUp(data: {
     saveSession(user)
     return user
   } catch (err: unknown) {
+    if (err instanceof ApiError) {
+      let message = err.message || "Sign up failed."
+      if (Array.isArray(err.errors) && err.errors.length > 0) {
+        message = err.errors.join(". ")
+      }
+      throw new Error(message)
+    }
     throw err
   }
 }

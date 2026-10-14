@@ -8,7 +8,7 @@ import {
   deleteCompanyApi,
   resolveFileUrl,
   type CompanyApiResponse,
-} from "../../data/companyApi"
+} from "../../api/companyApi"
 import {
   getUserDashboardData,
   updateUserContent,
@@ -327,13 +327,119 @@ function BusinessCard({
   )
 }
 
+const SYSTEM_ACCENT_ICON_CLASS =
+  "bg-[var(--accent-light)] text-[var(--accent-dark)] border border-[var(--accent)]/20"
+
+function getDetailIconConfig(label: string) {
+  const text = label.toLowerCase()
+  if (text.includes("founder") || text.includes("leadership") || text.includes("owner")) {
+    return {
+      colorClass: SYSTEM_ACCENT_ICON_CLASS,
+      icon: (
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.8}
+          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+        />
+      ),
+    }
+  }
+  if (text.includes("website") || text.includes("url")) {
+    return {
+      colorClass: SYSTEM_ACCENT_ICON_CLASS,
+      icon: (
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.8}
+          d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
+        />
+      ),
+    }
+  }
+  if (text.includes("phone") || text.includes("tel") || text.includes("call")) {
+    return {
+      colorClass: SYSTEM_ACCENT_ICON_CLASS,
+      icon: (
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.8}
+          d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+        />
+      ),
+    }
+  }
+  if (text.includes("email") || text.includes("mail") || text.includes("contact")) {
+    return {
+      colorClass: SYSTEM_ACCENT_ICON_CLASS,
+      icon: (
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.8}
+          d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+        />
+      ),
+    }
+  }
+  if (
+    text.includes("city") ||
+    text.includes("country") ||
+    text.includes("address") ||
+    text.includes("location")
+  ) {
+    return {
+      colorClass: SYSTEM_ACCENT_ICON_CLASS,
+      icon: (
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.8}
+          d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+        />
+      ),
+    }
+  }
+  return {
+    colorClass: SYSTEM_ACCENT_ICON_CLASS,
+    icon: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.8}
+        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
+    ),
+  }
+}
+
 function Info({ label, value }: { label: string; value: string }) {
+  const { colorClass, icon } = getDetailIconConfig(label)
   return (
-    <div>
-      <p className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-0.5">
-        {label}
-      </p>
-      <p className="text-[var(--text-secondary)] break-words">{value || "Not provided"}</p>
+    <div className="flex items-center gap-2.5 min-w-0">
+      <div
+        className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 shadow-xs ${colorClass}`}
+      >
+        <svg
+          className="w-3.5 h-3.5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          aria-hidden="true"
+        >
+          {icon}
+        </svg>
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[9px] text-[var(--text-tertiary)] uppercase tracking-wide font-semibold truncate">
+          {label}
+        </p>
+        <p className="text-xs text-[var(--text-secondary)] font-medium truncate">
+          {value || "Not provided"}
+        </p>
+      </div>
     </div>
   )
 }
@@ -828,9 +934,27 @@ function BusinessDetail({
                   label="Founder / leadership"
                   value={form.founderLeadership}
                 />
-                <DetailField label="Website" value={form.website} />
-                <DetailField label="Phone" value={form.phone} />
-                <DetailField label="Email" value={form.email} />
+                <DetailField
+                  label="Website"
+                  value={form.website}
+                  href={
+                    form.website
+                      ? form.website.startsWith("http")
+                        ? form.website
+                        : `https://${form.website}`
+                      : undefined
+                  }
+                />
+                <DetailField
+                  label="Phone"
+                  value={form.phone}
+                  href={form.phone ? `tel:${form.phone}` : undefined}
+                />
+                <DetailField
+                  label="Email"
+                  value={form.email}
+                  href={form.email ? `mailto:${form.email}` : undefined}
+                />
                 <DetailField label="City" value={form.city} />
                 <DetailField label="Country" value={form.country} />
               </div>
@@ -913,29 +1037,58 @@ function DetailField({
   label,
   value,
   locked = false,
+  href,
 }: {
   label: string
   value: string
   locked?: boolean
+  href?: string
 }) {
+  const { colorClass, icon } = getDetailIconConfig(label)
   return (
-    <div className="bg-[var(--surface-alt)] rounded-xl border border-[var(--border-light)] p-4">
-      <div className="flex items-center justify-between gap-2 mb-1">
-        <p className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)]">
-          {label}
-        </p>
-        {locked && (
-          <span
-            className="inline-flex items-center gap-1 text-[10px] font-medium text-[var(--text-tertiary)] normal-case tracking-normal"
-            title="This field cannot be edited"
+    <div className="bg-[var(--surface-alt)] rounded-2xl border border-[var(--border-light)] p-4 sm:p-4.5 flex items-center gap-3.5 hover:border-[var(--border-default)] transition-all group">
+      <div
+        className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 shadow-xs transition-transform duration-200 group-hover:scale-105 ${colorClass}`}
+      >
+        <svg
+          className="w-4 h-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          aria-hidden="true"
+        >
+          {icon}
+        </svg>
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2 mb-0.5">
+          <p className="text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-semibold">
+            {label}
+          </p>
+          {locked && (
+            <span
+              className="inline-flex items-center gap-1 text-[10px] font-medium text-[var(--text-tertiary)] normal-case tracking-normal"
+              title="This field cannot be edited"
+            >
+              Cannot be edited
+            </span>
+          )}
+        </div>
+        {href && value ? (
+          <a
+            href={href}
+            target={href.startsWith("http") ? "_blank" : undefined}
+            rel={href.startsWith("http") ? "noopener noreferrer" : undefined}
+            className="text-sm font-semibold text-[var(--text-primary)] hover:text-[var(--brand)] transition-colors break-words line-clamp-1"
           >
-            Cannot be edited
-          </span>
+            {value}
+          </a>
+        ) : (
+          <p className="text-sm font-semibold text-[var(--text-primary)] break-words line-clamp-2">
+            {value || "Not provided"}
+          </p>
         )}
       </div>
-      <p className="text-sm font-semibold text-[var(--text-primary)] break-words whitespace-pre-wrap">
-        {value || "Not provided"}
-      </p>
     </div>
   )
 }

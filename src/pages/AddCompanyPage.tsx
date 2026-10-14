@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom"
 import Navbar from "../components/Navbar"
 import CreateBusinessPage from "../components/CreateBusinessPage"
-import { type CompanyApiResponse } from "../data/companyApi"
+import { type CompanyApiResponse } from "../api/companyApi"
 
 export default function AddCompanyPage() {
   const navigate = useNavigate()

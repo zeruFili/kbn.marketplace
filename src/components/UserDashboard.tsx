@@ -7,7 +7,7 @@ import {
   deleteCompanyApi,
   resolveFileUrl,
   type CompanyApiResponse,
-} from "../data/companyApi"
+} from "../api/companyApi"
 import {
   getUserReviews,
   updateUserReview,
@@ -619,22 +619,22 @@ function UserProfile({
   }
 
   return (
-    <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6 md:p-8 animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 mb-8">
-        <div className="flex items-center gap-5">
+    <section className="bg-[var(--surface)] rounded-3xl border border-[var(--border-light)] p-6 md:p-10 shadow-xs animate-fade-in">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-5 mb-8">
+        <div className="flex items-start gap-5">
           <img
             src={profile.profilePhoto}
             alt={profile.fullName}
-            className="w-24 h-24 rounded-2xl object-cover ring-4 ring-[var(--brand)]/10"
+            className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover flex-shrink-0 shadow-sm border border-[var(--border-light)]"
           />
           <div>
-            <h2 className="font-serif text-2xl text-[var(--text-primary)]">
+            <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[var(--brand)] dark:text-[var(--text-primary)] leading-tight">
               {profile.fullName}
             </h2>
-            <p className="text-sm text-[var(--accent-dark)] mt-1">
+            <p className="text-sm font-semibold text-[var(--accent-dark)] mt-1">
               {profile.professionalTitle}
             </p>
-            <p className="text-sm text-[var(--text-tertiary)] mt-2">
+            <p className="text-sm text-[var(--text-tertiary)] mt-1.5">
               {profile.city}, {profile.country}
             </p>
           </div>
@@ -657,7 +657,7 @@ function UserProfile({
         ) : (
           <button
             onClick={() => setEditing(true)}
-            className="px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--brand)] text-white hover:bg-[var(--brand-light)]"
+            className="px-6 py-2 rounded-full text-sm font-semibold bg-[var(--brand)] text-white hover:bg-[var(--brand-light)] transition-colors shadow-sm cursor-pointer self-start"
           >
             Edit
           </button>
@@ -749,25 +749,31 @@ function UserProfile({
         </div>
       ) : (
         <>
-          <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-6 max-w-3xl">
-            {profile.shortBio}
+          <p className="text-sm md:text-[15px] text-[var(--text-secondary)] leading-relaxed mt-6 mb-8 max-w-3xl">
+            {profile.shortBio || "Not provided"}
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <ProfileDetail label="Phone number" value={profile.phone} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+            <ProfileDetail label="PHONE NUMBER" value={profile.phone} />
             <ProfileDetail
-              label="Professional experience"
+              label="PROFESSIONAL EXPERIENCE"
               value={profile.professionalExperience}
             />
-            <ProfileDetail label="Education" value={profile.education} />
+            <ProfileDetail label="EDUCATION" value={profile.education} />
             <ProfileDetail
-              label="Achievements"
+              label="ACHIEVEMENTS"
               value={profile.achievements.join(" • ") || "Not provided"}
             />
-            <ProfileDetail label="Website" value={profile.website} />
-            <ProfileDetail label="Social media" value={profile.socialMedia} />
+            <ProfileDetail label="WEBSITE" value={profile.website} />
+            <ProfileDetail label="SOCIAL MEDIA" value={profile.socialMedia} />
             <ProfileDetail
-              label="Digital slug"
-              value={`/${profile.digitalSlug}`}
+              label="DIGITAL SLUG"
+              value={
+                profile.digitalSlug
+                  ? profile.digitalSlug.startsWith("/")
+                    ? profile.digitalSlug
+                    : `/${profile.digitalSlug}`
+                  : "Not provided"
+              }
             />
           </div>
         </>
@@ -887,50 +893,55 @@ function FieldControlIcon({ label }: { label: string }) {
   )
 }
 
-function ProfileDetail({ label, value }: { label: string value: string }) {
+function ProfileDetail({ label, value }: { label: string; value: string }) {
+  const normalized = label.trim().toUpperCase()
   const iconPaths: Record<string, string> = {
-    "Phone number":
-      "M22 16.92v3a2 2 0 01-2.18 2 19.8 19.8 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.8 19.8 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.12.9.33 1.78.62 2.63a2 2 0 01-.45 2.11L8 9.73a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0122 16.92z",
-    "Professional experience":
+    "PHONE NUMBER":
+      "M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z",
+    "PROFESSIONAL EXPERIENCE":
       "M20 7h-4V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2H4a2 2 0 00-2 2v9a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2zm-10-2h4v2h-4V5z",
-    Education: "M22 10l-10-5-10 5 10 5 10-5zm-16 3v4l6 3 6-3v-4",
-    City: "M3 21h18M5 21V7a2 2 0 017-2h0a2 2 0 012 2v14M9 9h2m-2 4h2m4-4h2m-2 4h2",
-    Country:
+    EDUCATION:
+      "M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z",
+    ACHIEVEMENTS:
+      "M12 2a10 10 0 100 20 10 10 0 000-20z",
+    WEBSITE:
       "M12 21a9 9 0 100-18 9 9 0 000 18zm0 0c2.21-2.49 3.5-5.53 3.5-9S14.21 5.49 12 3m0 18c-2.21-2.49-3.5-5.53-3.5-9S9.79 5.49 12 3m-9 9h18",
-    Website:
-      "M12 21a9 9 0 100-18 9 9 0 000 18zm0 0c2.21-2.49 3.5-5.53 3.5-9S14.21 5.49 12 3m0 18c-2.21-2.49-3.5-5.53-3.5-9S9.79 5.49 12 3m-9 9h18",
-    "Social media":
+    "SOCIAL MEDIA":
       "M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z",
-    "Digital slug":
+    "DIGITAL SLUG":
       "M4 7a5 5 0 015-5h6a5 5 0 010 10h-2m7 5a5 5 0 01-5 5H9a5 5 0 010-10h2",
   }
+
+  const d =
+    iconPaths[normalized] ??
+    iconPaths[label] ??
+    "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+
   return (
-    <div className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-5 shadow-[0_8px_24px_rgba(15,29,58,0.05)]">
-      <div className="flex items-start gap-3">
-        <span className="grid place-items-center w-10 h-10 rounded-xl bg-[var(--accent-light)] text-[var(--accent-dark)] flex-shrink-0">
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.7}
-              d={iconPaths[label] ?? "M12 2a10 10 0 100 20 10 10 0 000-20z"}
-            />
-          </svg>
-        </span>
-        <div className="min-w-0">
-          <p className="text-[10px] uppercase tracking-[0.14em] text-[var(--text-tertiary)] mb-1">
-            {label}
-          </p>
-          <p className="text-sm font-semibold text-[var(--text-primary)] break-words leading-relaxed">
-            {value || "Not provided"}
-          </p>
-        </div>
+    <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-4 sm:p-5 flex items-center gap-4 shadow-[0_2px_12px_rgba(15,29,58,0.03)] hover:border-[var(--border-default)] transition-all group">
+      <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 bg-[var(--accent-light)] text-[var(--accent-dark)] border border-[var(--accent)]/15 shadow-xs transition-transform duration-200 group-hover:scale-105">
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          aria-hidden="true"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.8}
+            d={d}
+          />
+        </svg>
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-tertiary)] mb-1">
+          {label}
+        </p>
+        <p className="text-sm font-semibold text-[var(--text-primary)] break-words leading-snug">
+          {value || "Not provided"}
+        </p>
       </div>
     </div>
   )
@@ -2700,13 +2711,119 @@ function PageIntro({
   )
 }
 
-function Info({ label, value }: { label: string value: string }) {
+const SYSTEM_ACCENT_ICON_CLASS =
+  "bg-[var(--accent-light)] text-[var(--accent-dark)] border border-[var(--accent)]/20"
+
+function getDetailIconConfig(label: string) {
+  const text = label.toLowerCase()
+  if (text.includes("founder") || text.includes("leadership") || text.includes("owner")) {
+    return {
+      colorClass: SYSTEM_ACCENT_ICON_CLASS,
+      icon: (
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.8}
+          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+        />
+      ),
+    }
+  }
+  if (text.includes("website") || text.includes("url")) {
+    return {
+      colorClass: SYSTEM_ACCENT_ICON_CLASS,
+      icon: (
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.8}
+          d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
+        />
+      ),
+    }
+  }
+  if (text.includes("phone") || text.includes("tel") || text.includes("call")) {
+    return {
+      colorClass: SYSTEM_ACCENT_ICON_CLASS,
+      icon: (
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.8}
+          d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+        />
+      ),
+    }
+  }
+  if (text.includes("email") || text.includes("mail") || text.includes("contact")) {
+    return {
+      colorClass: SYSTEM_ACCENT_ICON_CLASS,
+      icon: (
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.8}
+          d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+        />
+      ),
+    }
+  }
+  if (
+    text.includes("city") ||
+    text.includes("country") ||
+    text.includes("address") ||
+    text.includes("location")
+  ) {
+    return {
+      colorClass: SYSTEM_ACCENT_ICON_CLASS,
+      icon: (
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.8}
+          d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+        />
+      ),
+    }
+  }
+  return {
+    colorClass: SYSTEM_ACCENT_ICON_CLASS,
+    icon: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.8}
+        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
+    ),
+  }
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+  const { colorClass, icon } = getDetailIconConfig(label)
   return (
-    <div>
-      <p className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide mb-0.5">
-        {label}
-      </p>
-      <p className="text-[var(--text-secondary)] break-words">{value}</p>
+    <div className="flex items-center gap-2.5 min-w-0">
+      <div
+        className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 shadow-xs ${colorClass}`}
+      >
+        <svg
+          className="w-3.5 h-3.5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          aria-hidden="true"
+        >
+          {icon}
+        </svg>
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[9px] text-[var(--text-tertiary)] uppercase tracking-wide font-semibold truncate">
+          {label}
+        </p>
+        <p className="text-xs text-[var(--text-secondary)] font-medium truncate">
+          {value || "Not provided"}
+        </p>
+      </div>
     </div>
   )
 }

@@ -11,7 +11,7 @@ import {
 import {
   fetchCompanyById,
   mapApiResponseToCompany,
-} from "../data/companyApi"
+} from "../api/companyApi"
 
 export default function CompanyDetailsPage() {
   const { id } = useParams<{ id: string }>()

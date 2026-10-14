@@ -1,0 +1,176 @@
+/**
+ * Company and Category API
+ * Uses centralized baseApi for communication with backend company routes.
+ */
+
+import { baseApi, API_BASE_URL, resolveAssetUrl } from "./baseApi"
+import type { Company, Category } from "../data/companies"
+
+export const API_BASE = API_BASE_URL
+
+export interface CategoryItem {
+  id: string
+  name: string
+  type: string
+  description?: string
+  icon?: string
+  is_active?: boolean
+}
+
+export interface CompanyApiResponse {
+  id: string
+  company_name: string
+  business_category_id: string
+  owner_primary_contact: string
+  email: string
+  phone_number: string
+  physical_address: string
+  description: string
+  website?: string
+  company_logo?: string
+  cover_image?: string
+  business_license?: string
+  verification_status: "pending" | "verified" | "rejected"
+  status?: "pending" | "active" | "inactive" | "suspended"
+  is_active: boolean
+  business_category?: CategoryItem
+  social_media?: { id?: string; platform: string; link: string }[]
+  created_at?: string
+}
+
+export async function fetchCategories(): Promise<CategoryItem[]> {
+  try {
+    const res = await baseApi.get<CategoryItem[]>("/categories", {
+      params: { is_active: "true", limit: "100" },
+    })
+
+    if (res.success && Array.isArray(res.data)) {
+      return res.data
+    }
+    return []
+  } catch (err) {
+    console.warn("Could not fetch categories from backend, using fallback:", err)
+    return []
+  }
+}
+
+export async function submitCompanyCreation(
+  formData: FormData
+): Promise<{ success: boolean; data?: CompanyApiResponse; message?: string }> {
+  const token = baseApi.getToken()
+  if (!token) {
+    throw new Error("You must be logged in to create a company. Please log in first.")
+  }
+
+  const res = await baseApi.post<CompanyApiResponse>("/companies", formData)
+
+  if (!res.success) {
+    const msg =
+      res.message ||
+      (Array.isArray(res.errors) ? res.errors.join(", ") : "Failed to create company")
+    throw new Error(msg)
+  }
+
+  return res
+}
+
+export const resolveFileUrl = resolveAssetUrl
+
+export async function fetchMyCompanies(): Promise<CompanyApiResponse[]> {
+  try {
+    const token = baseApi.getToken()
+    if (!token) return []
+
+    const res = await baseApi.get<CompanyApiResponse[]>("/companies/my-companies")
+
+    if (res.success && Array.isArray(res.data)) {
+      return res.data
+    }
+    return []
+  } catch (err) {
+    console.warn("Could not fetch my companies from backend:", err)
+    return []
+  }
+}
+
+export async function updateCompanyApi(
+  id: string,
+  payload: FormData | Record<string, unknown>
+): Promise<CompanyApiResponse | null> {
+  try {
+    const token = baseApi.getToken()
+    if (!token) return null
+
+    const res = await baseApi.patch<CompanyApiResponse>(`/companies/${id}`, payload)
+
+    if (res.success && res.data) {
+      return res.data
+    }
+    return null
+  } catch (err) {
+    console.warn("Could not update company on backend:", err)
+    return null
+  }
+}
+
+export async function deleteCompanyApi(id: string): Promise<boolean> {
+  try {
+    const token = baseApi.getToken()
+    if (!token) return false
+
+    const res = await baseApi.delete(`/companies/${id}`)
+    return !!res.success
+  } catch (err) {
+    console.warn("Could not delete company on backend:", err)
+    return false
+  }
+}
+
+export async function fetchCompanyById(
+  id: string
+): Promise<CompanyApiResponse | null> {
+  try {
+    const res = await baseApi.get<CompanyApiResponse>(`/companies/${id}`)
+
+    if (res.success && res.data) {
+      return res.data
+    }
+    return null
+  } catch (err) {
+    console.warn(`Could not fetch company ${id} from backend:`, err)
+    return null
+  }
+}
+
+export function mapApiResponseToCompany(c: CompanyApiResponse): Company {
+  const rawLogo = resolveFileUrl(c.company_logo)
+  const logo =
+    rawLogo ||
+    "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=120&h=120&fit=crop&auto=format"
+  const rawCover = resolveFileUrl(c.cover_image)
+  const banner =
+    rawCover ||
+    "https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=1200&h=420&fit=crop&auto=format"
+
+  return {
+    id: c.id,
+    name: c.company_name,
+    category: (c.business_category?.name as Category) || "Professional Services",
+    logo,
+    banner,
+    rating: 5.0,
+    reviewCount: 0,
+    description: c.description || "",
+    longDescription: c.description || "",
+    phone: c.phone_number || "",
+    email: c.email || "",
+    website: c.website || "",
+    address: c.physical_address || "Addis Ababa, Ethiopia",
+    services: [],
+    gallery: [],
+    tags: [c.business_category?.name || "Business"].filter(Boolean),
+    reviews: [],
+    featured: false,
+    ownerName: c.owner_primary_contact,
+  }
+}
