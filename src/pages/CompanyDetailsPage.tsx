@@ -2,7 +2,16 @@ import { useState, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import Navbar from "../components/Navbar"
 import CompanyProfile from "../components/CompanyProfile"
-import { getCompanyById, subscribe, type Company } from "../data/companyStore"
+import {
+  getCompanyById,
+  upsertCompany,
+  subscribe,
+  type Company,
+} from "../data/companyStore"
+import {
+  fetchCompanyById,
+  mapApiResponseToCompany,
+} from "../data/companyApi"
 
 export default function CompanyDetailsPage() {
   const { id } = useParams<{ id: string }>()
@@ -10,15 +19,60 @@ export default function CompanyDetailsPage() {
   const [company, setCompany] = useState<Company | undefined>(() =>
     id ? getCompanyById(id) : undefined,
   )
+  const [loading, setLoading] = useState<boolean>(!company && !!id)
 
   useEffect(() => {
     if (!id) return
-    setCompany(getCompanyById(id))
+    let cancelled = false
+
+    const local = getCompanyById(id)
+    if (local) {
+      setCompany(local)
+      setLoading(false)
+    } else {
+      setLoading(true)
+      fetchCompanyById(id)
+        .then((apiComp) => {
+          if (cancelled) return
+          if (apiComp) {
+            const mapped = mapApiResponseToCompany(apiComp)
+            upsertCompany(mapped)
+            setCompany(mapped)
+          } else {
+            setCompany(undefined)
+          }
+        })
+        .catch((err) => {
+          console.warn("Error fetching company details:", err)
+          if (!cancelled) setCompany(undefined)
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false)
+        })
+    }
+
     const unsub = subscribe(() => {
-      setCompany(getCompanyById(id))
+      const fresh = getCompanyById(id)
+      if (fresh) setCompany(fresh)
     })
-    return unsub
+
+    return () => {
+      cancelled = true
+      unsub()
+    }
   }, [id])
+
+  if (loading && !company) {
+    return (
+      <div className="min-h-screen bg-[var(--surface-alt)]">
+        <Navbar />
+        <div className="max-w-3xl mx-auto px-4 py-24 text-center animate-fade-in flex flex-col items-center justify-center gap-3">
+          <div className="w-10 h-10 border-2 border-[var(--brand)]/30 border-t-[var(--brand)] rounded-full animate-spin" />
+          <p className="text-sm text-[var(--text-tertiary)]">Loading company profile...</p>
+        </div>
+      </div>
+    )
+  }
 
   if (!company) {
     return (

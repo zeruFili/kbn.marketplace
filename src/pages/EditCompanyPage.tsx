@@ -5,10 +5,15 @@ import { useAuth } from "../auth/AuthContext"
 import {
   getCompanyById,
   updateCompany,
+  upsertCompany,
   type Company,
 } from "../data/companyStore"
 import { CATEGORIES, type Category } from "../data/companies"
-import { updateCompanyApi } from "../data/companyApi"
+import {
+  updateCompanyApi,
+  fetchCompanyById,
+  mapApiResponseToCompany,
+} from "../data/companyApi"
 
 export default function EditCompanyPage() {
   const { id } = useParams<{ id: string }>()
@@ -41,8 +46,9 @@ export default function EditCompanyPage() {
 
   useEffect(() => {
     if (!id) return
-    const comp = getCompanyById(id)
-    if (comp) {
+    let isMounted = true
+
+    const populate = (comp: Company) => {
       setCompany(comp)
       setName(comp.name || "")
       setCategory(comp.category || "Construction")
@@ -59,7 +65,33 @@ export default function EditCompanyPage() {
       setServices([...(comp.services || [])])
       setTags([...(comp.tags || [])])
     }
-    setLoading(false)
+
+    const comp = getCompanyById(id)
+    if (comp) {
+      populate(comp)
+      setLoading(false)
+    } else {
+      setLoading(true)
+      fetchCompanyById(id)
+        .then((apiComp) => {
+          if (!isMounted) return
+          if (apiComp) {
+            const mapped = mapApiResponseToCompany(apiComp)
+            upsertCompany(mapped)
+            populate(mapped)
+          }
+        })
+        .catch((err) => {
+          console.warn("Failed to fetch company by ID:", err)
+        })
+        .finally(() => {
+          if (isMounted) setLoading(false)
+        })
+    }
+
+    return () => {
+      isMounted = false
+    }
   }, [id])
 
   const handleAddService = (e: React.FormEvent) => {

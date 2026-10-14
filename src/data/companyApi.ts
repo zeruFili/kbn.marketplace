@@ -1,4 +1,5 @@
 import { getStoredToken } from "../auth/auth"
+import type { Company, Category } from "./companies"
 
 export const API_BASE =
   import.meta.env.VITE_API_URL ||
@@ -184,5 +185,66 @@ export async function deleteCompanyApi(id: string): Promise<boolean> {
   } catch (err) {
     console.warn("Could not delete company on backend:", err)
     return false
+  }
+}
+
+export async function fetchCompanyById(
+  id: string,
+): Promise<CompanyApiResponse | null> {
+  try {
+    const token = getStoredToken()
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    }
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`
+    }
+
+    const res = await fetch(`${API_BASE}/companies/${id}`, {
+      method: "GET",
+      headers,
+    })
+
+    const json = await res.json()
+    if (res.ok && json.success && json.data) {
+      return json.data
+    }
+    return null
+  } catch (err) {
+    console.warn(`Could not fetch company ${id} from backend:`, err)
+    return null
+  }
+}
+
+export function mapApiResponseToCompany(c: CompanyApiResponse): Company {
+  const rawLogo = resolveFileUrl(c.company_logo)
+  const logo =
+    rawLogo ||
+    "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=120&h=120&fit=crop&auto=format"
+  const rawCover = resolveFileUrl(c.cover_image)
+  const banner =
+    rawCover ||
+    "https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=1200&h=420&fit=crop&auto=format"
+
+  return {
+    id: c.id,
+    name: c.company_name,
+    category: (c.business_category?.name as Category) || "Professional Services",
+    logo,
+    banner,
+    rating: 5.0,
+    reviewCount: 0,
+    description: c.description || "",
+    longDescription: c.description || "",
+    phone: c.phone_number || "",
+    email: c.email || "",
+    website: c.website || "",
+    address: c.physical_address || "Addis Ababa, Ethiopia",
+    services: [],
+    gallery: [],
+    tags: [c.business_category?.name || "Business"].filter(Boolean),
+    reviews: [],
+    featured: false,
+    ownerName: c.owner_primary_contact,
   }
 }

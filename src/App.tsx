@@ -1272,7 +1272,9 @@ export default function App() {
           <Route path="profile" element={<UserProfilePage />} />
           <Route path="profile/edit" element={<UserProfileEditPage />} />
           <Route path="business" element={<UserBusinessesPage />} />
+          <Route path="business/:companyId" element={<UserBusinessesPage />} />
           <Route path="businesses" element={<UserBusinessesPage />} />
+          <Route path="businesses/:companyId" element={<UserBusinessesPage />} />
           <Route path="payment" element={<UserPaymentPage />} />
           <Route path="billing" element={<UserPaymentPage />} />
         </Route>
