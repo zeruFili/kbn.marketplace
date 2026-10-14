@@ -55,7 +55,8 @@ export default function LoginPage({
         onSuccess(role)
       } else {
         const fromPath = (location.state as { from?: { pathname?: string } })?.from?.pathname
-        navigate(fromPath || "/dashboard", { replace: true })
+        const destination = fromPath && !fromPath.startsWith("/dashboard") ? fromPath : "/"
+        navigate(destination, { replace: true })
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Login failed.")
