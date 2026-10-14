@@ -1,10 +1,15 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useRef } from "react"
 
 import {
   getPublicUserDashboardData,
   type UserArticleData,
   type UserEventData,
 } from "../../data/userDataStore"
+import {
+  fetchEvents,
+  createEvent,
+  mapEventToUserEventData,
+} from "../../api"
 
 type ContentKind = "events" | "articles" | "blogs"
 
@@ -16,6 +21,7 @@ export default function AdminContent({ kind }: { kind: ContentKind }) {
   const [status, setStatus] = useState<"all" | "Published" | "Draft">("all")
 
   const [adding, setAdding] = useState(false)
+  const [loading, setLoading] = useState(false)
 
   const initialItems = useMemo<ContentItem[]>(() => {
     const members = getPublicUserDashboardData()
@@ -32,10 +38,36 @@ export default function AdminContent({ kind }: { kind: ContentKind }) {
   const [items, setItems] = useState<ContentItem[]>(initialItems)
 
   useEffect(() => {
-    setItems(initialItems)
+    let active = true
+
+    if (kind === "events") {
+      setLoading(true)
+      fetchEvents()
+        .then((backendEvents) => {
+          if (active) {
+            if (backendEvents && backendEvents.length > 0) {
+              setItems(backendEvents.map(mapEventToUserEventData))
+            } else {
+              setItems(initialItems)
+            }
+          }
+        })
+        .catch((err) => {
+          console.warn("Could not load events from backend, using fallback:", err)
+          if (active) setItems(initialItems)
+        })
+        .finally(() => {
+          if (active) setLoading(false)
+        })
+    } else {
+      setItems(initialItems)
+    }
 
     setAdding(false)
-  }, [initialItems])
+    return () => {
+      active = false
+    }
+  }, [kind, initialItems])
 
   function addItem(item: ContentItem) {
     setItems((current) => [item, ...current])
@@ -150,7 +182,12 @@ export default function AdminContent({ kind }: { kind: ContentKind }) {
         />
       </div>
 
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div className="text-center py-16 bg-[var(--surface)] rounded-2xl border border-[var(--border-light)]">
+          <div className="w-8 h-8 border-3 border-[var(--brand)]/30 border-t-[var(--brand)] rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-xs text-[var(--text-tertiary)]">Loading events from server...</p>
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="text-center py-16 bg-[var(--surface)] rounded-2xl border border-[var(--border-light)]">
           <p className="text-sm text-[var(--text-tertiary)]">
             No {kind} found.
@@ -218,6 +255,8 @@ function AdminContentForm({
   onCancel: () => void
   onSubmit: (item: ContentItem) => void
 }) {
+  const isEvent = kind === "events"
+
   const [form, setForm] = useState({
     title: "",
     topic: "",
@@ -225,36 +264,114 @@ function AdminContentForm({
     description: "",
     author: "",
     date: "",
-    location: "",
-    eventType: "",
-    status: "Draft" as "Published" | "Draft",
+    location: "Addis Ababa, Ethiopia",
+    eventType: "Workshop",
+    status: "Published" as "Published" | "Draft",
   })
+
+  // File upload state for events
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState("")
+  const imageInputRef = useRef<HTMLInputElement>(null)
+
+  // Object URL auto-cleanup
+  useEffect(() => {
+    if (!imageFile) {
+      setImagePreview(null)
+      return
+    }
+    const url = URL.createObjectURL(imageFile)
+    setImagePreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [imageFile])
 
   const update = (key: keyof typeof form, value: string) =>
     setForm((current) => ({ ...current, [key]: value }))
 
-  const isEvent = kind === "events"
+  function handleFileSelected(file: File) {
+    setErrorMessage("")
+    const validTypes = ["image/jpeg", "image/png", "image/webp", "image/jpg", "image/svg+xml"]
+    if (!validTypes.includes(file.type) && !file.type.startsWith("image/")) {
+      setErrorMessage("Please select a supported image file (PNG, JPG, WebP, or SVG).")
+      return
+    }
+    const maxSize = 10 * 1024 * 1024
+    if (file.size > maxSize) {
+      setErrorMessage(`File is too large (${(file.size / (1024 * 1024)).toFixed(1)}MB). Maximum allowed is 10MB.`)
+      return
+    }
+    setImageFile(file)
+  }
 
-  function submit(event: React.FormEvent) {
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault()
+    e.stopPropagation()
+    const file = e.dataTransfer.files?.[0]
+    if (file) handleFileSelected(file)
+  }
+
+  function clearImage() {
+    setImageFile(null)
+    setImagePreview(null)
+    if (imageInputRef.current) imageInputRef.current.value = ""
+  }
+
+  async function submit(event: React.FormEvent) {
     event.preventDefault()
-
-    if (!form.title.trim() || !form.image.trim()) return
+    setErrorMessage("")
 
     if (isEvent) {
-      onSubmit({
-        id: `admin-event-${Date.now()}`,
-        eventImage: form.image,
-        title: form.title,
-        description: form.description,
-        eventType: form.eventType,
-        startDate: form.date,
-        endDate: form.date,
-        location: form.location,
-        online: false,
-        eventUrl: "",
-        status: form.status,
-      })
+      if (!form.title.trim()) {
+        setErrorMessage("Event title is required.")
+        return
+      }
+      if (!imageFile) {
+        setErrorMessage("Please select an event cover image file.")
+        return
+      }
+      if (!form.date) {
+        setErrorMessage("Event start date is required.")
+        return
+      }
+      if (!form.description.trim()) {
+        setErrorMessage("Event description is required.")
+        return
+      }
+
+      setSubmitting(true)
+      try {
+        const formData = new FormData()
+        formData.append("title", form.title.trim())
+        formData.append("type", form.eventType.trim() || "General")
+        formData.append("location", form.location.trim() || "Addis Ababa, Ethiopia")
+        formData.append("description", form.description.trim())
+        formData.append("start_date", form.date)
+        formData.append("status", form.status.toLowerCase())
+        formData.append("availability", "public")
+        // Cover image file
+        formData.append("image", imageFile)
+
+        const result = await createEvent(formData)
+        if (result.success && result.data) {
+          const mapped = mapEventToUserEventData(result.data)
+          onSubmit(mapped)
+        } else {
+          setErrorMessage(result.message || "Failed to create event. Please check the details.")
+        }
+      } catch (err: unknown) {
+        console.error("Event creation error:", err)
+        setErrorMessage(
+          err instanceof Error
+            ? err.message
+            : "An unexpected error occurred while creating the event."
+        )
+      } finally {
+        setSubmitting(false)
+      }
     } else {
+      if (!form.title.trim() || !form.image.trim()) return
       onSubmit({
         id: `admin-${kind.slice(0, -1)}-${Date.now()}`,
         featuredImage: form.image,
@@ -282,11 +399,29 @@ function AdminContentForm({
         <button
           type="button"
           onClick={onCancel}
-          className="text-sm font-medium text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+          disabled={submitting}
+          className="text-sm font-medium text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer"
         >
           Cancel
         </button>
       </div>
+
+      {errorMessage && (
+        <div className="mb-5 p-3.5 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-300 text-xs flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span>⚠️</span>
+            <span>{errorMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setErrorMessage("")}
+            className="text-red-500 hover:text-red-700 font-bold ml-2 cursor-pointer"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <AdminField
           label={isEvent ? "Event title" : "Title"}
@@ -294,34 +429,132 @@ function AdminContentForm({
           onChange={(value) => update("title", value)}
           required
         />
+        {isEvent ? (
+          <AdminField
+            label="Event type"
+            value={form.eventType}
+            onChange={(value) => update("eventType", value)}
+            select
+            options={[
+              "Workshop",
+              "Conference",
+              "Networking",
+              "Worship",
+              "Exhibition",
+              "Fellowship",
+              "Seminar",
+              "General",
+            ]}
+          />
+        ) : (
+          <AdminField
+            label="Topic"
+            value={form.topic}
+            onChange={(value) => update("topic", value)}
+          />
+        )}
+
+        {/* Dedicated File Upload Widget for Events */}
+        {isEvent ? (
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+              Event Cover Image <span className="text-red-500">*</span>
+            </label>
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) handleFileSelected(file)
+              }}
+            />
+            {imagePreview && imageFile ? (
+              <div className="relative rounded-2xl overflow-hidden border border-[var(--border-default)] bg-[var(--surface-alt)]">
+                <img
+                  src={imagePreview}
+                  alt="Event preview"
+                  className="w-full h-44 object-cover"
+                />
+                <div className="p-3 flex items-center justify-between bg-[var(--surface)]/95 backdrop-blur-sm border-t border-[var(--border-light)]">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-[var(--text-primary)] truncate">
+                      {imageFile.name}
+                    </p>
+                    <p className="text-[11px] text-[var(--text-tertiary)]">
+                      {(imageFile.size / 1024).toFixed(1)} KB · {imageFile.type || "Image"}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => imageInputRef.current?.click()}
+                      className="text-xs text-[var(--brand)] hover:underline px-2 py-1 font-medium cursor-pointer"
+                    >
+                      Change
+                    </button>
+                    <button
+                      type="button"
+                      onClick={clearImage}
+                      className="text-xs text-red-500 hover:underline px-2 py-1 font-medium cursor-pointer"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div
+                onClick={() => imageInputRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleDrop}
+                className="border-2 border-dashed border-[var(--border-default)] hover:border-[var(--brand)] rounded-2xl p-6 text-center cursor-pointer transition-colors bg-[var(--surface-alt)]/50 group"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-[var(--brand)]/10 text-[var(--brand)] flex items-center justify-center mx-auto mb-3 text-2xl group-hover:scale-105 transition-transform">
+                  📸
+                </div>
+                <p className="text-sm font-semibold text-[var(--text-primary)] mb-1">
+                  Click or drag image to upload
+                </p>
+                <p className="text-xs text-[var(--text-tertiary)] mb-3">
+                  PNG, JPG, WebP, or SVG up to 10MB
+                </p>
+                <span className="inline-block bg-[var(--surface)] border border-[var(--border-default)] text-xs font-medium px-3.5 py-1.5 rounded-lg text-[var(--text-secondary)] group-hover:border-[var(--brand)] group-hover:text-[var(--brand)] transition-colors">
+                  Browse Files
+                </span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <AdminField
+            label="Featured image URL"
+            value={form.image}
+            onChange={(value) => update("image", value)}
+            required
+          />
+        )}
+
         <AdminField
-          label={isEvent ? "Event type" : "Topic"}
-          value={isEvent ? form.eventType : form.topic}
-          onChange={(value) => update(isEvent ? "eventType" : "topic", value)}
-        />
-        <AdminField
-          label={isEvent ? "Event image URL" : "Featured image URL"}
-          value={form.image}
-          onChange={(value) => update("image", value)}
-          required
-        />
-        <AdminField
-          label={isEvent ? "Start date" : "Publication date"}
+          label={isEvent ? "Start date & time" : "Publication date"}
           value={form.date}
           onChange={(value) => update("date", value)}
+          type={isEvent ? "datetime-local" : "text"}
+          required
         />
         <AdminField
           label="Status"
           value={form.status}
           onChange={(value) => update("status", value)}
           select
-          options={["Draft", "Published"]}
+          options={["Published", "Draft"]}
         />
         {isEvent ? (
           <AdminField
             label="Location"
             value={form.location}
             onChange={(value) => update("location", value)}
+            required
           />
         ) : (
           <AdminField
@@ -344,15 +577,24 @@ function AdminContentForm({
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-alt)]"
+          disabled={submitting}
+          className="px-4 py-2 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-alt)] cursor-pointer"
         >
           Cancel
         </button>
         <button
           type="submit"
-          className="px-4 py-2 rounded-lg text-sm font-semibold bg-[var(--brand)] text-white hover:bg-[var(--brand-light)]"
+          disabled={submitting}
+          className="px-5 py-2 rounded-lg text-sm font-semibold bg-[var(--brand)] text-white hover:bg-[var(--brand-light)] transition-all shadow-sm disabled:opacity-50 flex items-center gap-2 cursor-pointer"
         >
-          Save
+          {submitting ? (
+            <>
+              <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              Creating Event...
+            </>
+          ) : (
+            `Save ${isEvent ? "Event" : ""}`
+          )}
         </button>
       </div>
     </form>
@@ -367,6 +609,7 @@ function AdminField({
   select = false,
   options = [],
   required = false,
+  type = "text",
 }: {
   label: string
   value: string
@@ -375,6 +618,7 @@ function AdminField({
   select?: boolean
   options?: string[]
   required?: boolean
+  type?: string
 }) {
   const className =
     "w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 pl-10 pr-3 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
@@ -398,6 +642,7 @@ function AdminField({
     <label className="block">
       <span className="flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)] mb-1.5">
         {label}
+        {required && <span className="text-red-500">*</span>}
       </span>
       <span className="relative block">
         <svg
@@ -434,6 +679,7 @@ function AdminField({
           </select>
         ) : (
           <input
+            type={type}
             value={value}
             onChange={(event) => onChange(event.target.value)}
             className={className}
