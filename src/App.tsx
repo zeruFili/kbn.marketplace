@@ -1,5 +1,12 @@
 import { useState, useMemo, useEffect } from "react"
-import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom"
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  useNavigate,
+  useParams,
+  Navigate,
+} from "react-router-dom"
 import CompanyProfile, { CompanyCard } from "./components/CompanyProfile"
 import LoginPage from "./components/LoginPage"
 import SignUpPage from "./components/SignUpPage"
@@ -13,6 +20,24 @@ import EditCompanyPage from "./pages/EditCompanyPage"
 import DashboardPage from "./pages/DashboardPage"
 import AboutPage from "./pages/AboutPage"
 import NotFoundPage from "./pages/NotFoundPage"
+import CompanyDashboard from "./components/CompanyDashboard"
+import AdminLayout from "./pages/admin/AdminLayout"
+import AdminOverview from "./components/admin/AdminOverview"
+import AdminApplications from "./components/admin/AdminApplications"
+import AdminApplicationDetailsPage from "./pages/admin/AdminApplicationDetailsPage"
+import AdminCompanies from "./components/admin/AdminCompanies"
+import AdminCompanyDetailsPage from "./pages/admin/AdminCompanyDetailsPage"
+import AdminUsers from "./components/admin/AdminUsers"
+import AdminUserDetailsPage from "./pages/admin/AdminUserDetailsPage"
+import AdminUserEditPage from "./pages/admin/AdminUserEditPage"
+import AdminPayments from "./components/admin/AdminPayments"
+import AdminCategories from "./components/admin/AdminCategories"
+import AdminContent from "./components/admin/AdminContent"
+import UserLayout from "./pages/user/UserLayout"
+import UserProfilePage from "./pages/user/UserProfilePage"
+import UserProfileEditPage from "./pages/user/UserProfileEditPage"
+import UserBusinessesPage from "./pages/user/UserBusinessesPage"
+import UserPaymentPage from "./pages/user/UserPaymentPage"
 import { useAuth } from "./auth/AuthContext"
 import { type UserRole } from "./auth/auth"
 import { getCompanies, subscribe } from "./data/companyStore"
@@ -1055,47 +1080,88 @@ function PublicEventDetail({ item }: { item: UserEventData }) {
   )
 }
 
-function PublicPageWrapper({ page }: { page: PublicPage }) {
-  const [selectedPublicContent, setSelectedPublicContent] =
-    useState<PublicSelection | null>(null)
+function CompanyDashboardWrapper() {
   const navigate = useNavigate()
+  return (
+    <div className="min-h-screen bg-[var(--surface-alt)]">
+      <Navbar />
+      <CompanyDashboard onBack={() => navigate("/")} />
+    </div>
+  )
+}
 
-  useEffect(() => {
-    setSelectedPublicContent(null)
-  }, [page])
+function PublicPageWrapper({ page }: { page: PublicPage }) {
+  const { id } = useParams<{ id?: string }>()
+  const navigate = useNavigate()
+  const memberData = getPublicUserDashboardData()
+
+  const resolvedSelection = useMemo<PublicSelection | null>(() => {
+    if (!id) return null
+    if (page === "people") {
+      const found = memberData
+        .map((d) => d.profile)
+        .find(
+          (p) =>
+            p.digitalSlug === id ||
+            p.fullName.toLowerCase().replace(/[^a-z0-9]+/g, "-") === id,
+        )
+      return found ? { type: "person", item: found } : null
+    }
+    if (page === "events") {
+      const events = memberData.flatMap((d) => d.events)
+      const found = events.find(
+        (e) =>
+          e.id === id ||
+          e.eventUrl.toLowerCase().replace(/[^a-z0-9]+/g, "-").includes(id) ||
+          e.title.toLowerCase().replace(/[^a-z0-9]+/g, "-") === id,
+      )
+      return found ? { type: "event", item: found } : null
+    }
+    if (page === "articles" || page === "blogs") {
+      const articles = memberData.flatMap((d) =>
+        page === "articles" ? d.articles : d.blogs,
+      )
+      const found = articles.find(
+        (a) =>
+          a.id === id ||
+          a.title.toLowerCase().replace(/[^a-z0-9]+/g, "-") === id,
+      )
+      return found
+        ? { type: page === "articles" ? "article" : "blog", item: found }
+        : null
+    }
+    return null
+  }, [id, page, memberData])
+
+  const handleSelectContent = (selection: PublicSelection) => {
+    const targetId =
+      selection.type === "person"
+        ? selection.item.digitalSlug ||
+          selection.item.fullName.toLowerCase().replace(/[^a-z0-9]+/g, "-")
+        : selection.item.id
+    navigate(`/${page}/${targetId}`)
+  }
 
   return (
     <div className="min-h-screen bg-[var(--surface-alt)]">
       <Navbar
         onPublicPage={(p) => {
-          setSelectedPublicContent(null)
           navigate(`/${p}`)
         }}
         onHome={() => {
-          setSelectedPublicContent(null)
           navigate("/")
         }}
       />
-      {selectedPublicContent ? (
+      {resolvedSelection ? (
         <PublicContentDetail
-          selection={selectedPublicContent}
+          selection={resolvedSelection}
           onBack={() => {
-            if (
-              "returnToProfile" in selectedPublicContent &&
-              selectedPublicContent.returnToProfile
-            ) {
-              setSelectedPublicContent({
-                type: "person",
-                item: selectedPublicContent.returnToProfile,
-              })
-            } else {
-              setSelectedPublicContent(null)
-            }
+            navigate(`/${page}`)
           }}
           onSelectCompany={(company) => {
             navigate(`/companies/${company.id}`)
           }}
-          onSelectContent={setSelectedPublicContent}
+          onSelectContent={handleSelectContent}
         />
       ) : (
         <PublicContentPage
@@ -1104,7 +1170,7 @@ function PublicPageWrapper({ page }: { page: PublicPage }) {
           onSelectCompany={(company) => {
             navigate(`/companies/${company.id}`)
           }}
-          onSelectContent={setSelectedPublicContent}
+          onSelectContent={handleSelectContent}
         />
       )}
     </div>
@@ -1116,10 +1182,15 @@ export default function App() {
   return (
     <BrowserRouter basename={basename}>
       <Routes>
-        {/* Home */}
+        {/* Public Landing & Marketing */}
         <Route path="/" element={<HomePage />} />
+        <Route path="/about" element={<AboutPage />} />
 
-        {/* Companies */}
+        {/* Authentication */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignUpPage />} />
+
+        {/* Companies Directory & Management */}
         <Route path="/companies" element={<CompaniesPage />} />
         <Route
           path="/companies/new"
@@ -1147,11 +1218,29 @@ export default function App() {
           }
         />
 
-        {/* Auth */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignUpPage />} />
+        {/* Public Sections with Deep-Linking */}
+        <Route path="/people" element={<PublicPageWrapper page="people" />} />
+        <Route
+          path="/people/:id"
+          element={<PublicPageWrapper page="people" />}
+        />
+        <Route path="/blogs" element={<PublicPageWrapper page="blogs" />} />
+        <Route path="/blogs/:id" element={<PublicPageWrapper page="blogs" />} />
+        <Route path="/events" element={<PublicPageWrapper page="events" />} />
+        <Route
+          path="/events/:id"
+          element={<PublicPageWrapper page="events" />}
+        />
+        <Route
+          path="/articles"
+          element={<PublicPageWrapper page="articles" />}
+        />
+        <Route
+          path="/articles/:id"
+          element={<PublicPageWrapper page="articles" />}
+        />
 
-        {/* Dashboard */}
+        {/* Main Dashboard Dispatcher */}
         <Route
           path="/dashboard"
           element={
@@ -1161,14 +1250,81 @@ export default function App() {
           }
         />
 
-        {/* About */}
-        <Route path="/about" element={<AboutPage />} />
+        {/* Company Dashboard */}
+        <Route
+          path="/dashboard/company"
+          element={
+            <ProtectedRoute allowedRoles={["company", "admin"]}>
+              <CompanyDashboardWrapper />
+            </ProtectedRoute>
+          }
+        />
 
-        {/* Public Sections */}
-        <Route path="/people" element={<PublicPageWrapper page="people" />} />
-        <Route path="/blogs" element={<PublicPageWrapper page="blogs" />} />
-        <Route path="/events" element={<PublicPageWrapper page="events" />} />
-        <Route path="/articles" element={<PublicPageWrapper page="articles" />} />
+        {/* Member / User Dashboard with Persistent Sidebar */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <UserLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="profile" element={<UserProfilePage />} />
+          <Route path="profile/edit" element={<UserProfileEditPage />} />
+          <Route path="business" element={<UserBusinessesPage />} />
+          <Route path="businesses" element={<UserBusinessesPage />} />
+          <Route path="payment" element={<UserPaymentPage />} />
+          <Route path="billing" element={<UserPaymentPage />} />
+        </Route>
+
+        {/* User profile aliases */}
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Navigate to="/dashboard/profile" replace />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile/edit"
+          element={
+            <ProtectedRoute>
+              <Navigate to="/dashboard/profile/edit" replace />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Admin Dashboard with Persistent Sidebar */}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AdminLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="/admin/overview" replace />} />
+          <Route path="overview" element={<AdminOverview />} />
+          <Route path="applications" element={<AdminApplications />} />
+          <Route
+            path="applications/:id"
+            element={<AdminApplicationDetailsPage />}
+          />
+          <Route path="companies" element={<AdminCompanies />} />
+          <Route
+            path="companies/:id"
+            element={<AdminCompanyDetailsPage />}
+          />
+          <Route path="users" element={<AdminUsers />} />
+          <Route path="users/:id" element={<AdminUserDetailsPage />} />
+          <Route path="users/:id/edit" element={<AdminUserEditPage />} />
+          <Route path="payments" element={<AdminPayments />} />
+          <Route path="categories" element={<AdminCategories />} />
+          <Route path="events" element={<AdminContent kind="events" />} />
+          <Route path="articles" element={<AdminContent kind="articles" />} />
+          <Route path="blogs" element={<AdminContent kind="blogs" />} />
+        </Route>
 
         {/* Catch-all 404 */}
         <Route path="*" element={<NotFoundPage />} />

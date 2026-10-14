@@ -818,3 +818,26 @@ export function deleteCategory(id: string) {
   saveData(data)
   notify()
 }
+
+export function getAdminUserById(id: string): AdminUser | undefined {
+  return getData().adminUsers.find((u) => u.id === id)
+}
+
+export function updateAdminUser(id: string, updates: Partial<AdminUser>): void {
+  const data = getData()
+  const idx = data.adminUsers.findIndex((u) => u.id === id)
+  if (idx !== -1) {
+    data.adminUsers[idx] = { ...data.adminUsers[idx], ...updates }
+    saveData(data)
+    notify()
+  }
+}
+
+export function getApplicationById(id: string): CompanyApplication | undefined {
+  return getData().applications.find((a) => a.id === id)
+}
+
+export function getAdminCompanyById(id: string): AdminCompany | undefined {
+  return getData().listedCompanies.find((c) => c.id === id)
+}
+

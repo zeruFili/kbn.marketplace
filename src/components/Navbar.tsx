@@ -52,7 +52,12 @@ export default function Navbar({
 
   const handleDashboard = () => {
     if (onDashboard) onDashboard()
-    else navigate("/dashboard")
+    else {
+      const role = user?.role?.toLowerCase()
+      if (role === "admin") navigate("/admin/overview")
+      else if (role === "company") navigate("/dashboard/company")
+      else navigate("/dashboard/profile")
+    }
   }
 
   const handleCreateBusiness = () => {

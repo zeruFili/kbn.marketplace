@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import {
   getApplications,
   approveApplication,
@@ -9,6 +10,7 @@ import {
 import { useAuth } from "../../auth/AuthContext"
 
 export default function AdminApplications() {
+  const navigate = useNavigate()
   const { user } = useAuth()
   const [apps, setApps] = useState<CompanyApplication[]>([])
   const [selected, setSelected] = useState<CompanyApplication | null>(null)
@@ -167,8 +169,8 @@ export default function AdminApplications() {
           {filtered.map((app) => (
             <button
               key={app.id}
-              onClick={() => setSelected(app)}
-              className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-5 text-left card-hover w-full"
+              onClick={() => navigate(`/admin/applications/${app.id}`)}
+              className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-5 text-left card-hover w-full cursor-pointer"
             >
               <div className="flex items-start gap-3 mb-3">
                 <img

@@ -2,7 +2,13 @@ import { type ReactNode } from "react"
 import { Navigate, useLocation } from "react-router-dom"
 import { useAuth } from "../auth/AuthContext"
 
-export default function ProtectedRoute({ children }: { children: ReactNode }) {
+export default function ProtectedRoute({
+  children,
+  allowedRoles,
+}: {
+  children: ReactNode
+  allowedRoles?: string[]
+}) {
   const { user, loading } = useAuth()
   const location = useLocation()
 
@@ -36,5 +42,32 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
+  if (
+    allowedRoles &&
+    allowedRoles.length > 0 &&
+    !allowedRoles.map((r) => r.toLowerCase()).includes(user.role.toLowerCase())
+  ) {
+    return (
+      <div className="min-h-screen bg-[var(--surface-alt)] flex flex-col items-center justify-center px-4 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-red-100 dark:bg-red-950/40 text-red-600 flex items-center justify-center mb-4 text-2xl font-bold">
+          !
+        </div>
+        <h1 className="font-serif text-2xl text-[var(--text-primary)] mb-2">
+          Access Restricted
+        </h1>
+        <p className="text-sm text-[var(--text-tertiary)] max-w-md mb-6">
+          Your account role ({user.role}) does not have permission to view this page.
+        </p>
+        <a
+          href="/"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-white bg-[var(--brand)] px-5 py-2.5 rounded-xl hover:bg-[var(--brand-light)] transition-colors"
+        >
+          Return to Home
+        </a>
+      </div>
+    )
+  }
+
   return <>{children}</>
 }
+

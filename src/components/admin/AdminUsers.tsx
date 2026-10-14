@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import {
   getAdminUsers,
   deactivateUser,
@@ -8,6 +9,7 @@ import {
 } from "../../data/adminStore"
 
 export default function AdminUsers() {
+  const navigate = useNavigate()
   const [users, setUsers] = useState<AdminUser[]>([])
   const [selected, setSelected] = useState<AdminUser | null>(null)
   const [search, setSearch] = useState("")
@@ -198,8 +200,8 @@ export default function AdminUsers() {
                 >
                   <td className="px-3 sm:px-5 py-3">
                     <button
-                      onClick={() => setSelected(u)}
-                      className="flex items-center gap-2 sm:gap-3 text-left"
+                      onClick={() => navigate(`/admin/users/${u.id}`)}
+                      className="flex items-center gap-2 sm:gap-3 text-left cursor-pointer"
                     >
                       <img
                         src={u.avatar}
@@ -238,8 +240,8 @@ export default function AdminUsers() {
                   </td>
                   <td className="px-3 sm:px-5 py-3 text-right">
                     <button
-                      onClick={() => setSelected(u)}
-                      className="text-xs font-medium text-[var(--brand)] hover:underline"
+                      onClick={() => navigate(`/admin/users/${u.id}`)}
+                      className="text-xs font-medium text-[var(--brand)] hover:underline cursor-pointer"
                     >
                       View
                     </button>

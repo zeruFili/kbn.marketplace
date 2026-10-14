@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import {
   getListedCompanies,
   deactivateCompany,
@@ -10,6 +11,7 @@ import {
 import { getAdminCategories } from "../../data/adminStore"
 
 export default function AdminCompanies() {
+  const navigate = useNavigate()
   const [companies, setCompanies] = useState<AdminCompany[]>([])
   const [selected, setSelected] = useState<AdminCompany | null>(null)
   const [search, setSearch] = useState("")
@@ -143,8 +145,8 @@ export default function AdminCompanies() {
           {filtered.map((c) => (
             <button
               key={c.id}
-              onClick={() => setSelected(c)}
-              className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-5 text-left card-hover w-full"
+              onClick={() => navigate(`/admin/companies/${c.id}`)}
+              className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-5 text-left card-hover w-full cursor-pointer"
             >
               <div className="flex items-start gap-3 mb-3">
                 <img
