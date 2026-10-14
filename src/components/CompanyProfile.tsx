@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
+import { useAuth } from "../auth/AuthContext"
 import { type Company, type Category } from "../data/companies"
 
 function CategoryIcon({ category }: { category: Category }) {
@@ -202,9 +204,19 @@ export default function CompanyProfile({
   company: Company
   onBack: () => void
 }) {
+  const { user } = useAuth()
+  const navigate = useNavigate()
+
   useEffect(() => {
     window.scrollTo(0, 0)
   }, [company.id])
+
+  const canEdit =
+    !!user &&
+    (user.role === "admin" ||
+      user.email?.toLowerCase() === company.email?.toLowerCase() ||
+      user.name?.toLowerCase() === company.ownerName?.toLowerCase() ||
+      user.companyId === company.id)
 
   return (
     <div className="min-h-screen bg-[var(--surface-alt)]">
@@ -217,7 +229,7 @@ export default function CompanyProfile({
         <div className="absolute inset-0 bg-gradient-to-t from-[var(--brand-dark)]/90 via-[var(--brand-dark)]/30 to-transparent" />
         <button
           onClick={onBack}
-          className="absolute top-5 left-5 flex items-center gap-2 bg-white/10 backdrop-blur-md text-white text-sm font-medium px-4 py-2.5 rounded-xl border border-white/15 hover:bg-white/20 transition-all z-10"
+          className="absolute top-5 left-5 flex items-center gap-2 bg-white/10 backdrop-blur-md text-white text-sm font-medium px-4 py-2.5 rounded-xl border border-white/15 hover:bg-white/20 transition-all z-10 cursor-pointer"
         >
           <svg
             className="w-4 h-4"
@@ -234,6 +246,27 @@ export default function CompanyProfile({
           </svg>
           Back
         </button>
+        {canEdit && (
+          <button
+            onClick={() => navigate(`/companies/${company.id}/edit`)}
+            className="absolute top-5 right-5 flex items-center gap-2 bg-white/15 backdrop-blur-md text-white text-sm font-medium px-4 py-2.5 rounded-xl border border-white/20 hover:bg-white/25 transition-all z-10 cursor-pointer shadow-lg"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+              />
+            </svg>
+            Edit Company
+          </button>
+        )}
         <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10">
           <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-start sm:items-end gap-5">
             <div className="w-20 h-20 md:w-28 md:h-28 rounded-2xl overflow-hidden border-4 border-white/20 flex-shrink-0 bg-white/10 backdrop-blur-sm shadow-2xl">

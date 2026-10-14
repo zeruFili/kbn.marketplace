@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useNavigate, useLocation } from "react-router-dom"
 import { useAuth } from "../auth/AuthContext"
 import { type UserRole } from "../auth/auth"
 const knbLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
@@ -14,15 +15,27 @@ export default function LoginPage({
   onSuccess,
 }: {
   onBack?: () => void
-  onSwitch: () => void
-  onSuccess: (role: UserRole) => void
-}) {
+  onSwitch?: () => void
+  onSuccess?: (role: UserRole) => void
+} = {}) {
   const { login } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+
+  const handleBack = () => {
+    if (onBack) onBack()
+    else navigate("/")
+  }
+
+  const handleSwitch = () => {
+    if (onSwitch) onSwitch()
+    else navigate("/signup")
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -38,7 +51,12 @@ export default function LoginPage({
     setLoading(true)
     try {
       const role = await login(email, password)
-      onSuccess(role)
+      if (onSuccess) {
+        onSuccess(role)
+      } else {
+        const fromPath = (location.state as { from?: { pathname?: string } })?.from?.pathname
+        navigate(fromPath || "/dashboard", { replace: true })
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Login failed.")
     } finally {
@@ -49,12 +67,11 @@ export default function LoginPage({
   return (
     <div className="login-page-bg min-h-screen flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
-        {onBack && (
-          <button
-            onClick={onBack}
-            className="flex items-center gap-1 text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors mb-6"
-          >
-            <svg
+        <button
+          onClick={handleBack}
+          className="flex items-center gap-1 text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors mb-6 cursor-pointer"
+        >
+          <svg
               className="w-4 h-4"
               fill="none"
               viewBox="0 0 24 24"
@@ -69,11 +86,10 @@ export default function LoginPage({
             </svg>
             Back to Home
           </button>
-        )}
         <button
-          onClick={onBack}
+          onClick={handleBack}
           type="button"
-          className="flex items-center gap-2.5 justify-center mb-10 group mx-auto"
+          className="flex items-center gap-2.5 justify-center mb-10 group mx-auto cursor-pointer"
         >
           <img
             src={knbLogo}
@@ -221,8 +237,8 @@ export default function LoginPage({
           <p className="text-sm text-center text-[var(--text-tertiary)] mt-6">
             Don't have an account?{" "}
             <button
-              onClick={onSwitch}
-              className="font-semibold text-[var(--brand)] hover:text-[var(--brand-light)] transition-colors"
+              onClick={handleSwitch}
+              className="font-semibold text-[var(--brand)] hover:text-[var(--brand-light)] transition-colors cursor-pointer"
             >
               Sign up
             </button>

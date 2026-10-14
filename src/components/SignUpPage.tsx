@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { useAuth } from "../auth/AuthContext"
 const knbLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
 
@@ -7,11 +8,12 @@ export default function SignUpPage({
   onSwitch,
   onSuccess,
 }: {
-  onBack: () => void
-  onSwitch: () => void
+  onBack?: () => void
+  onSwitch?: () => void
   onSuccess?: () => void
-}) {
+} = {}) {
   const { signUp } = useAuth()
+  const navigate = useNavigate()
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [business, setBusiness] = useState("")
@@ -20,6 +22,16 @@ export default function SignUpPage({
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+
+  const handleBack = () => {
+    if (onBack) onBack()
+    else navigate("/")
+  }
+
+  const handleSwitch = () => {
+    if (onSwitch) onSwitch()
+    else navigate("/login")
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -73,7 +85,11 @@ export default function SignUpPage({
         password,
         business: business.trim() || undefined,
       })
-      onSuccess?.()
+      if (onSuccess) {
+        onSuccess()
+      } else {
+        navigate("/dashboard", { replace: true })
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Sign up failed.")
     } finally {
@@ -86,8 +102,8 @@ export default function SignUpPage({
     <div className="min-h-screen bg-[var(--surface-alt)] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         <button
-          onClick={onBack}
-          className="flex items-center gap-1 text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors mb-6"
+          onClick={handleBack}
+          className="flex items-center gap-1 text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors mb-6 cursor-pointer"
         >
           <svg
             className="w-4 h-4"
@@ -301,8 +317,8 @@ export default function SignUpPage({
           <p className="text-sm text-center text-[var(--text-tertiary)] mt-5 pt-5 border-t border-[var(--border-light)]">
             Already have an account?{" "}
             <button
-              onClick={onSwitch}
-              className="font-semibold text-[var(--brand)] hover:text-[var(--brand-light)] transition-colors"
+              onClick={handleSwitch}
+              className="font-semibold text-[var(--brand)] hover:text-[var(--brand-light)] transition-colors cursor-pointer"
             >
               Sign in
             </button>

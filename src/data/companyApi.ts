@@ -29,6 +29,7 @@ export interface CompanyApiResponse {
   cover_image?: string
   business_license?: string
   verification_status: "pending" | "verified" | "rejected"
+  status?: "pending" | "active" | "inactive" | "suspended"
   is_active: boolean
   business_category?: CategoryItem
   social_media?: { id?: string; platform: string; link: string }[]
