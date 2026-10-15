@@ -3,6 +3,7 @@ import {
   setAuthToken,
   removeAuthToken,
   ApiError,
+  resolveAssetUrl,
 } from "../api/baseApi"
 import { loginApi, registerApi } from "../api/authApi"
 
@@ -13,6 +14,7 @@ export interface User {
   email: string
   name: string
   avatar: string
+  profileImage?: string | null
   role: UserRole
   business?: string
   companyId?: string
@@ -148,6 +150,9 @@ export async function login(email: string, password: string): Promise<User> {
       const safeUser = apiData.user
       const token = apiData.accessToken
 
+      const rawImg = (safeUser.profileImage || safeUser.profile_image) as string | null | undefined
+      const resolvedProfileImage = rawImg ? resolveAssetUrl(rawImg) : null
+
       const user: User = {
         id: safeUser.id,
         email: safeUser.email || email.trim(),
@@ -155,7 +160,8 @@ export async function login(email: string, password: string): Promise<User> {
           (safeUser.full_name as string) ||
           (safeUser.fullName as string) ||
           email.split("@")[0],
-        avatar: `https://i.pravatar.cc/96?u=${safeUser.id}`,
+        avatar: resolvedProfileImage || `https://i.pravatar.cc/96?u=${safeUser.id}`,
+        profileImage: resolvedProfileImage,
         role: (safeUser.role as UserRole) || "user",
       }
 
@@ -210,6 +216,7 @@ export async function signUp(data: {
   email: string
   password: string
   business?: string
+  profileImage?: File | string | null
 }): Promise<User> {
   const role: UserRole = data.business ? "company" : "user"
 
@@ -220,6 +227,7 @@ export async function signUp(data: {
       password: data.password,
       role,
       business: data.business,
+      profileImage: data.profileImage,
     })
 
     if (!res.success || !res.data) {
@@ -234,6 +242,9 @@ export async function signUp(data: {
     const safeUser = apiData.user
     const token = apiData.accessToken
 
+    const rawImg = (safeUser.profileImage || safeUser.profile_image) as string | null | undefined
+    const resolvedProfileImage = rawImg ? resolveAssetUrl(rawImg) : null
+
     const user: User = {
       id: safeUser.id,
       email: safeUser.email || data.email.trim(),
@@ -241,7 +252,8 @@ export async function signUp(data: {
         (safeUser.full_name as string) ||
         (safeUser.fullName as string) ||
         data.name.trim(),
-      avatar: `https://i.pravatar.cc/96?u=${safeUser.id}`,
+      avatar: resolvedProfileImage || `https://i.pravatar.cc/96?u=${safeUser.id}`,
+      profileImage: resolvedProfileImage,
       role: (safeUser.role as UserRole) || role,
       business: data.business?.trim() || undefined,
     }
@@ -261,6 +273,14 @@ export async function signUp(data: {
     }
     throw err
   }
+}
+
+export function updateCurrentUserSession(updates: Partial<User>): User | null {
+  const current = getStoredSession()
+  if (!current) return null
+  const updated: User = { ...current, ...updates }
+  saveSession(updated)
+  return updated
 }
 
 export async function logout(): Promise<void> {

@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Outlet, useNavigate, useLocation } from "react-router-dom"
 import { useAuth } from "../../auth/AuthContext"
+import UserAvatar from "../../components/common/UserAvatar"
 
 const USER_NAV_ITEMS = [
   {
@@ -39,13 +40,11 @@ export default function UserLayout() {
     <>
       <div className="p-6 border-b border-white/10">
         <div className="flex items-center gap-3">
-          {user?.avatar && (
-            <img
-              src={user.avatar}
-              alt=""
-              className="w-11 h-11 rounded-xl object-cover ring-2 ring-white/20"
-            />
-          )}
+          <UserAvatar
+            src={user?.profileImage || user?.avatar}
+            name={user?.name}
+            className="w-11 h-11 rounded-xl ring-2 ring-white/20"
+          />
           <div className="min-w-0">
             <p className="font-semibold truncate text-white">{user?.name}</p>
             <p className="text-xs text-[#94A3B8] truncate capitalize">

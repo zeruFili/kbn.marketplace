@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react"
+import UserAvatar from "../common/UserAvatar"
 
 type PaymentStatus = "Paid" | "Unpaid"
 
@@ -12,6 +13,8 @@ type PaymentUser = {
   email: string
 
   avatar: string
+
+  profileImage?: string | null
 
   paymentStatus: PaymentStatus
 
@@ -432,10 +435,11 @@ function PaymentUserRow({
           onClick={onSelect}
           className="flex items-center gap-2 sm:gap-3 text-left"
         >
-          <img
-            src={user.avatar}
-            alt=""
-            className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg object-cover ring-2 ring-[var(--border-light)]"
+          <UserAvatar
+            src={user.profileImage || user.avatar}
+            name={user.name}
+            size="sm"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg ring-2 ring-[var(--border-light)]"
           />
           <span className="text-xs sm:text-sm font-medium text-[var(--text-primary)] truncate">
             {user.name}
@@ -518,10 +522,11 @@ function PaymentUserDetail({
       </div>
       <div className="p-5 sm:p-8">
         <div className="flex items-center gap-4 sm:gap-5 mb-8">
-          <img
-            src={user.avatar}
-            alt=""
-            className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover ring-3 ring-[var(--border-light)]"
+          <UserAvatar
+            src={user.profileImage || user.avatar}
+            name={user.name}
+            size="lg"
+            className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl ring-3 ring-[var(--border-light)]"
           />
           <div>
             <h1 className="font-serif text-2xl text-[var(--text-primary)]">

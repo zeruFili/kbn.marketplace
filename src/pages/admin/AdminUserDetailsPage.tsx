@@ -7,6 +7,7 @@ import {
   adminSubscribe,
   type AdminUser,
 } from "../../data/adminStore"
+import UserAvatar from "../../components/common/UserAvatar"
 
 export default function AdminUserDetailsPage() {
   const { id } = useParams<{ id: string }>()
@@ -124,10 +125,11 @@ export default function AdminUserDetailsPage() {
 
       <div className="p-5 sm:p-8">
         <div className="flex items-center gap-4 sm:gap-5 mb-8">
-          <img
-            src={user.avatar}
-            alt=""
-            className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover ring-3 ring-[var(--border-light)]"
+          <UserAvatar
+            src={user.profileImage || user.avatar}
+            name={user.name}
+            size="lg"
+            className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl ring-3 ring-[var(--border-light)]"
           />
           <div>
             <h1 className="font-serif text-2xl text-[var(--text-primary)]">

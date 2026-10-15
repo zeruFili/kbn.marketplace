@@ -13,6 +13,7 @@ import {
   login as doLogin,
   signUp as doSignUp,
   logout as doLogout,
+  updateCurrentUserSession,
 } from "./auth"
 
 interface AuthState {
@@ -24,7 +25,9 @@ interface AuthState {
     email: string
     password: string
     business?: string
+    profileImage?: File | string | null
   }) => Promise<void>
+  updateUser: (updates: Partial<User>) => void
   logout: () => Promise<void>
 }
 
@@ -54,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email: string
       password: string
       business?: string
+      profileImage?: File | string | null
     }) => {
       const u = await doSignUp(data)
       setUser(u)
@@ -61,13 +65,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   )
 
+  const updateUser = useCallback((updates: Partial<User>) => {
+    const updated = updateCurrentUserSession(updates)
+    if (updated) {
+      setUser(updated)
+    }
+  }, [])
+
   const logout = useCallback(async () => {
     await doLogout()
     setUser(null)
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signUp, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, signUp, updateUser, logout }}>
       {children}
     </AuthContext.Provider>
   )

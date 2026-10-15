@@ -7,6 +7,8 @@ import {
   type UserDashboardData,
 } from "../../data/userDataStore"
 
+import UserAvatar from "../../components/common/UserAvatar"
+
 export default function UserProfilePage() {
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -33,10 +35,11 @@ export default function UserProfilePage() {
       {/* Header Row: Avatar, Info, and Pill Edit Button */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-5">
         <div className="flex items-start gap-5">
-          <img
-            src={profile.profilePhoto}
-            alt={profile.fullName}
-            className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover flex-shrink-0 shadow-sm border border-[var(--border-light)]"
+          <UserAvatar
+            src={profile.profilePhoto || user.profileImage || user.avatar}
+            name={profile.fullName || user.name}
+            size="xl"
+            className="shadow-sm border border-[var(--border-light)]"
           />
           <div className="min-w-0">
             <h1 className="font-serif text-2xl sm:text-3xl font-bold text-[var(--brand)] dark:text-[var(--text-primary)] leading-tight">

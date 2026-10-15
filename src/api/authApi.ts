@@ -14,6 +14,8 @@ export interface AuthUserApi {
   role: string
   phone?: string
   website?: string
+  profileImage?: string | null
+  profile_image?: string | null
   created_at?: string
   [key: string]: unknown
 }
@@ -36,6 +38,7 @@ export interface RegisterPayload {
   business?: string
   phone?: string
   website?: string
+  profileImage?: File | string | null
 }
 
 /**
@@ -54,8 +57,25 @@ export async function loginApi(
  * Register a new user via backend /auth/register
  */
 export async function registerApi(
-  payload: RegisterPayload
+  payload: RegisterPayload | FormData
 ): Promise<ApiResponse<AuthResultData>> {
+  if (payload instanceof FormData) {
+    return baseApi.post<AuthResultData>("/auth/register", payload)
+  }
+
+  if (payload.profileImage instanceof File) {
+    const formData = new FormData()
+    formData.append("full_name", payload.name.trim())
+    formData.append("email", payload.email.trim())
+    formData.append("password", payload.password)
+    if (payload.role) formData.append("role", payload.role)
+    if (payload.business?.trim()) formData.append("business", payload.business.trim())
+    if (payload.phone?.trim()) formData.append("phone", payload.phone.trim())
+    if (payload.website?.trim()) formData.append("website", payload.website.trim())
+    formData.append("profileImage", payload.profileImage)
+    return baseApi.post<AuthResultData>("/auth/register", formData)
+  }
+
   return baseApi.post<AuthResultData>("/auth/register", {
     full_name: payload.name.trim(),
     email: payload.email.trim(),
@@ -64,6 +84,7 @@ export async function registerApi(
     business: payload.business?.trim() || undefined,
     phone: payload.phone?.trim() || undefined,
     website: payload.website?.trim() || undefined,
+    profileImage: payload.profileImage || undefined,
   })
 }
 

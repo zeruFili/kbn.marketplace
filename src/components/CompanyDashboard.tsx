@@ -68,6 +68,7 @@ export default function CompanyDashboard({ onBack }: { onBack: () => void }) {
         name: user.business || user.name || "My Company",
         category: "Construction",
         logo:
+          user.profileImage ||
           user.avatar ||
           "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=160&h=160&fit=crop&auto=format",
         banner:

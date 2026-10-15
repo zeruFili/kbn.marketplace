@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Link, useNavigate, useLocation } from "react-router-dom"
 import { useAuth } from "../auth/AuthContext"
+import UserAvatar from "./common/UserAvatar"
 
 const knbLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
 
@@ -151,10 +152,11 @@ export default function Navbar({
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-2 py-1.5 rounded-xl hover:bg-[var(--surface-alt)] transition-all cursor-pointer"
                 >
-                  <img
-                    src={user.avatar}
-                    alt={user.name}
-                    className="w-7 h-7 rounded-lg object-cover ring-2 ring-[var(--border-light)]"
+                  <UserAvatar
+                    src={user.profileImage || user.avatar}
+                    name={user.name}
+                    size="xs"
+                    className="w-7 h-7 rounded-lg ring-2 ring-[var(--border-light)]"
                   />
                   <span className="hidden sm:inline">
                     {user.name.split(" ")[0]}

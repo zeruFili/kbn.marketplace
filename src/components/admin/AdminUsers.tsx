@@ -7,6 +7,7 @@ import {
   adminSubscribe,
   type AdminUser,
 } from "../../data/adminStore"
+import UserAvatar from "../common/UserAvatar"
 
 export default function AdminUsers() {
   const navigate = useNavigate()
@@ -203,10 +204,11 @@ export default function AdminUsers() {
                       onClick={() => navigate(`/admin/users/${u.id}`)}
                       className="flex items-center gap-2 sm:gap-3 text-left cursor-pointer"
                     >
-                      <img
-                        src={u.avatar}
-                        alt=""
-                        className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg object-cover ring-2 ring-[var(--border-light)]"
+                      <UserAvatar
+                        src={u.profileImage || u.avatar}
+                        name={u.name}
+                        size="xs"
+                        className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg ring-2 ring-[var(--border-light)]"
                       />
                       <div className="min-w-0">
                         <div className="text-xs sm:text-sm font-medium text-[var(--text-primary)] truncate">
@@ -325,10 +327,11 @@ function UserDetail({
 
       <div className="p-5 sm:p-8">
         <div className="flex items-center gap-4 sm:gap-5 mb-8">
-          <img
-            src={user.avatar}
-            alt=""
-            className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover ring-3 ring-[var(--border-light)]"
+          <UserAvatar
+            src={user.profileImage || user.avatar}
+            name={user.name}
+            size="lg"
+            className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl ring-3 ring-[var(--border-light)]"
           />
           <div>
             <h1 className="font-serif text-2xl text-[var(--text-primary)]">

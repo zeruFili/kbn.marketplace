@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../../auth/AuthContext"
 import {
@@ -6,19 +6,37 @@ import {
   updateUserProfile,
   type UserProfileData,
 } from "../../data/userDataStore"
+import { updateUserApi, resolveAssetUrl } from "../../api"
+import UserAvatar from "../../components/common/UserAvatar"
 
 export default function UserProfileEditPage() {
-  const { user } = useAuth()
+  const { user, updateUser: updateAuthUser } = useAuth()
   const navigate = useNavigate()
 
   const [form, setForm] = useState<UserProfileData | null>(null)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [imageRemoved, setImageRemoved] = useState(false)
+  const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!user) return
     const data = getUserDashboardData(user.email, user)
     setForm({ ...data.profile })
   }, [user])
+
+  // Object URL preview lifecycle
+  useEffect(() => {
+    if (!imageFile) {
+      setImagePreview(null)
+      return
+    }
+    const url = URL.createObjectURL(imageFile)
+    setImagePreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [imageFile])
 
   if (!user || !form) return null
 
@@ -29,16 +47,103 @@ export default function UserProfileEditPage() {
     setForm((curr) => (curr ? { ...curr, [key]: value } : null))
   }
 
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!form) return
-    setSaving(true)
-    updateUserProfile(user.email, form)
-    setTimeout(() => {
-      setSaving(false)
-      navigate("/dashboard/profile")
-    }, 200)
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith("image/")) {
+      setError("Please select a valid image file (JPEG, PNG, WebP, etc.).")
+      return
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Selected image file size exceeds the 5MB limit.")
+      return
+    }
+
+    setError("")
+    setImageFile(file)
+    setImageRemoved(false)
   }
+
+  const handleRemoveImage = () => {
+    setImageFile(null)
+    setImagePreview(null)
+    setImageRemoved(true)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+  }
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!form || !user) return
+    setError("")
+    setSaving(true)
+
+    try {
+      let finalAvatarUrl = imageRemoved ? "" : form.profilePhoto
+
+      if (imageFile) {
+        const formData = new FormData()
+        formData.append("full_name", form.fullName)
+        if (form.phone && form.phone !== "Not provided") {
+          formData.append("phone", form.phone)
+        }
+        if (form.website && form.website !== "Not provided") {
+          formData.append("website", form.website)
+        }
+        formData.append("profileImage", imageFile)
+
+        const res = await updateUserApi(user.id, formData)
+        if (res.data?.profileImage) {
+          finalAvatarUrl = resolveAssetUrl(res.data.profileImage)
+        }
+      } else if (imageRemoved) {
+        const formData = new FormData()
+        formData.append("full_name", form.fullName)
+        if (form.phone && form.phone !== "Not provided") {
+          formData.append("phone", form.phone)
+        }
+        if (form.website && form.website !== "Not provided") {
+          formData.append("website", form.website)
+        }
+        formData.append("remove_profile_image", "true")
+
+        await updateUserApi(user.id, formData)
+        finalAvatarUrl = ""
+      } else {
+        // Preserving existing photo
+        await updateUserApi(user.id, {
+          full_name: form.fullName,
+          phone: form.phone && form.phone !== "Not provided" ? form.phone : undefined,
+          website: form.website && form.website !== "Not provided" ? form.website : undefined,
+        })
+      }
+
+      const updatedProfile: UserProfileData = {
+        ...form,
+        profilePhoto: finalAvatarUrl,
+      }
+      updateUserProfile(user.email, updatedProfile)
+
+      updateAuthUser({
+        name: form.fullName,
+        avatar: finalAvatarUrl || `https://i.pravatar.cc/96?u=${user.id}`,
+        profileImage: finalAvatarUrl || null,
+      })
+
+      navigate("/dashboard/profile")
+    } catch (err: any) {
+      console.error("Failed to update profile:", err)
+      setError(err?.message || "Failed to save profile changes. Please try again.")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Determine current image to preview in UI
+  const currentPhotoUrl = imagePreview || (!imageRemoved ? form.profilePhoto : "")
 
   return (
     <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden animate-scale-in">
@@ -67,21 +172,57 @@ export default function UserProfileEditPage() {
       </div>
 
       <form onSubmit={handleSave} className="p-6 md:p-8 space-y-6">
-        <div className="flex items-center gap-5">
-          <img
-            src={form.profilePhoto}
-            alt=""
-            className="w-20 h-20 rounded-2xl object-cover ring-2 ring-[var(--border-light)]"
-          />
-          <div className="flex-1">
+        {error && (
+          <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 text-sm p-4 rounded-xl">
+            {error}
+          </div>
+        )}
+
+        {/* Profile Image Upload & Preview Section */}
+        <div className="p-4 sm:p-5 bg-[var(--surface-alt)] border border-[var(--border-light)] rounded-2xl flex flex-col sm:flex-row items-center sm:items-start gap-5">
+          <div className="relative">
+            <UserAvatar
+              src={currentPhotoUrl}
+              name={form.fullName}
+              size="xl"
+              className="w-20 h-20 sm:w-24 sm:h-24 ring-2 ring-[var(--border-light)]"
+            />
+          </div>
+
+          <div className="flex-1 text-center sm:text-left min-w-0">
             <label className="block text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-1">
-              Profile Photo URL
+              Profile Photo
             </label>
+            <p className="text-xs text-[var(--text-secondary)] mb-3">
+              Upload a clear photo from your device. Supported formats: JPG, PNG, WebP, GIF (Max 5MB).
+            </p>
+
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-[var(--brand)] hover:bg-[var(--brand-light)] transition-colors cursor-pointer shadow-xs"
+              >
+                {currentPhotoUrl ? "Change Photo" : "Upload Photo"}
+              </button>
+
+              {currentPhotoUrl && (
+                <button
+                  type="button"
+                  onClick={handleRemoveImage}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 transition-colors cursor-pointer"
+                >
+                  Remove Photo
+                </button>
+              )}
+            </div>
+
             <input
-              type="url"
-              value={form.profilePhoto}
-              onChange={(e) => update("profilePhoto", e.target.value)}
-              className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2 px-3 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,image/svg+xml"
+              className="hidden"
+              onChange={handleImageSelect}
             />
           </div>
         </div>

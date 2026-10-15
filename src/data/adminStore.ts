@@ -52,6 +52,7 @@ export interface AdminUser {
   name: string
   email: string
   avatar: string
+  profileImage?: string | null
   role: "admin" | "user" | "company"
   business?: string
   status: "active" | "deactivated"

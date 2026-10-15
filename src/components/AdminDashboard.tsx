@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { useAuth } from "../auth/AuthContext"
+import UserAvatar from "./common/UserAvatar"
 const knbLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
 import AdminCompanies from "./admin/AdminCompanies"
 import AdminApplications from "./admin/AdminApplications"
@@ -249,10 +250,11 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
             </h1>
           </div>
           <div className="flex items-center gap-3 flex-shrink-0">
-            <img
-              src={user.avatar}
-              alt={user.name}
-              className="w-8 h-8 rounded-lg object-cover ring-2 ring-[var(--border-light)]"
+            <UserAvatar
+              src={user.profileImage || user.avatar}
+              name={user.name}
+              size="sm"
+              className="w-8 h-8 rounded-lg ring-2 ring-[var(--border-light)]"
             />
             <span className="text-sm font-medium text-[var(--text-secondary)] hidden sm:inline">
               {user.name}

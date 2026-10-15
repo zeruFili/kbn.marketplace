@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../auth/AuthContext"
 const knbLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
@@ -19,9 +19,22 @@ export default function SignUpPage({
   const [business, setBusiness] = useState("")
   const [password, setPassword] = useState("")
   const [confirm, setConfirm] = useState("")
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!imageFile) {
+      setImagePreview(null)
+      return
+    }
+    const url = URL.createObjectURL(imageFile)
+    setImagePreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [imageFile])
 
   const handleBack = () => {
     if (onBack) onBack()
@@ -77,6 +90,16 @@ export default function SignUpPage({
       setError("Passwords do not match.")
       return
     }
+    if (imageFile) {
+      if (imageFile.size > 5 * 1024 * 1024) {
+        setError("Profile image must be less than 5MB.")
+        return
+      }
+      if (!imageFile.type.startsWith("image/")) {
+        setError("Please select a valid image file.")
+        return
+      }
+    }
     setLoading(true)
     try {
       await signUp({
@@ -84,6 +107,7 @@ export default function SignUpPage({
         email: email.trim(),
         password,
         business: business.trim() || undefined,
+        profileImage: imageFile,
       })
       if (onSuccess) {
         onSuccess()
@@ -162,6 +186,61 @@ export default function SignUpPage({
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="flex items-center gap-4 p-3 bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl">
+              <div className="relative w-14 h-14 rounded-xl bg-[var(--surface)] border border-[var(--border-light)] flex items-center justify-center overflow-hidden flex-shrink-0 shadow-xs">
+                {imagePreview ? (
+                  <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                ) : (
+                  <svg className="w-7 h-7 text-[var(--text-tertiary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
+                  Profile Photo <span className="text-[var(--text-tertiary)] font-normal">(optional)</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="text-xs font-medium text-[var(--brand)] bg-[var(--brand)]/10 hover:bg-[var(--brand)]/20 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                  >
+                    {imageFile ? "Change" : "Upload Photo"}
+                  </button>
+                  {imageFile && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setImageFile(null)
+                        if (fileInputRef.current) fileInputRef.current.value = ""
+                      }}
+                      className="text-xs text-red-500 hover:text-red-600 px-2 py-1.5 transition-colors cursor-pointer"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,image/svg+xml"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) {
+                      if (file.size > 5 * 1024 * 1024) {
+                        setError("Profile image must be less than 5MB.")
+                        return
+                      }
+                      setError("")
+                      setImageFile(file)
+                    }
+                  }}
+                />
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
                 Full Name

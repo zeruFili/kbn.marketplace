@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { useAuth } from "../auth/AuthContext"
+import UserAvatar from "./common/UserAvatar"
 import CreateBusinessPage from "./CreateBusinessPage"
 import {
   fetchMyCompanies,
@@ -163,10 +164,10 @@ export default function UserDashboard({ onBack }: { onBack: () => void }) {
       <aside className="hidden md:flex w-64 bg-[var(--brand-dark)] text-white flex-col flex-shrink-0 min-h-screen">
         <div className="p-6 border-b border-white/10">
           <div className="flex items-center gap-3">
-            <img
-              src={user.avatar}
-              alt=""
-              className="w-11 h-11 rounded-xl object-cover ring-2 ring-white/20"
+            <UserAvatar
+              src={user.profileImage || user.avatar}
+              name={user.name}
+              className="w-11 h-11 rounded-xl ring-2 ring-white/20"
             />
             <div className="min-w-0">
               <p className="font-semibold truncate">{user.name}</p>
@@ -288,10 +289,10 @@ export default function UserDashboard({ onBack }: { onBack: () => void }) {
             <aside className="absolute left-0 top-0 bottom-0 w-[min(20rem,88vw)] bg-[var(--brand-dark)] text-white flex flex-col shadow-2xl animate-slide-down">
               <div className="p-5 border-b border-white/10 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
-                  <img
-                    src={user.avatar}
-                    alt=""
-                    className="w-10 h-10 rounded-xl object-cover ring-2 ring-white/20"
+                  <UserAvatar
+                    src={user.profileImage || user.avatar}
+                    name={user.name}
+                    className="w-10 h-10 rounded-xl ring-2 ring-white/20"
                   />
                   <div className="min-w-0">
                     <p className="font-semibold truncate">{user.name}</p>
