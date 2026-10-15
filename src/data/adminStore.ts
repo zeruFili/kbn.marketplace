@@ -146,7 +146,7 @@ const defaultData: AdminData = {
       phone: "+251 11 287 3344",
       website: "https://birhanstablefarm.com",
       address: "Sululta Road, Oromia Special Zone, Ethiopia",
-      category: "Food & Beverage" as Category,
+      category: "Foods & Beverage" as Category,
       description:
         "Farm-to-table bakery and organic market sourcing from local Christian farms.",
       longDescription:
