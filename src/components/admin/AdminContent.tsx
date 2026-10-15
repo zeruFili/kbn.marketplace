@@ -10,6 +10,9 @@ import {
   fetchEvents,
   createEvent,
   mapEventToUserEventData,
+  fetchBlogs,
+  createBlog,
+  mapBlogToUserArticleData,
 } from "../../api"
 
 type ContentKind = "events" | "articles" | "blogs"
@@ -56,6 +59,25 @@ export default function AdminContent({ kind }: { kind: ContentKind }) {
         })
         .catch((err) => {
           console.warn("Could not load events from backend, using fallback:", err)
+          if (active) setItems(initialItems)
+        })
+        .finally(() => {
+          if (active) setLoading(false)
+        })
+    } else if (kind === "blogs") {
+      setLoading(true)
+      fetchBlogs()
+        .then((backendBlogs) => {
+          if (active) {
+            if (backendBlogs && backendBlogs.length > 0) {
+              setItems(backendBlogs.map(mapBlogToUserArticleData))
+            } else {
+              setItems(initialItems)
+            }
+          }
+        })
+        .catch((err) => {
+          console.warn("Could not load blogs from backend, using fallback:", err)
           if (active) setItems(initialItems)
         })
         .finally(() => {
@@ -123,10 +145,10 @@ export default function AdminContent({ kind }: { kind: ContentKind }) {
         </div>
         <button
           onClick={() => setAdding(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--brand)] text-white text-sm font-semibold hover:bg-[var(--brand-light)] transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--brand)] text-white text-sm font-semibold hover:bg-[var(--brand-light)] transition-colors cursor-pointer"
         >
           <span aria-hidden="true">+</span>Add{" "}
-          {kind === "events" ? "Event" : title.slice(0, -1)}
+          {kind === "events" ? "Event" : kind === "blogs" ? "Blog" : title.slice(0, -1)}
         </button>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
@@ -165,7 +187,7 @@ export default function AdminContent({ kind }: { kind: ContentKind }) {
             <button
               key={option}
               onClick={() => setStatus(option)}
-              className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${
+              className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                 status === option
                   ? "bg-[var(--brand)] text-white"
                   : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
@@ -187,7 +209,7 @@ export default function AdminContent({ kind }: { kind: ContentKind }) {
       {loading ? (
         <div className="text-center py-16 bg-[var(--surface)] rounded-2xl border border-[var(--border-light)]">
           <div className="w-8 h-8 border-3 border-[var(--brand)]/30 border-t-[var(--brand)] rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-xs text-[var(--text-tertiary)]">Loading events from server...</p>
+          <p className="text-xs text-[var(--text-tertiary)]">Loading {kind} from server...</p>
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 bg-[var(--surface)] rounded-2xl border border-[var(--border-light)]">
@@ -203,10 +225,12 @@ export default function AdminContent({ kind }: { kind: ContentKind }) {
               onClick={() => {
                 if (kind === "events") {
                   navigate(`/admin/events/${item.id}`)
+                } else if (kind === "blogs") {
+                  navigate(`/admin/blogs/${item.id}`)
                 }
               }}
               className={`bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden card-hover transition-all ${
-                kind === "events"
+                kind === "events" || kind === "blogs"
                   ? "cursor-pointer hover:border-[var(--brand)]/50 hover:shadow-lg"
                   : ""
               }`}
@@ -226,8 +250,8 @@ export default function AdminContent({ kind }: { kind: ContentKind }) {
                   <span
                     className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                       item.status === "Published"
-                        ? "bg-emerald-100 text-emerald-700"
-                        : "bg-amber-100 text-amber-700"
+                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+                        : "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
                     }`}
                   >
                     {item.status}
@@ -246,6 +270,14 @@ export default function AdminContent({ kind }: { kind: ContentKind }) {
                     </svg>
                     {"eventType" in item ? item.startDate : item.publishedDate}
                   </span>
+                  {"author" in item && (
+                    <span className="inline-flex items-center gap-1 truncate max-w-[50%]">
+                      <svg className="w-3.5 h-3.5 text-[var(--accent-dark)] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M16 21v-2a4 4 0 00-8 0v2m4-11a4 4 0 100-8 4 4 0 000 8z" />
+                      </svg>
+                      <span className="truncate">{item.author}</span>
+                    </span>
+                  )}
                   {"eventType" in item && (
                     <span className="inline-flex items-center gap-1.5 truncate max-w-[50%]">
                       <svg className="w-3.5 h-3.5 text-[var(--accent-dark)] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -278,21 +310,22 @@ function AdminContentForm({
   onSubmit: (item: ContentItem) => void
 }) {
   const isEvent = kind === "events"
+  const isBlog = kind === "blogs"
 
   const [form, setForm] = useState({
     title: "",
-    topic: "",
+    topic: "General",
     image: "",
     description: "",
     author: "",
-    date: "",
+    date: new Date().toISOString().slice(0, 16),
     location: "Addis Ababa, Ethiopia",
     eventType: "Workshop",
     status: "Published" as "Published" | "Draft",
     availability: "public" as "public" | "private",
   })
 
-  // File upload state for events
+  // File upload state
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -345,6 +378,55 @@ function AdminContentForm({
     event.preventDefault()
     setErrorMessage("")
 
+    if (isBlog) {
+      if (!form.title.trim()) {
+        setErrorMessage("Blog title is required.")
+        return
+      }
+      if (!imageFile && !form.image.trim()) {
+        setErrorMessage("Please select a blog cover image file.")
+        return
+      }
+      if (!form.description.trim()) {
+        setErrorMessage("Blog excerpt or content summary is required.")
+        return
+      }
+
+      setSubmitting(true)
+      try {
+        const formData = new FormData()
+        formData.append("title", form.title.trim())
+        formData.append("topic", form.topic.trim() || "General")
+        formData.append("excerpt", form.description.trim())
+        formData.append("publication_date", form.date ? new Date(form.date).toISOString() : new Date().toISOString())
+        formData.append("status", form.status.toLowerCase())
+
+        if (imageFile) {
+          formData.append("image", imageFile)
+        } else if (form.image.trim()) {
+          formData.append("image", form.image.trim())
+        }
+
+        const result = await createBlog(formData)
+        if (result.success && result.data) {
+          const mapped = mapBlogToUserArticleData(result.data)
+          onSubmit(mapped)
+        } else {
+          setErrorMessage(result.message || "Failed to create blog. Please check the details.")
+        }
+      } catch (err: unknown) {
+        console.error("Blog creation error:", err)
+        setErrorMessage(
+          err instanceof Error
+            ? err.message
+            : "An unexpected error occurred while creating the blog post."
+        )
+      } finally {
+        setSubmitting(false)
+      }
+      return
+    }
+
     if (isEvent) {
       if (!form.title.trim()) {
         setErrorMessage("Event title is required.")
@@ -373,7 +455,6 @@ function AdminContentForm({
         formData.append("start_date", form.date)
         formData.append("status", form.status.toLowerCase())
         formData.append("availability", form.availability || "public")
-        // Cover image file
         formData.append("image", imageFile)
 
         const result = await createEvent(formData)
@@ -393,25 +474,26 @@ function AdminContentForm({
       } finally {
         setSubmitting(false)
       }
-    } else {
-      if (!form.title.trim() || !form.image.trim()) return
-      onSubmit({
-        id: `admin-${kind.slice(0, -1)}-${Date.now()}`,
-        featuredImage: form.image,
-        title: form.title,
-        topic: form.topic,
-        excerpt: form.description,
-        content: form.description,
-        author: form.author,
-        publishedDate: form.date,
-        status: form.status,
-        visibility: "Public",
-      })
+      return
     }
+
+    if (!form.title.trim() || !form.image.trim()) return
+    onSubmit({
+      id: `admin-${kind.slice(0, -1)}-${Date.now()}`,
+      featuredImage: form.image,
+      title: form.title,
+      topic: form.topic,
+      excerpt: form.description,
+      content: form.description,
+      author: form.author,
+      publishedDate: form.date,
+      status: form.status,
+      visibility: "Public",
+    })
   }
 
-  // Modern, attractive Event Creation Form consistent with Company Registration
-  if (isEvent) {
+  // Modern, attractive Creation Form for Blogs and Events
+  if (isBlog || isEvent) {
     return (
       <form
         onSubmit={submit}
@@ -421,21 +503,32 @@ function AdminContentForm({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--border-light)] pb-6">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-[var(--accent-light)] text-[var(--accent-dark)] border border-[var(--accent)]/25 flex items-center justify-center flex-shrink-0 shadow-xs">
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.8}
-                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
+              {isBlog ? (
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.8}
+                    d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
+                  />
+                </svg>
+              ) : (
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.8}
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+              )}
             </div>
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-dark)] block">
-                Event Management · New Event
+                {isBlog ? "Blog Management · New Blog Post" : "Event Management · New Event"}
               </span>
               <h3 className="font-serif text-2xl md:text-3xl font-bold text-[var(--text-primary)]">
-                Create New Event
+                {isBlog ? "Create New Blog Post" : "Create New Event"}
               </h3>
             </div>
           </div>
@@ -479,34 +572,45 @@ function AdminContentForm({
 
           <div>
             <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
-              Event Title <span className="text-red-500">*</span>
+              {isBlog ? "Blog Post Title" : "Event Title"} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={form.title}
               onChange={(e) => update("title", e.target.value)}
-              placeholder="e.g. Annual Architecture & Urban Design Summit"
+              placeholder={isBlog ? "e.g. Building Kingdom Foundations in Modern Urban Planning" : "e.g. Annual Architecture & Urban Design Summit"}
               className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-4 py-2.5 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 transition-all"
               required
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className={`grid grid-cols-1 ${isBlog ? "sm:grid-cols-2" : "sm:grid-cols-3"} gap-4`}>
             <div>
               <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
-                Event Type
+                {isBlog ? "Topic / Category" : "Event Type"} <span className="text-red-500">*</span>
               </label>
-              <select
-                value={form.eventType}
-                onChange={(e) => update("eventType", e.target.value)}
-                className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-4 py-2.5 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer transition-all"
-              >
-                {["Workshop", "Conference", "Fellowship", "Meetup", "Hackathon", "Webinar", "General"].map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
+              {isBlog ? (
+                <input
+                  type="text"
+                  value={form.topic}
+                  onChange={(e) => update("topic", e.target.value)}
+                  placeholder="e.g. Leadership, Faith & Work, Architecture"
+                  className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-4 py-2.5 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 transition-all"
+                  required
+                />
+              ) : (
+                <select
+                  value={form.eventType}
+                  onChange={(e) => update("eventType", e.target.value)}
+                  className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-4 py-2.5 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer transition-all"
+                >
+                  {["Workshop", "Conference", "Fellowship", "Meetup", "Hackathon", "Webinar", "General"].map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             <div>
@@ -523,36 +627,37 @@ function AdminContentForm({
               </select>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
-                Availability
-              </label>
-              <select
-                value={form.availability}
-                onChange={(e) => update("availability", e.target.value as "public" | "private")}
-                className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-4 py-2.5 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer transition-all"
-              >
-                <option value="public">Public</option>
-                <option value="private">Private</option>
-              </select>
-            </div>
+            {!isBlog && (
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
+                  Availability
+                </label>
+                <select
+                  value={form.availability}
+                  onChange={(e) => update("availability", e.target.value as "public" | "private")}
+                  className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-4 py-2.5 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer transition-all"
+                >
+                  <option value="public">Public</option>
+                  <option value="private">Private</option>
+                </select>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Section 2: Schedule & Location */}
+        {/* Section 2: Schedule & Location / Publication Date */}
         <div className="space-y-4">
           <div className="flex items-center gap-2 text-sm font-serif font-bold text-[var(--text-primary)] border-b border-[var(--border-light)] pb-2.5">
             <svg className="w-4 h-4 text-[var(--accent-dark)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            <span>2. Schedule & Location</span>
+            <span>2. {isBlog ? "Publication Schedule" : "Schedule & Location"}</span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className={`grid grid-cols-1 ${isBlog ? "sm:grid-cols-1" : "sm:grid-cols-2"} gap-4`}>
             <div>
               <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
-                Start Date & Time <span className="text-red-500">*</span>
+                {isBlog ? "Publication Date & Time" : "Start Date & Time"} <span className="text-red-500">*</span>
               </label>
               <input
                 type="datetime-local"
@@ -563,23 +668,25 @@ function AdminContentForm({
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
-                Location <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={form.location}
-                onChange={(e) => update("location", e.target.value)}
-                placeholder="e.g. Addis Ababa, Ethiopia or Online"
-                className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-4 py-2.5 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 transition-all"
-                required
-              />
-            </div>
+            {!isBlog && (
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
+                  Location <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={form.location}
+                  onChange={(e) => update("location", e.target.value)}
+                  placeholder="e.g. Addis Ababa, Ethiopia or Online"
+                  className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-4 py-2.5 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 transition-all"
+                  required
+                />
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Section 3: Event Cover Image */}
+        {/* Section 3: Cover Image Upload */}
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-sm font-serif font-bold text-[var(--text-primary)] border-b border-[var(--border-light)] pb-2.5">
             <svg className="w-4 h-4 text-[var(--accent-dark)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -590,10 +697,10 @@ function AdminContentForm({
                 d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
               />
             </svg>
-            <span>3. Event Cover Image <span className="text-red-500">*</span></span>
+            <span>3. {isBlog ? "Blog Cover Image" : "Event Cover Image"} <span className="text-red-500">*</span></span>
           </div>
           <p className="text-xs text-[var(--text-tertiary)]">
-            Select a high-resolution cover image to represent your event across cards, banners, and member feeds.
+            Upload a high-resolution cover image file to be displayed on article feeds, banners, and reader views.
           </p>
 
           <input
@@ -612,7 +719,7 @@ function AdminContentForm({
               <div className="w-full sm:w-48 h-28 rounded-xl overflow-hidden border border-[var(--border-light)] bg-black/10 flex-shrink-0">
                 <img
                   src={imagePreview}
-                  alt="Event cover preview"
+                  alt="Cover preview"
                   className="w-full h-full object-cover"
                 />
               </div>
@@ -670,20 +777,24 @@ function AdminContentForm({
           )}
         </div>
 
-        {/* Section 4: Event Description */}
+        {/* Section 4: Excerpt / Description */}
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-sm font-serif font-bold text-[var(--text-primary)] border-b border-[var(--border-light)] pb-2.5">
             <svg className="w-4 h-4 text-[var(--accent-dark)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
             </svg>
-            <span>4. Event Description <span className="text-red-500">*</span></span>
+            <span>4. {isBlog ? "Blog Excerpt & Summary" : "Event Description"} <span className="text-red-500">*</span></span>
           </div>
 
           <textarea
-            rows={4}
+            rows={5}
             value={form.description}
             onChange={(e) => update("description", e.target.value)}
-            placeholder="Describe what attendees will learn, key speakers, schedule highlights, and prerequisites..."
+            placeholder={
+              isBlog
+                ? "Write a compelling summary or excerpt introducing the key insights, biblical principles, and takeaways of this blog post..."
+                : "Describe what attendees will learn, key speakers, schedule highlights, and prerequisites..."
+            }
             className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl p-4 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 transition-all leading-relaxed"
             required
           />
@@ -707,14 +818,14 @@ function AdminContentForm({
             {submitting ? (
               <>
                 <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                <span>Creating Event...</span>
+                <span>{isBlog ? "Publishing Blog..." : "Creating Event..."}</span>
               </>
             ) : (
               <>
                 <svg className="w-4 h-4 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                <span>Create Event</span>
+                <span>{isBlog ? "Create Blog Post" : "Create Event"}</span>
               </>
             )}
           </button>
@@ -730,7 +841,7 @@ function AdminContentForm({
     >
       <div className="flex items-center justify-between gap-4 mb-5">
         <h3 className="font-serif text-xl text-[var(--text-primary)]">
-          Add {kind === "blogs" ? "Blog" : "Article"}
+          Add Article
         </h3>
         <button
           type="button"

@@ -35,6 +35,7 @@ import AdminCategories from "./components/admin/AdminCategories"
 import AdminContent from "./components/admin/AdminContent"
 import AdminEventDetailsPage from "./pages/admin/AdminEventDetailsPage"
 import AdminEventEditPage from "./pages/admin/AdminEventEditPage"
+import AdminBlogDetailsPage from "./pages/admin/AdminBlogDetailsPage"
 import UserLayout from "./pages/user/UserLayout"
 import UserProfilePage from "./pages/user/UserProfilePage"
 import UserProfileEditPage from "./pages/user/UserProfileEditPage"
@@ -53,11 +54,14 @@ import {
 } from "./data/userDataStore"
 
 type PublicPage = "companies" | "people" | "blogs" | "events" | "articles"
-type PublicSelection = { type: "person" item: UserProfileData } | {
-  type: "article" | "blog"
-  item: UserArticleData
-  returnToProfile?: UserProfileData
-} | { type: "event" item: UserEventData returnToProfile?: UserProfileData }
+type PublicSelection =
+  | { type: "person"; item: UserProfileData }
+  | {
+      type: "article" | "blog"
+      item: UserArticleData
+      returnToProfile?: UserProfileData
+    }
+  | { type: "event"; item: UserEventData; returnToProfile?: UserProfileData }
 
 const ABEL_DEMO_COMPANY: Company = {
   id: "abel-demo-company",
@@ -529,7 +533,7 @@ function PublicContentPage({
   )
 }
 
-function PublicDetailField({ label, value }: { label: string value: string }) {
+function PublicDetailField({ label, value }: { label: string; value: string }) {
   if (label === "Publication status" || label === "Audience") return null
   return (
     <div className="relative overflow-hidden bg-white rounded-2xl border border-[var(--border-light)] p-5 shadow-[0_8px_24px_rgba(15,29,58,0.04)]">
@@ -1330,6 +1334,7 @@ export default function App() {
           <Route path="events/:id/edit" element={<AdminEventEditPage />} />
           <Route path="articles" element={<AdminContent kind="articles" />} />
           <Route path="blogs" element={<AdminContent kind="blogs" />} />
+          <Route path="blogs/:id" element={<AdminBlogDetailsPage />} />
         </Route>
 
         {/* Catch-all 404 */}
