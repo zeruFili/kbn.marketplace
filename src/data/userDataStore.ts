@@ -827,7 +827,7 @@ export function getUserReviews(userEmail: string): UserReview[] {
 export function updateUserReview(
   userEmail: string,
   reviewId: string,
-  updates: { rating?: number text?: string },
+  updates: { rating?: number; text?: string },
 ) {
   const all = getReviews()
   const userReviews = all[userEmail]
@@ -882,7 +882,7 @@ export interface AppSubmission {
   services: string[]
   tags: string[]
   licenseDoc: string
-  socialLinks?: { platform: string url: string }[]
+  socialLinks?: { platform: string; url: string }[]
   supportingDocs?: string[]
 }
 
