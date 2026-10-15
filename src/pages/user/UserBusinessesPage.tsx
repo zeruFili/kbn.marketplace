@@ -9,13 +9,7 @@ import {
   resolveFileUrl,
   type CompanyApiResponse,
 } from "../../api/companyApi"
-import {
-  getUserDashboardData,
-  updateUserContent,
-  deleteUserContent,
-  userSubscribe,
-  type UserBusinessData,
-} from "../../data/userDataStore"
+import type { UserBusinessData } from "../../data/userDataStore"
 
 function mapCompanyToBusiness(
   company: CompanyApiResponse,
@@ -91,18 +85,9 @@ export default function UserBusinessesPage() {
 
   useEffect(() => {
     void reload()
-    return userSubscribe(() => void reload())
   }, [reload])
 
-  const dashboardData = getUserDashboardData(user?.email || "", user ?? undefined)
-
-  const allBusinesses = useMemo(() => {
-    const backendIds = new Set(backendBusinesses.map((b) => b.id))
-    const uniqueLocals = dashboardData.businesses.filter(
-      (b) => !backendIds.has(b.id),
-    )
-    return [...backendBusinesses, ...uniqueLocals]
-  }, [backendBusinesses, dashboardData.businesses])
+  const allBusinesses = backendBusinesses
 
   // When companyId param is present, fetch company by ID directly from backend or resolve from list
   useEffect(() => {

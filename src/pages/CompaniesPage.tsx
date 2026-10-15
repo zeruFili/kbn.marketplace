@@ -1,9 +1,13 @@
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import Navbar from "../components/Navbar"
 import { CompanyCard } from "../components/CompanyProfile"
-import { getCompanies, subscribe, type Company } from "../data/companyStore"
-import { CATEGORIES, type Category } from "../data/companies"
+import {
+  fetchCompanies,
+  fetchCategories,
+  type CategoryItem,
+} from "../api/companyApi"
+import type { Company, Category } from "../data/companies"
 
 export default function CompaniesPage({
   title = "All Members",
@@ -15,16 +19,44 @@ export default function CompaniesPage({
   onSelectCompany?: (c: Company) => void
 } = {}) {
   const navigate = useNavigate()
-  const [dirCategory, setDirCategory] = useState<Category | null>(null)
+  const [dirCategory, setDirCategory] = useState<string | null>(null)
   const [dirSearch, setDirSearch] = useState("")
   const [dirSort, setDirSort] = useState<"rating" | "reviews" | "name">("rating")
-  const [allCompanies, setAllCompanies] = useState<Company[]>(getCompanies())
+  const [allCompanies, setAllCompanies] = useState<Company[]>([])
+  const [categories, setCategories] = useState<string[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const loadData = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const [compRes, catRes] = await Promise.all([
+        fetchCompanies({ limit: 100, is_active: true }),
+        fetchCategories(),
+      ])
+      setAllCompanies(compRes.companies)
+
+      if (catRes && catRes.length > 0) {
+        setCategories(catRes.map((c: CategoryItem) => c.name))
+      } else {
+        const uniqueCats = Array.from(
+          new Set(compRes.companies.map((c) => c.category))
+        ).filter(Boolean) as string[]
+        setCategories(uniqueCats)
+      }
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : "Failed to load directory companies."
+      )
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
-    setAllCompanies(getCompanies())
-    const unsub = subscribe(() => setAllCompanies(getCompanies()))
-    return unsub
-  }, [])
+    loadData()
+  }, [loadData])
 
   const dirFiltered = useMemo(() => {
     let result = dirCategory
@@ -37,7 +69,7 @@ export default function CompaniesPage({
           c.name.toLowerCase().includes(q) ||
           c.description.toLowerCase().includes(q) ||
           c.tags.some((t) => t.toLowerCase().includes(q)) ||
-          c.category.toLowerCase().includes(q),
+          c.category.toLowerCase().includes(q)
       )
     }
     if (dirSort === "rating") result.sort((a, b) => b.rating - a.rating)
@@ -136,43 +168,61 @@ export default function CompaniesPage({
           </div>
         </div>
 
-        <div className="mb-6 flex overflow-x-auto gap-2 pb-2 hide-scrollbar">
-          <button
-            onClick={() => setDirCategory(null)}
-            className={`flex-shrink-0 text-xs font-medium px-4 py-2 rounded-xl border transition-all cursor-pointer ${
-              !dirCategory
-                ? "bg-[var(--brand)] text-white border-[var(--brand)]"
-                : "text-[var(--text-secondary)] border-[var(--border-default)] bg-[var(--surface)] hover:border-[var(--text-primary)]"
-            }`}
-          >
-            All
-          </button>
-          {CATEGORIES.map((cat) => (
+        {categories.length > 0 && (
+          <div className="mb-6 flex overflow-x-auto gap-2 pb-2 hide-scrollbar">
             <button
-              key={cat}
-              onClick={() => setDirCategory(cat)}
+              onClick={() => setDirCategory(null)}
               className={`flex-shrink-0 text-xs font-medium px-4 py-2 rounded-xl border transition-all cursor-pointer ${
-                dirCategory === cat
+                !dirCategory
                   ? "bg-[var(--brand)] text-white border-[var(--brand)]"
                   : "text-[var(--text-secondary)] border-[var(--border-default)] bg-[var(--surface)] hover:border-[var(--text-primary)]"
               }`}
             >
-              {cat}
+              All
             </button>
-          ))}
-        </div>
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setDirCategory(cat)}
+                className={`flex-shrink-0 text-xs font-medium px-4 py-2 rounded-xl border transition-all cursor-pointer ${
+                  dirCategory === cat
+                    ? "bg-[var(--brand)] text-white border-[var(--brand)]"
+                    : "text-[var(--text-secondary)] border-[var(--border-default)] bg-[var(--surface)] hover:border-[var(--text-primary)]"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-stagger">
-          {dirFiltered.map((c) => (
-            <CompanyCard
-              key={c.id}
-              company={c}
-              onClick={() => handleCardClick(c)}
-            />
-          ))}
-        </div>
-
-        {dirFiltered.length === 0 && (
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-pulse">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className="bg-[var(--surface)] border border-[var(--border-light)] rounded-2xl p-5 h-72 flex flex-col justify-between"
+              >
+                <div className="space-y-3">
+                  <div className="h-36 bg-[var(--surface-alt)] rounded-xl" />
+                  <div className="h-4 bg-[var(--surface-alt)] rounded w-3/4" />
+                  <div className="h-3 bg-[var(--surface-alt)] rounded w-1/2" />
+                </div>
+                <div className="h-8 bg-[var(--surface-alt)] rounded-lg w-1/3" />
+              </div>
+            ))}
+          </div>
+        ) : error ? (
+          <div className="text-center py-16 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 rounded-2xl max-w-md mx-auto">
+            <p className="text-sm text-red-600 dark:text-red-400 mb-4">{error}</p>
+            <button
+              onClick={loadData}
+              className="px-4 py-2 text-xs font-semibold rounded-xl bg-red-600 hover:bg-red-700 text-white transition-colors cursor-pointer"
+            >
+              Try Again
+            </button>
+          </div>
+        ) : dirFiltered.length === 0 ? (
           <div className="text-center py-24 animate-fade-in">
             <div className="w-20 h-20 rounded-2xl bg-[var(--surface)] border border-[var(--border-light)] flex items-center justify-center mx-auto mb-5 text-3xl">
               🔍
@@ -181,8 +231,20 @@ export default function CompaniesPage({
               No results found
             </h3>
             <p className="text-sm text-[var(--text-tertiary)] mb-6">
-              Try adjusting your search or filters
+              {allCompanies.length === 0
+                ? "No companies have been registered in the database yet."
+                : "Try adjusting your search query or category filters."}
             </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-stagger">
+            {dirFiltered.map((c) => (
+              <CompanyCard
+                key={c.id}
+                company={c}
+                onClick={() => handleCardClick(c)}
+              />
+            ))}
           </div>
         )}
       </div>

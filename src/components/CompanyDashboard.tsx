@@ -1,14 +1,13 @@
 import { useState, useEffect, type ReactNode } from "react"
 import { useAuth } from "../auth/AuthContext"
 import {
-  getCompanyById,
-  getCompanies,
-  upsertCompany,
-  updateCompany,
-  subscribe,
-  type Company as CompanyData,
-} from "../data/companyStore"
-import { type Category } from "../data/companies"
+  fetchMyCompanies,
+  fetchCompanyById,
+  updateCompanyApi,
+  mapApiResponseToCompany,
+  type CompanyApiResponse,
+} from "../api/companyApi"
+import { type Category, type Company as CompanyData } from "../data/companies"
 
 const ALL_CATEGORIES: Category[] = [
   "Construction",
@@ -42,82 +41,80 @@ export default function CompanyDashboard({ onBack }: { onBack: () => void }) {
 
   useEffect(() => {
     if (!user) return
+    let active = true
 
-    const resolveCompany = (): CompanyData => {
-      if (user.companyId) {
-        const found = getCompanyById(user.companyId)
-        if (found) return found
+    async function loadCompany() {
+      try {
+        let compRaw: CompanyApiResponse | null = null
+        if (user?.companyId) {
+          compRaw = await fetchCompanyById(user.companyId)
+        }
+        if (!compRaw) {
+          const myComps = await fetchMyCompanies()
+          if (myComps && myComps.length > 0) {
+            compRaw = myComps[0]
+          }
+        }
+
+        if (!active) return
+
+        let c: CompanyData
+        if (compRaw) {
+          c = mapApiResponseToCompany(compRaw)
+        } else {
+          c = {
+            id: user?.companyId || `comp-${user?.id}`,
+            name: user?.business || user?.name || "My Company",
+            category: "Professional Services",
+            logo:
+              user?.profileImage ||
+              user?.avatar ||
+              "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=160&h=160&fit=crop&auto=format",
+            banner:
+              "https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=1200&h=420&fit=crop&auto=format",
+            rating: 5.0,
+            reviewCount: 0,
+            description: `Welcome to ${user?.business || user?.name}. Add your company description here.`,
+            longDescription: `Full information and services for ${user?.business || user?.name}.`,
+            phone: "+251 911 000 000",
+            email: user?.email || "",
+            website: "",
+            address: "Addis Ababa, Ethiopia",
+            services: ["General Services"],
+            gallery: [],
+            tags: ["Member", "Christian Business"],
+            reviews: [],
+            featured: false,
+            ownerName: user?.name || "",
+            missionStatement: "Serving God and community through business excellence.",
+          }
+        }
+
+        setCompany(c)
+        setForm({
+          name: c.name,
+          description: c.description,
+          longDescription: c.longDescription,
+          phone: c.phone,
+          email: c.email,
+          website: c.website,
+          address: c.address,
+          category: c.category,
+          services: [...c.services],
+          tags: [...c.tags],
+          missionStatement: c.missionStatement,
+          ownerName: c.ownerName,
+        })
+      } catch (err) {
+        console.warn("Could not load company from backend:", err)
       }
-      const all = getCompanies()
-      if (user.email) {
-        const byEmail = all.find(
-          (c) => c.email.toLowerCase() === user.email.toLowerCase(),
-        )
-        if (byEmail) return byEmail
-      }
-      if (user.business) {
-        const byBiz = all.find(
-          (c) => c.name.toLowerCase() === user.business?.toLowerCase(),
-        )
-        if (byBiz) return byBiz
-      }
-      const newComp: CompanyData = {
-        id:
-          user.companyId ||
-          `company-${user.id || user.email.replace(/[^a-zA-Z0-9]/g, "-")}`,
-        name: user.business || user.name || "My Company",
-        category: "Construction",
-        logo:
-          user.profileImage ||
-          user.avatar ||
-          "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=160&h=160&fit=crop&auto=format",
-        banner:
-          "https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=1200&h=420&fit=crop&auto=format",
-        rating: 5.0,
-        reviewCount: 0,
-        description: `Welcome to ${user.business || user.name}. Add your company description here.`,
-        longDescription: `Full information and services for ${user.business || user.name}.`,
-        phone: "+251 911 000 000",
-        email: user.email,
-        website: "",
-        address: "Addis Ababa, Ethiopia",
-        services: ["General Services"],
-        gallery: [],
-        tags: ["Member", "Christian Business"],
-        reviews: [],
-        featured: false,
-        ownerName: user.name,
-        missionStatement: "Serving God and community through business excellence.",
-      }
-      upsertCompany(newComp)
-      return newComp
     }
 
-    const c = resolveCompany()
-    setCompany(c)
-    setForm({
-      name: c.name,
-      description: c.description,
-      longDescription: c.longDescription,
-      phone: c.phone,
-      email: c.email,
-      website: c.website,
-      address: c.address,
-      category: c.category,
-      services: [...c.services],
-      tags: [...c.tags],
-      missionStatement: c.missionStatement,
-      ownerName: c.ownerName,
-    })
+    loadCompany()
 
-    const unsub = subscribe(() => {
-      const currentId = user.companyId || c.id
-      if (currentId) {
-        const fresh = getCompanyById(currentId)
-        if (fresh) setCompany(fresh)
-      }
-    })
-    return unsub
+    return () => {
+      active = false
+    }
   }, [user])
 
   function update<K extends keyof EditableFields>(
@@ -128,16 +125,29 @@ export default function CompanyDashboard({ onBack }: { onBack: () => void }) {
     setForm({ ...form, [key]: value })
   }
 
-  function saveField<K extends keyof EditableFields>(
+  async function saveField<K extends keyof EditableFields>(
     key: K,
     value: EditableFields[K],
   ) {
     const compId = user?.companyId || company?.id
     if (!compId || !form) return
-    const body: Partial<CompanyData> = { [key]: value }
-    updateCompany(compId, body)
+
+    setCompany((prev) => (prev ? { ...prev, [key]: value } : null))
     setSaved(true)
     setTimeout(() => setSaved(false), 1500)
+
+    try {
+      const fieldMapping: Record<string, string> = {
+        name: "company_name",
+        phone: "phone_number",
+        address: "physical_address",
+        ownerName: "owner_primary_contact",
+      }
+      const backendKey = fieldMapping[key as string] || (key as string)
+      await updateCompanyApi(compId, { [backendKey]: value })
+    } catch (err) {
+      console.warn("Could not sync company edit to backend:", err)
+    }
   }
 
   function addServiceItem() {
@@ -172,7 +182,7 @@ export default function CompanyDashboard({ onBack }: { onBack: () => void }) {
   }
 
   const userRole = user?.role?.toLowerCase()
-  if (!user || userRole !== "company") {
+  if (!user || (userRole !== "company" && userRole !== "admin")) {
     return (
       <div className="min-h-screen bg-[var(--surface-alt)] flex items-center justify-center text-[var(--text-tertiary)]">
         Access denied.

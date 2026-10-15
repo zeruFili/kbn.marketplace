@@ -6,7 +6,6 @@ import {
   type BlogApiResponse,
 } from "../../api/blogsApi"
 import { resolveAssetUrl } from "../../api/baseApi"
-import { getPublicUserDashboardData } from "../../data/userDataStore"
 
 export default function AdminBlogDetailsPage() {
   const { id } = useParams<{ id: string }>()
@@ -33,62 +32,12 @@ export default function AdminBlogDetailsPage() {
         if (data) {
           setBlog(data)
         } else {
-          // Check fallback demo blogs
-          const demoBlogs = getPublicUserDashboardData().flatMap((m) => m.blogs)
-          const fallback = demoBlogs.find(
-            (b) => b.id === id || b.title.toLowerCase().replace(/[^a-z0-9]+/g, "-") === id
-          )
-          if (fallback) {
-            setBlog({
-              id: fallback.id,
-              title: fallback.title,
-              slug: fallback.title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-              topic: fallback.topic || "General",
-              featured_image: fallback.featuredImage ? [fallback.featuredImage] : [],
-              publication_date: fallback.publishedDate || new Date().toISOString(),
-              status: fallback.status?.toLowerCase() === "published" ? "published" : "draft",
-              excerpt: fallback.excerpt || fallback.content || "",
-              author_id: "demo-author",
-              author: {
-                id: "demo-author",
-                full_name: fallback.author || "Kingdom Builders Admin",
-                email: "admin@kingdombuilders.et",
-              },
-              created_at: new Date().toISOString(),
-            })
-          } else {
-            setError(`Could not find blog post with ID "${id}".`)
-          }
+          setError(`Could not find blog post with ID "${id}".`)
         }
       })
       .catch((err) => {
         if (!isMounted) return
-        // Check fallback demo blogs on network failure
-        const demoBlogs = getPublicUserDashboardData().flatMap((m) => m.blogs)
-        const fallback = demoBlogs.find(
-          (b) => b.id === id || b.title.toLowerCase().replace(/[^a-z0-9]+/g, "-") === id
-        )
-        if (fallback) {
-          setBlog({
-            id: fallback.id,
-            title: fallback.title,
-            slug: fallback.title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-            topic: fallback.topic || "General",
-            featured_image: fallback.featuredImage ? [fallback.featuredImage] : [],
-            publication_date: fallback.publishedDate || new Date().toISOString(),
-            status: fallback.status?.toLowerCase() === "published" ? "published" : "draft",
-            excerpt: fallback.excerpt || fallback.content || "",
-            author_id: "demo-author",
-            author: {
-              id: "demo-author",
-              full_name: fallback.author || "Kingdom Builders Admin",
-              email: "admin@kingdombuilders.et",
-            },
-            created_at: new Date().toISOString(),
-          })
-        } else {
-          setError(err instanceof Error ? err.message : "Failed to load blog details.")
-        }
+        setError(err instanceof Error ? err.message : "Failed to load blog details.")
       })
       .finally(() => {
         if (isMounted) setLoading(false)

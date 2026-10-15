@@ -42,6 +42,31 @@ export default function ProtectedRoute({
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
+  const status = (user.status || "active").toLowerCase()
+  if (status !== "active") {
+    return (
+      <div className="min-h-screen bg-[var(--surface-alt)] flex flex-col items-center justify-center px-4 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-amber-100 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center mb-4 text-2xl font-bold">
+          !
+        </div>
+        <h1 className="font-serif text-2xl text-[var(--text-primary)] mb-2">
+          {status === "pending" ? "Account Pending Approval" : "Account Suspended or Inactive"}
+        </h1>
+        <p className="text-sm text-[var(--text-tertiary)] max-w-md mb-6">
+          {status === "pending"
+            ? "Your registration has been submitted and is currently awaiting administrator review."
+            : `Your account is currently ${user.status}. Please contact support or your administrator.`}
+        </p>
+        <a
+          href="/"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-white bg-[var(--brand)] px-5 py-2.5 rounded-xl hover:bg-[var(--brand-light)] transition-colors"
+        >
+          Return to Home
+        </a>
+      </div>
+    )
+  }
+
   if (
     allowedRoles &&
     allowedRoles.length > 0 &&

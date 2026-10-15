@@ -51,6 +51,24 @@ export default function CreateBusinessPage({
     { platform: "telegram", link: "" },
   ])
 
+  // Services
+  const [services, setServices] = useState<string[]>([])
+  const [newService, setNewService] = useState("")
+
+  function handleAddService(e?: React.FormEvent) {
+    if (e) e.preventDefault()
+    if (newService.trim()) {
+      if (!services.includes(newService.trim())) {
+        setServices((prev) => [...prev, newService.trim()])
+      }
+      setNewService("")
+    }
+  }
+
+  function handleRemoveService(index: number) {
+    setServices((prev) => prev.filter((_, i) => i !== index))
+  }
+
   // File Uploads
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
@@ -214,6 +232,10 @@ export default function CreateBusinessPage({
 
       if (validSocials.length > 0) {
         formData.append("social_media", JSON.stringify(validSocials))
+      }
+
+      if (services.length > 0) {
+        formData.append("services", JSON.stringify(services))
       }
 
       // Append files:
@@ -501,6 +523,65 @@ export default function CreateBusinessPage({
                   placeholder="Describe your company services, mission, background, and specialties..."
                   className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-4 py-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--brand)] transition-colors resize-none"
                 />
+              </div>
+
+              {/* Services Offered */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+                    Services Offered
+                  </label>
+                  <span className="text-[11px] text-[var(--text-tertiary)]">
+                    Add multiple services your company provides
+                  </span>
+                </div>
+                <div className="flex gap-2 mb-3">
+                  <input
+                    type="text"
+                    value={newService}
+                    onChange={(e) => setNewService(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault()
+                        handleAddService()
+                      }
+                    }}
+                    placeholder="e.g. Web Development, Consulting, Cloud Solutions..."
+                    className="flex-1 bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-4 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand)] transition-colors"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleAddService()}
+                    className="px-5 py-2.5 bg-[var(--brand)] text-white text-xs font-semibold rounded-xl hover:bg-[var(--brand-light)] transition-colors cursor-pointer shadow-sm"
+                  >
+                    + Add Service
+                  </button>
+                </div>
+
+                {services.length > 0 ? (
+                  <div className="flex flex-wrap gap-2 p-3 bg-[var(--surface-alt)]/60 rounded-xl border border-[var(--border-default)]">
+                    {services.map((svc, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[var(--surface)] border border-[var(--border-light)] text-xs font-medium text-[var(--text-primary)] rounded-full shadow-xs"
+                      >
+                        <span>{svc}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveService(idx)}
+                          className="w-4 h-4 rounded-full flex items-center justify-center text-red-500 hover:text-white hover:bg-red-500 transition-colors cursor-pointer text-xs leading-none"
+                          title="Remove service"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-[var(--text-tertiary)] italic">
+                    No services added yet. Type a service above and click "+ Add Service" or press Enter.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -796,6 +877,22 @@ export default function CreateBusinessPage({
                   <span className="text-[var(--text-tertiary)] block mb-1">Description:</span>
                   <p className="text-[var(--text-secondary)] leading-relaxed">{description}</p>
                 </div>
+
+                {services.length > 0 && (
+                  <div className="border-t border-[var(--border-light)] pt-3 text-xs">
+                    <span className="text-[var(--text-tertiary)] block mb-1.5">Services:</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {services.map((svc, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2.5 py-1 bg-[var(--brand)]/10 text-[var(--brand)] rounded-lg text-xs font-medium"
+                        >
+                          {svc}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {coverFile && (
                   <div className="border-t border-[var(--border-light)] pt-3 text-xs">

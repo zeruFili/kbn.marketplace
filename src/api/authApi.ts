@@ -12,6 +12,7 @@ export interface AuthUserApi {
   full_name?: string
   fullName?: string
   role: string
+  status?: string
   phone?: string
   website?: string
   profileImage?: string | null
@@ -86,6 +87,13 @@ export async function registerApi(
     website: payload.website?.trim() || undefined,
     profileImage: payload.profileImage || undefined,
   })
+}
+
+/**
+ * Retrieve the currently authenticated user's profile from backend /auth/me
+ */
+export async function getMeApi(): Promise<ApiResponse<AuthUserApi>> {
+  return baseApi.get<AuthUserApi>("/auth/me")
 }
 
 /**

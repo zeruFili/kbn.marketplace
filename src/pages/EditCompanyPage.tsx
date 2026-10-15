@@ -2,13 +2,7 @@ import { useState, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import Navbar from "../components/Navbar"
 import { useAuth } from "../auth/AuthContext"
-import {
-  getCompanyById,
-  updateCompany,
-  upsertCompany,
-  type Company,
-} from "../data/companyStore"
-import { CATEGORIES, type Category } from "../data/companies"
+import { type Company, type Category } from "../data/companies"
 import {
   updateCompanyApi,
   fetchCompanyById,
@@ -47,6 +41,8 @@ export default function EditCompanyPage() {
   useEffect(() => {
     if (!id) return
     let isMounted = true
+    setLoading(true)
+    setError("")
 
     const populate = (comp: Company) => {
       setCompany(comp)
@@ -66,38 +62,35 @@ export default function EditCompanyPage() {
       setTags([...(comp.tags || [])])
     }
 
-    const comp = getCompanyById(id)
-    if (comp) {
-      populate(comp)
-      setLoading(false)
-    } else {
-      setLoading(true)
-      fetchCompanyById(id)
-        .then((apiComp) => {
-          if (!isMounted) return
-          if (apiComp) {
-            const mapped = mapApiResponseToCompany(apiComp)
-            upsertCompany(mapped)
-            populate(mapped)
-          }
-        })
-        .catch((err) => {
-          console.warn("Failed to fetch company by ID:", err)
-        })
-        .finally(() => {
-          if (isMounted) setLoading(false)
-        })
-    }
+    fetchCompanyById(id)
+      .then((apiComp) => {
+        if (!isMounted) return
+        if (apiComp) {
+          const mapped = mapApiResponseToCompany(apiComp)
+          populate(mapped)
+        } else {
+          setError(`Could not find company with ID "${id}".`)
+        }
+      })
+      .catch((err) => {
+        if (!isMounted) return
+        setError(err instanceof Error ? err.message : "Failed to load company details.")
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false)
+      })
 
     return () => {
       isMounted = false
     }
   }, [id])
 
-  const handleAddService = (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleAddService = (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
     if (newService.trim()) {
-      setServices([...services, newService.trim()])
+      if (!services.includes(newService.trim())) {
+        setServices([...services, newService.trim()])
+      }
       setNewService("")
     }
   }
@@ -148,22 +141,19 @@ export default function EditCompanyPage() {
     }
 
     try {
-      // Update local company store
-      updateCompany(id, updatedData)
+      const res = await updateCompanyApi(id, {
+        company_name: updatedData.name,
+        owner_primary_contact: updatedData.ownerName,
+        email: updatedData.email,
+        phone_number: updatedData.phone,
+        website: updatedData.website,
+        physical_address: updatedData.address,
+        description: updatedData.description,
+        services: updatedData.services,
+      })
 
-      // Also attempt backend API update
-      try {
-        await updateCompanyApi(id, {
-          company_name: updatedData.name,
-          owner_primary_contact: updatedData.ownerName,
-          email: updatedData.email,
-          phone_number: updatedData.phone,
-          website: updatedData.website,
-          physical_address: updatedData.address,
-          description: updatedData.description,
-        })
-      } catch (apiErr) {
-        console.warn("Backend API update optional fallback:", apiErr)
+      if (!res) {
+        throw new Error("Failed to update company on server.")
       }
 
       setSuccess(true)
@@ -464,12 +454,18 @@ export default function EditCompanyPage() {
                     type="text"
                     value={newService}
                     onChange={(e) => setNewService(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault()
+                        handleAddService()
+                      }
+                    }}
                     placeholder="Add a service..."
                     className="flex-1 bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-3 py-2 text-sm text-[var(--text-primary)] outline-none"
                   />
                   <button
                     type="button"
-                    onClick={handleAddService}
+                    onClick={() => handleAddService()}
                     className="px-4 py-2 bg-[var(--brand)] text-white text-xs font-semibold rounded-xl hover:bg-[var(--brand-light)] transition-colors cursor-pointer"
                   >
                     Add

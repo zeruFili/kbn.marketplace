@@ -5,7 +5,7 @@ import {
   ApiError,
   resolveAssetUrl,
 } from "../api/baseApi"
-import { loginApi, registerApi } from "../api/authApi"
+import { loginApi, registerApi, getMeApi } from "../api/authApi"
 
 export type UserRole = "admin" | "user" | "company" | "church" | "ministry"
 
@@ -16,106 +16,9 @@ export interface User {
   avatar: string
   profileImage?: string | null
   role: UserRole
+  status?: string
   business?: string
   companyId?: string
-}
-
-interface StoredUser extends User {
-  password: string
-}
-
-const MOCK_USERS: StoredUser[] = [
-  {
-    id: "u1",
-    email: "henok@kidusbuilders.com",
-    name: "Henok Kebede",
-    avatar: "https://i.pravatar.cc/96?img=11",
-    password: "password123",
-    role: "company",
-    business: "Kidus Builders Group",
-    companyId: "covenant-builders",
-  },
-  {
-    id: "u2",
-    email: "meron@tsionwellness.org",
-    name: "Meron Tadesse",
-    avatar: "https://i.pravatar.cc/96?img=47",
-    password: "password123",
-    role: "company",
-    business: "Tsion Wellness Center",
-    companyId: "refuge-wellness",
-  },
-  {
-    id: "u3",
-    email: "dawit@betesharetreat.org",
-    name: "Dawit Alemu",
-    avatar: "https://i.pravatar.cc/96?img=8",
-    password: "password123",
-    role: "company",
-    business: "Betesha Retreat & Conference Center",
-    companyId: "bethany-retreat",
-  },
-  {
-    id: "u4",
-    email: "bethlehem@bereketapparel.co",
-    name: "Bethlehem Haile",
-    avatar: "https://i.pravatar.cc/96?img=5",
-    password: "password123",
-    role: "company",
-    business: "Bereket Apparel",
-    companyId: "generations-of-grace",
-  },
-  {
-    id: "u5",
-    email: "yohannes@stewardshipwealth.org",
-    name: "Yohannes Assefa",
-    avatar: "https://i.pravatar.cc/96?img=6",
-    password: "password123",
-    role: "company",
-    business: "Stewardship Wealth Management",
-    companyId: "stewardship-wealth",
-  },
-  {
-    id: "admin1",
-    email: "admin@kbn.org",
-    name: "Admin KBN",
-    avatar: "https://i.pravatar.cc/96?img=68",
-    password: "password123",
-    role: "admin",
-  },
-  {
-    id: "regular1",
-    email: "abel@example.com",
-    name: "Abel Tesfaye",
-    avatar: "https://i.pravatar.cc/96?img=3",
-    password: "password123",
-    role: "user",
-  },
-  {
-    id: "regular2",
-    email: "tigist@example.com",
-    name: "Tigist Lemma",
-    avatar: "https://i.pravatar.cc/96?img=9",
-    password: "password123",
-    role: "user",
-  },
-]
-
-function getStoredUsers(): StoredUser[] {
-  const stored = localStorage.getItem("kbn_users")
-  if (stored) {
-    try {
-      return JSON.parse(stored)
-    } catch {
-      return MOCK_USERS
-    }
-  }
-  localStorage.setItem("kbn_users", JSON.stringify(MOCK_USERS))
-  return MOCK_USERS
-}
-
-function saveStoredUsers(users: StoredUser[]) {
-  localStorage.setItem("kbn_users", JSON.stringify(users))
 }
 
 export const getStoredToken = getAuthToken
@@ -123,6 +26,7 @@ export const saveToken = setAuthToken
 export const clearToken = removeAuthToken
 
 export function getStoredSession(): User | null {
+  if (typeof localStorage === "undefined") return null
   const s = localStorage.getItem("kbn_session")
   if (!s) return null
   try {
@@ -133,12 +37,63 @@ export function getStoredSession(): User | null {
 }
 
 function saveSession(user: User) {
-  localStorage.setItem("kbn_session", JSON.stringify(user))
+  if (typeof localStorage !== "undefined") {
+    localStorage.setItem("kbn_session", JSON.stringify(user))
+  }
 }
 
 export function clearSession() {
-  localStorage.removeItem("kbn_session")
+  if (typeof localStorage !== "undefined") {
+    localStorage.removeItem("kbn_session")
+  }
   clearToken()
+}
+
+/**
+ * Fetch current user from /auth/me to guarantee authorization relies on database records.
+ */
+export async function getMe(): Promise<User | null> {
+  const token = getStoredToken()
+  if (!token) {
+    clearSession()
+    return null
+  }
+
+  try {
+    const res = await getMeApi()
+    if (res.success && res.data) {
+      const safeUser = res.data
+      const rawImg = (safeUser.profileImage || safeUser.profile_image) as
+        | string
+        | null
+        | undefined
+      const resolvedProfileImage = rawImg ? resolveAssetUrl(rawImg) : null
+
+      const user: User = {
+        id: safeUser.id,
+        email: safeUser.email || "",
+        name:
+          (safeUser.full_name as string) ||
+          (safeUser.fullName as string) ||
+          safeUser.email?.split("@")[0] ||
+          "User",
+        avatar:
+          resolvedProfileImage || `https://i.pravatar.cc/96?u=${safeUser.id}`,
+        profileImage: resolvedProfileImage,
+        role: (safeUser.role as UserRole) || "user",
+        status: (safeUser.status as string) || "active",
+      }
+
+      saveSession(user)
+      return user
+    }
+
+    clearSession()
+    return null
+  } catch (err) {
+    clearSession()
+    return null
+  }
 }
 
 export async function login(email: string, password: string): Promise<User> {
@@ -150,7 +105,10 @@ export async function login(email: string, password: string): Promise<User> {
       const safeUser = apiData.user
       const token = apiData.accessToken
 
-      const rawImg = (safeUser.profileImage || safeUser.profile_image) as string | null | undefined
+      const rawImg = (safeUser.profileImage || safeUser.profile_image) as
+        | string
+        | null
+        | undefined
       const resolvedProfileImage = rawImg ? resolveAssetUrl(rawImg) : null
 
       const user: User = {
@@ -160,9 +118,11 @@ export async function login(email: string, password: string): Promise<User> {
           (safeUser.full_name as string) ||
           (safeUser.fullName as string) ||
           email.split("@")[0],
-        avatar: resolvedProfileImage || `https://i.pravatar.cc/96?u=${safeUser.id}`,
+        avatar:
+          resolvedProfileImage || `https://i.pravatar.cc/96?u=${safeUser.id}`,
         profileImage: resolvedProfileImage,
         role: (safeUser.role as UserRole) || "user",
+        status: (safeUser.status as string) || "active",
       }
 
       if (token) {
@@ -174,38 +134,12 @@ export async function login(email: string, password: string): Promise<User> {
 
     throw new Error(res.message || "Login failed.")
   } catch (err: unknown) {
-    // If backend returns 401/403/400 or network error, check if it's one of the built-in demo credentials
     if (err instanceof ApiError) {
-      if (
-        err.status === 401 ||
-        err.status === 403 ||
-        err.status === 400 ||
-        err.isNetworkError
-      ) {
-        const mockUser = getStoredUsers().find(
-          (u) =>
-            u.email.toLowerCase() === email.toLowerCase() &&
-            u.password === password
-        )
-        if (mockUser) {
-          const { password: _, ...safeMock } = mockUser
-          saveSession(safeMock)
-          return safeMock
-        }
+      let message = err.message || "Invalid email or password."
+      if (Array.isArray(err.errors) && err.errors.length > 0) {
+        message = err.errors.join(". ")
       }
-      throw new Error(err.message || "Invalid email or password.")
-    }
-
-    // Fall back to demo accounts on unexpected error
-    const mockUser = getStoredUsers().find(
-      (u) =>
-        u.email.toLowerCase() === email.toLowerCase() &&
-        u.password === password
-    )
-    if (mockUser) {
-      const { password: _, ...safeMock } = mockUser
-      saveSession(safeMock)
-      return safeMock
+      throw new Error(message)
     }
     throw err
   }
@@ -242,7 +176,10 @@ export async function signUp(data: {
     const safeUser = apiData.user
     const token = apiData.accessToken
 
-    const rawImg = (safeUser.profileImage || safeUser.profile_image) as string | null | undefined
+    const rawImg = (safeUser.profileImage || safeUser.profile_image) as
+      | string
+      | null
+      | undefined
     const resolvedProfileImage = rawImg ? resolveAssetUrl(rawImg) : null
 
     const user: User = {
@@ -252,9 +189,11 @@ export async function signUp(data: {
         (safeUser.full_name as string) ||
         (safeUser.fullName as string) ||
         data.name.trim(),
-      avatar: resolvedProfileImage || `https://i.pravatar.cc/96?u=${safeUser.id}`,
+      avatar:
+        resolvedProfileImage || `https://i.pravatar.cc/96?u=${safeUser.id}`,
       profileImage: resolvedProfileImage,
       role: (safeUser.role as UserRole) || role,
+      status: (safeUser.status as string) || "active",
       business: data.business?.trim() || undefined,
     }
 
@@ -284,7 +223,5 @@ export function updateCurrentUserSession(updates: Partial<User>): User | null {
 }
 
 export async function logout(): Promise<void> {
-  await new Promise((r) => setTimeout(r, 200))
   clearSession()
 }
-

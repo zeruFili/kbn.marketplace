@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 
 import {
-  getPublicUserDashboardData,
   type UserArticleData,
   type UserEventData,
 } from "../../data/userDataStore"
@@ -31,19 +30,7 @@ export default function AdminContent({ kind }: { kind: ContentKind }) {
   const [adding, setAdding] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  const initialItems = useMemo<ContentItem[]>(() => {
-    const members = getPublicUserDashboardData()
-
-    return members.flatMap((member) =>
-      kind === "events"
-        ? member.events
-        : kind === "articles"
-          ? member.articles
-          : member.blogs,
-    )
-  }, [kind])
-
-  const [items, setItems] = useState<ContentItem[]>(initialItems)
+  const [items, setItems] = useState<ContentItem[]>([])
 
   useEffect(() => {
     let active = true
@@ -53,16 +40,12 @@ export default function AdminContent({ kind }: { kind: ContentKind }) {
       fetchEvents()
         .then((backendEvents) => {
           if (active) {
-            if (backendEvents && backendEvents.length > 0) {
-              setItems(backendEvents.map(mapEventToUserEventData))
-            } else {
-              setItems(initialItems)
-            }
+            setItems((backendEvents || []).map(mapEventToUserEventData))
           }
         })
         .catch((err) => {
-          console.warn("Could not load events from backend, using fallback:", err)
-          if (active) setItems(initialItems)
+          console.warn("Could not load events from backend:", err)
+          if (active) setItems([])
         })
         .finally(() => {
           if (active) setLoading(false)
@@ -72,16 +55,12 @@ export default function AdminContent({ kind }: { kind: ContentKind }) {
       fetchBlogs()
         .then((backendBlogs) => {
           if (active) {
-            if (backendBlogs && backendBlogs.length > 0) {
-              setItems(backendBlogs.map(mapBlogToUserArticleData))
-            } else {
-              setItems(initialItems)
-            }
+            setItems((backendBlogs || []).map(mapBlogToUserArticleData))
           }
         })
         .catch((err) => {
-          console.warn("Could not load blogs from backend, using fallback:", err)
-          if (active) setItems(initialItems)
+          console.warn("Could not load blogs from backend:", err)
+          if (active) setItems([])
         })
         .finally(() => {
           if (active) setLoading(false)
@@ -91,29 +70,25 @@ export default function AdminContent({ kind }: { kind: ContentKind }) {
       fetchArticles()
         .then((backendArticles) => {
           if (active) {
-            if (backendArticles && backendArticles.length > 0) {
-              setItems(backendArticles.map(mapArticleToUserArticleData))
-            } else {
-              setItems(initialItems)
-            }
+            setItems((backendArticles || []).map(mapArticleToUserArticleData))
           }
         })
         .catch((err) => {
-          console.warn("Could not load articles from backend, using fallback:", err)
-          if (active) setItems(initialItems)
+          console.warn("Could not load articles from backend:", err)
+          if (active) setItems([])
         })
         .finally(() => {
           if (active) setLoading(false)
         })
     } else {
-      setItems(initialItems)
+      setItems([])
     }
 
     setAdding(false)
     return () => {
       active = false
     }
-  }, [kind, initialItems])
+  }, [kind])
 
   function addItem(item: ContentItem) {
     setItems((current) => [item, ...current])

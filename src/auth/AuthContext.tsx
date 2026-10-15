@@ -38,8 +38,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    setUser(getStoredSession())
-    setLoading(false)
+    let cancelled = false
+
+    async function initAuth() {
+      // First populate with cached session for immediate responsiveness
+      const cached = getStoredSession()
+      if (cached) {
+        setUser(cached)
+      }
+
+      // Then verify against live database record
+      try {
+        const freshUser = await getMe()
+        if (!cancelled) {
+          if (freshUser && freshUser.status === "active") {
+            setUser(freshUser)
+          } else if (!freshUser) {
+            setUser(null)
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          setUser(null)
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    initAuth()
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const login = useCallback(

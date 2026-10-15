@@ -3,66 +3,52 @@ import { useParams, useNavigate } from "react-router-dom"
 import Navbar from "../components/Navbar"
 import CompanyProfile from "../components/CompanyProfile"
 import {
-  getCompanyById,
-  upsertCompany,
-  subscribe,
-  type Company,
-} from "../data/companyStore"
-import {
   fetchCompanyById,
   mapApiResponseToCompany,
 } from "../api/companyApi"
+import type { Company } from "../data/companies"
 
 export default function CompanyDetailsPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const [company, setCompany] = useState<Company | undefined>(() =>
-    id ? getCompanyById(id) : undefined,
-  )
-  const [loading, setLoading] = useState<boolean>(!company && !!id)
+  const [company, setCompany] = useState<Company | undefined>(undefined)
+  const [loading, setLoading] = useState<boolean>(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) return
     let cancelled = false
+    setLoading(true)
+    setError(null)
 
-    const local = getCompanyById(id)
-    if (local) {
-      setCompany(local)
-      setLoading(false)
-    } else {
-      setLoading(true)
-      fetchCompanyById(id)
-        .then((apiComp) => {
-          if (cancelled) return
-          if (apiComp) {
-            const mapped = mapApiResponseToCompany(apiComp)
-            upsertCompany(mapped)
-            setCompany(mapped)
-          } else {
-            setCompany(undefined)
-          }
-        })
-        .catch((err) => {
-          console.warn("Error fetching company details:", err)
-          if (!cancelled) setCompany(undefined)
-        })
-        .finally(() => {
-          if (!cancelled) setLoading(false)
-        })
-    }
-
-    const unsub = subscribe(() => {
-      const fresh = getCompanyById(id)
-      if (fresh) setCompany(fresh)
-    })
+    fetchCompanyById(id)
+      .then((apiComp) => {
+        if (cancelled) return
+        if (apiComp) {
+          const mapped = mapApiResponseToCompany(apiComp)
+          setCompany(mapped)
+        } else {
+          setCompany(undefined)
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setError(
+            err instanceof Error ? err.message : "Failed to load company profile"
+          )
+          setCompany(undefined)
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
 
     return () => {
       cancelled = true
-      unsub()
     }
   }, [id])
 
-  if (loading && !company) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-[var(--surface-alt)]">
         <Navbar />
@@ -74,7 +60,7 @@ export default function CompanyDetailsPage() {
     )
   }
 
-  if (!company) {
+  if (error || !company) {
     return (
       <div className="min-h-screen bg-[var(--surface-alt)]">
         <Navbar />
@@ -86,13 +72,13 @@ export default function CompanyDetailsPage() {
             Company Not Found
           </h1>
           <p className="text-sm text-[var(--text-tertiary)] mb-8 max-w-md mx-auto">
-            We couldn't find a business with the ID "{id}". It may have been removed or the link is incorrect.
+            {error || `We couldn't find a business with the ID "${id}". It may have been removed or the link is incorrect.`}
           </p>
           <button
             onClick={() => navigate("/companies")}
             className="inline-flex items-center gap-2 text-sm font-semibold text-white bg-[var(--brand)] px-6 py-3 rounded-xl hover:bg-[var(--brand-light)] transition-colors cursor-pointer"
           >
-            ← Back to All Companies
+            &larr; Back to All Companies
           </button>
         </div>
       </div>

@@ -26,6 +26,7 @@ export interface CompanyApiResponse {
   phone_number: string
   physical_address: string
   description: string
+  services?: string[]
   website?: string
   company_logo?: string
   cover_image?: string
@@ -36,6 +37,79 @@ export interface CompanyApiResponse {
   business_category?: CategoryItem
   social_media?: { id?: string; platform: string; link: string }[]
   created_at?: string
+  services?: string[]
+}
+
+export interface FetchCompaniesOptions {
+  page?: number
+  limit?: number
+  search?: string
+  categoryId?: string
+  business_category_id?: string
+  status?: string
+  is_active?: boolean
+  verification_status?: string
+  sort_by?: "created_at" | "company_name" | "updated_at"
+  sort_order?: "ASC" | "DESC"
+}
+
+export interface PaginatedCompaniesResponse {
+  data: CompanyApiResponse[]
+  meta?: {
+    total: number
+    page: number
+    limit: number
+    totalPages: number
+  }
+}
+
+export async function fetchCompanies(
+  options: FetchCompaniesOptions = {}
+): Promise<{ companies: Company[]; total: number; raw: CompanyApiResponse[] }> {
+  try {
+    const res = await baseApi.get<CompanyApiResponse[] | PaginatedCompaniesResponse>(
+      "/companies",
+      {
+        params: {
+          page: options.page,
+          limit: options.limit || 50,
+          search: options.search,
+          business_category_id: options.categoryId || options.business_category_id,
+          status: options.status,
+          is_active: options.is_active,
+          verification_status: options.verification_status,
+          sort_by: options.sort_by,
+          sort_order: options.sort_order,
+        },
+      }
+    )
+
+    let items: CompanyApiResponse[] = []
+    let total = 0
+
+    if (res.success && res.data) {
+      if (Array.isArray(res.data)) {
+        items = res.data
+        total = items.length
+      } else if (Array.isArray((res.data as PaginatedCompaniesResponse).data)) {
+        items = (res.data as PaginatedCompaniesResponse).data
+        total = (res.data as PaginatedCompaniesResponse).meta?.total ?? items.length
+      }
+    } else if (Array.isArray((res as any).data)) {
+      items = (res as any).data
+      total = items.length
+    }
+
+    const mapped = items.map(mapApiResponseToCompany)
+    return {
+      companies: mapped,
+      total,
+      raw: items,
+    }
+  } catch (err) {
+    console.warn("Could not fetch companies from backend:", err)
+    return { companies: [], total: 0, raw: [] }
+  }
 }
 
 export async function fetchCategories(): Promise<CategoryItem[]> {
@@ -49,7 +123,7 @@ export async function fetchCategories(): Promise<CategoryItem[]> {
     }
     return []
   } catch (err) {
-    console.warn("Could not fetch categories from backend, using fallback:", err)
+    console.warn("Could not fetch categories from backend:", err)
     return []
   }
 }
@@ -166,7 +240,7 @@ export function mapApiResponseToCompany(c: CompanyApiResponse): Company {
     email: c.email || "",
     website: c.website || "",
     address: c.physical_address || "Addis Ababa, Ethiopia",
-    services: [],
+    services: Array.isArray(c.services) ? c.services : [],
     gallery: [],
     tags: [c.business_category?.name || "Business"].filter(Boolean),
     reviews: [],

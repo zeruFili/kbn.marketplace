@@ -283,21 +283,23 @@ function CompanyDetail({
             </p>
           </div>
 
-          <div>
-            <h3 className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-2">
-              Services
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {company.services.map((s) => (
-                <span
-                  key={s}
-                  className="text-xs text-[var(--text-secondary)] bg-[var(--surface-alt)] px-3 py-1.5 rounded-lg border border-[var(--border-light)]"
-                >
-                  {s}
-                </span>
-              ))}
+          {company.services && company.services.length > 0 && (
+            <div>
+              <h3 className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-2">
+                Services
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {company.services.map((s) => (
+                  <span
+                    key={s}
+                    className="text-xs text-[var(--text-secondary)] bg-[var(--surface-alt)] px-3 py-1.5 rounded-lg border border-[var(--border-light)]"
+                  >
+                    {s}
+                  </span>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {company.missionStatement && (
             <div>

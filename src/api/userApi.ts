@@ -42,4 +42,55 @@ export async function updateUserApi(
   return baseApi.patch<UserProfileResponse>(`/users/${id}`, payload)
 }
 
+export async function fetchUsersApi(
+  params?: Record<string, unknown>
+): Promise<UserProfileResponse[]> {
+  try {
+    const res = await baseApi.get<any>("/users", {
+      params: { is_active: "true", limit: "50", ...params },
+    })
+    if (res.success && res.data) {
+      if (Array.isArray(res.data)) return res.data
+      if (Array.isArray(res.data.data)) return res.data.data
+    }
+    return []
+  } catch (err) {
+    console.warn("Could not fetch users from backend:", err)
+    return []
+  }
+}
+
+import type { UserProfileData } from "../data/userDataStore"
+
+export function mapUserToProfileData(u: UserProfileResponse): UserProfileData {
+  const name = u.fullName || u.full_name || "Community Member"
+  const rawImage = u.profileImage || u.profile_image
+  const profilePhoto = rawImage
+    ? resolveAssetUrl(rawImage)
+    : "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=400&fit=crop&auto=format"
+  const digitalSlug = u.id || name.toLowerCase().replace(/[^a-z0-9]+/g, "-")
+  const roleName = u.role
+    ? u.role.charAt(0).toUpperCase() + u.role.slice(1)
+    : "Member"
+
+  return {
+    fullName: name,
+    phone: u.phone || "",
+    professionalTitle: roleName === "Admin" ? "Network Director" : roleName,
+    profilePhoto,
+    shortBio: `${name} is an active member and leader within the Kingdom Builders Network community.`,
+    professionalExperience: "Active contributor to Kingdom Builders Network initiatives and collaborative business development.",
+    education: "Higher Education & Leadership Training",
+    achievements: [
+      "Kingdom Builders Network Member",
+      "Community Ecosystem Partner",
+    ],
+    city: "Addis Ababa",
+    country: "Ethiopia",
+    website: u.website || "",
+    socialMedia: "",
+    digitalSlug,
+  }
+}
+
 export { resolveAssetUrl }

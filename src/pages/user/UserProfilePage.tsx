@@ -7,6 +7,7 @@ import {
   type UserDashboardData,
 } from "../../data/userDataStore"
 
+import { fetchUserById, resolveAssetUrl } from "../../api"
 import UserAvatar from "../../components/common/UserAvatar"
 
 export default function UserProfilePage() {
@@ -23,6 +24,26 @@ export default function UserProfilePage() {
       setData(getUserDashboardData(user.email, user))
     }
     refresh()
+
+    if (user.id) {
+      fetchUserById(user.id).then((fresh) => {
+        if (fresh) {
+          setData((prev) => ({
+            ...prev,
+            profile: {
+              ...prev.profile,
+              fullName: fresh.fullName || fresh.full_name || prev.profile.fullName,
+              phone: fresh.phone || prev.profile.phone,
+              website: fresh.website || prev.profile.website,
+              profilePhoto: fresh.profileImage
+                ? resolveAssetUrl(fresh.profileImage)
+                : prev.profile.profilePhoto,
+            },
+          }))
+        }
+      })
+    }
+
     return userSubscribe(refresh)
   }, [user])
 

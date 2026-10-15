@@ -46,14 +46,27 @@ import UserBusinessesPage from "./pages/user/UserBusinessesPage"
 import UserPaymentPage from "./pages/user/UserPaymentPage"
 import { useAuth } from "./auth/AuthContext"
 import { type UserRole } from "./auth/auth"
-import { getCompanies, subscribe } from "./data/companyStore"
-import { CATEGORIES, type Company, type Category } from "./data/companies"
 import {
-  getPublicUserDashboardData,
-  type UserDashboardData,
-  type UserProfileData,
-  type UserArticleData,
-  type UserEventData,
+  fetchCompanies,
+  fetchCategories,
+  fetchEvents,
+  fetchEventById,
+  mapEventToUserEventData,
+  fetchBlogs,
+  fetchBlogById,
+  mapBlogToUserArticleData,
+  fetchArticles,
+  fetchArticleById,
+  mapArticleToUserArticleData,
+  fetchUsersApi,
+  fetchUserById,
+  mapUserToProfileData,
+} from "./api"
+import type { Company } from "./data/companies"
+import type {
+  UserProfileData,
+  UserArticleData,
+  UserEventData,
 } from "./data/userDataStore"
 
 type PublicPage = "companies" | "people" | "blogs" | "events" | "articles"
@@ -66,209 +79,6 @@ type PublicSelection =
     }
   | { type: "event"; item: UserEventData; returnToProfile?: UserProfileData }
 
-const ABEL_DEMO_COMPANY: Company = {
-  id: "abel-demo-company",
-  name: "Selam Build Collective",
-  category: "Construction",
-  logo: "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=160&h=160&fit=crop&auto=format",
-  banner:
-    "https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=1200&h=420&fit=crop&auto=format",
-  rating: 4.8,
-  reviewCount: 42,
-  description:
-    "A purpose-led construction studio creating durable homes, schools, and community spaces across Addis Ababa.",
-  longDescription:
-    "Selam Build Collective helps communities create durable, welcoming spaces through thoughtful construction, transparent planning, and excellent craftsmanship.",
-  phone: "+251 911 246 810",
-  email: "hello@selambuild.et",
-  website: "https://selambuild.et",
-  address: "Addis Ababa, Ethiopia",
-  services: [
-    "Community spaces",
-    "Residential construction",
-    "Project planning",
-  ],
-  gallery: [],
-  tags: ["Purpose-led", "Construction", "Community"],
-  reviews: [],
-  featured: false,
-  ownerName: "Abel Tesfaye",
-  missionStatement: "Build spaces that strengthen families and communities.",
-}
-
-
-
-
-function DirectoryPage({
-  onBack,
-  onSelectCompany,
-  title = "All Members",
-}: {
-  onBack: () => void
-  onSelectCompany: (c: Company) => void
-  title?: string
-}) {
-  const [dirCategory, setDirCategory] = useState<Category | null>(null)
-  const [dirSearch, setDirSearch] = useState("")
-  const [dirSort, setDirSort] = useState<"rating" | "reviews" | "name">(
-    "rating",
-  )
-  const [allCompanies, setAllCompanies] = useState(getCompanies())
-
-  useEffect(() => {
-    setAllCompanies(getCompanies())
-    const unsub = subscribe(() => setAllCompanies(getCompanies()))
-    return unsub
-  }, [])
-
-  const dirFiltered = useMemo(() => {
-    let result = dirCategory
-      ? allCompanies.filter((c) => c.category === dirCategory)
-      : allCompanies
-    if (dirSearch) {
-      const q = dirSearch.toLowerCase()
-      result = result.filter(
-        (c) =>
-          c.name.toLowerCase().includes(q) ||
-          c.description.toLowerCase().includes(q) ||
-          c.tags.some((t) => t.toLowerCase().includes(q)) ||
-          c.category.toLowerCase().includes(q),
-      )
-    }
-    if (dirSort === "rating") result.sort((a, b) => b.rating - a.rating)
-    else if (dirSort === "reviews")
-      result.sort((a, b) => b.reviewCount - a.reviewCount)
-    else result.sort((a, b) => a.name.localeCompare(b.name))
-    return result
-  }, [allCompanies, dirCategory, dirSearch, dirSort])
-
-  return (
-    <div>
-      <div className="bg-[var(--brand-dark)] py-8 md:py-12">
-        <div className="max-w-7xl mx-auto px-4 md:px-8">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 bg-white/10 backdrop-blur-md text-white text-sm font-medium px-4 py-2.5 rounded-xl border border-white/15 hover:bg-white/20 transition-all mb-6"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10 19l-7-7m0 0l7-7m-7 7h18"
-              />
-            </svg>
-            Back to Home
-          </button>
-          <h1 className="font-serif text-3xl md:text-5xl text-white mb-3">
-            {title}
-          </h1>
-          <p className="text-[#94A3B8] text-lg">
-            Browse all {allCompanies.length} businesses in our network
-          </p>
-        </div>
-      </div>
-      <div className="max-w-7xl mx-auto px-4 md:px-8 py-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          <div className="relative flex-1 max-w-md">
-            <svg
-              className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-            <input
-              type="text"
-              placeholder="Search companies..."
-              value={dirSearch}
-              onChange={(e) => setDirSearch(e.target.value)}
-              className="w-full bg-[var(--surface)] border border-[var(--border-default)] rounded-xl py-2.5 pl-10 pr-4 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]/50 transition-all"
-            />
-          </div>
-          <div className="flex items-center gap-2 bg-[var(--surface)] border border-[var(--border-default)] rounded-xl p-1">
-            {(["rating", "reviews", "name"] as const).map((opt) => (
-              <button
-                key={opt}
-                onClick={() => setDirSort(opt)}
-                className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${
-                  dirSort === opt
-                    ? "bg-[var(--brand)] text-white shadow-sm"
-                    : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
-                }`}
-              >
-                {opt === "rating"
-                  ? "Top Rated"
-                  : opt === "reviews"
-                    ? "Most Reviews"
-                    : "A-Z"}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="mb-6 flex overflow-x-auto gap-2 pb-2 hide-scrollbar">
-          <button
-            onClick={() => setDirCategory(null)}
-            className={`flex-shrink-0 text-xs font-medium px-4 py-2 rounded-xl border transition-all ${
-              !dirCategory
-                ? "bg-[var(--brand)] text-white border-[var(--brand)]"
-                : "text-[var(--text-secondary)] border-[var(--border-default)] bg-[var(--surface)] hover:border-[var(--text-primary)]"
-            }`}
-          >
-            All
-          </button>
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setDirCategory(cat)}
-              className={`flex-shrink-0 text-xs font-medium px-4 py-2 rounded-xl border transition-all ${
-                dirCategory === cat
-                  ? "bg-[var(--brand)] text-white border-[var(--brand)]"
-                  : "text-[var(--text-secondary)] border-[var(--border-default)] bg-[var(--surface)] hover:border-[var(--text-primary)]"
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-stagger">
-          {dirFiltered.map((c) => (
-            <CompanyCard
-              key={c.id}
-              company={c}
-              onClick={() => onSelectCompany(c)}
-            />
-          ))}
-        </div>
-        {dirFiltered.length === 0 && (
-          <div className="text-center py-24 animate-fade-in">
-            <div className="w-20 h-20 rounded-2xl bg-[var(--surface)] border border-[var(--border-light)] flex items-center justify-center mx-auto mb-5 text-3xl">
-              🔍
-            </div>
-            <h3 className="font-serif text-xl text-[var(--text-primary)] mb-2">
-              No results found
-            </h3>
-            <p className="text-sm text-[var(--text-tertiary)] mb-6">
-              Try adjusting your search or filters
-            </p>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
 function PublicContentPage({
   page,
   onBack,
@@ -280,9 +90,14 @@ function PublicContentPage({
   onSelectCompany: (company: Company) => void
   onSelectContent: (selection: PublicSelection) => void
 }) {
-  const memberData = getPublicUserDashboardData()
   const [search, setSearch] = useState("")
   const [category, setCategory] = useState("All")
+  const [people, setPeople] = useState<UserProfileData[]>([])
+  const [articles, setArticles] = useState<UserArticleData[]>([])
+  const [events, setEvents] = useState<UserEventData[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
   const title =
     page === "people" ? "People" : page.charAt(0).toUpperCase() + page.slice(1)
   const description =
@@ -290,26 +105,99 @@ function PublicContentPage({
       ? "Meet the people building purposeful businesses and communities through the KBN network."
       : `Explore ${page} shared by members of the Kingdom Builders Network.`
 
-  if (page === "companies")
+  const loadData = () => {
+    let active = true
+    setLoading(true)
+    setError(null)
+
+    if (page === "people") {
+      fetchUsersApi()
+        .then((users) => {
+          if (!active) return
+          setPeople((users || []).map(mapUserToProfileData))
+        })
+        .catch((err) => {
+          if (!active) return
+          setError(
+            err instanceof Error ? err.message : "Failed to load community members.",
+          )
+        })
+        .finally(() => {
+          if (active) setLoading(false)
+        })
+    } else if (page === "events") {
+      fetchEvents()
+        .then((evts) => {
+          if (!active) return
+          setEvents((evts || []).map(mapEventToUserEventData))
+        })
+        .catch((err) => {
+          if (!active) return
+          setError(
+            err instanceof Error ? err.message : "Failed to load events.",
+          )
+        })
+        .finally(() => {
+          if (active) setLoading(false)
+        })
+    } else if (page === "blogs") {
+      fetchBlogs()
+        .then((blogs) => {
+          if (!active) return
+          setArticles((blogs || []).map(mapBlogToUserArticleData))
+        })
+        .catch((err) => {
+          if (!active) return
+          setError(
+            err instanceof Error ? err.message : "Failed to load blogs.",
+          )
+        })
+        .finally(() => {
+          if (active) setLoading(false)
+        })
+    } else if (page === "articles") {
+      fetchArticles()
+        .then((arts) => {
+          if (!active) return
+          setArticles((arts || []).map(mapArticleToUserArticleData))
+        })
+        .catch((err) => {
+          if (!active) return
+          setError(
+            err instanceof Error ? err.message : "Failed to load articles.",
+          )
+        })
+        .finally(() => {
+          if (active) setLoading(false)
+        })
+    }
+
+    return () => {
+      active = false
+    }
+  }
+
+  useEffect(() => {
+    return loadData()
+  }, [page])
+
+  if (page === "companies") {
     return (
-      <DirectoryPage
+      <CompaniesPage
         title="Companies"
         onBack={onBack}
         onSelectCompany={onSelectCompany}
       />
     )
+  }
 
-  const people = memberData.map((data) => data.profile)
-  const articles = memberData.flatMap((data) =>
-    page === "articles" ? data.articles : data.blogs,
-  )
-  const events = memberData.flatMap((data) => data.events)
   const categories =
     page === "people"
-      ? [...new Set(people.map((person) => person.professionalTitle))]
+      ? [...new Set(people.map((person) => person.professionalTitle).filter(Boolean))]
       : page === "events"
-        ? [...new Set(events.map((event) => event.eventType))]
-        : [...new Set(articles.map((article) => article.topic))]
+        ? [...new Set(events.map((event) => event.eventType).filter(Boolean))]
+        : [...new Set(articles.map((article) => article.topic).filter(Boolean))]
+
   const query = search.trim().toLowerCase()
   const filteredPeople = people.filter(
     (person) =>
@@ -335,12 +223,14 @@ function PublicContentPage({
           .includes(query)) &&
       (category === "All" || event.eventType === category),
   )
+
   const resultCount =
     page === "people"
       ? filteredPeople.length
       : page === "events"
         ? filteredEvents.length
         : filteredArticles.length
+
   const placeholder =
     page === "people"
       ? "Search people by name, title, or city..."
@@ -354,7 +244,7 @@ function PublicContentPage({
         <div className="max-w-7xl mx-auto px-4 md:px-8">
           <button
             onClick={onBack}
-            className="flex items-center gap-2 text-white/80 hover:text-white text-sm font-medium mb-6"
+            className="flex items-center gap-2 text-white/80 hover:text-white text-sm font-medium mb-6 cursor-pointer"
           >
             <span aria-hidden="true">←</span> Back to Home
           </button>
@@ -404,132 +294,153 @@ function PublicContentPage({
             ))}
           </select>
         </div>
-        <p className="text-sm text-[var(--text-tertiary)] mb-6">
-          Showing {resultCount} of{" "}
-          {page === "people"
-            ? people.length
-            : page === "events"
-              ? events.length
-              : articles.length}{" "}
-          {page}
-        </p>
-        {page === "people" && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 animate-stagger">
-            {filteredPeople.map((profile) => (
-              <div
-                key={profile.digitalSlug}
-                onClick={() =>
-                  onSelectContent({ type: "person", item: profile })
-                }
-                className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6 cursor-pointer"
-              >
-                <div className="flex items-center gap-4 mb-5">
-                  <img
-                    src={profile.profilePhoto}
-                    alt={profile.fullName}
-                    className="w-16 h-16 rounded-2xl object-cover"
-                  />
-                  <div>
-                    <h2 className="font-serif text-xl text-[var(--text-primary)]">
-                      {profile.fullName}
-                    </h2>
-                    <p className="text-sm text-[var(--accent-dark)]">
-                      {profile.professionalTitle}
+
+        {loading ? (
+          <div className="text-center py-24">
+            <div className="w-10 h-10 border-3 border-[var(--brand)]/30 border-t-[var(--brand)] rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-sm text-[var(--text-tertiary)]">Loading {page}...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-16 bg-red-50 dark:bg-red-950/20 rounded-2xl border border-red-200 dark:border-red-900/40 p-8 max-w-xl mx-auto">
+            <p className="text-sm font-semibold text-red-600 dark:text-red-400 mb-4">{error}</p>
+            <button
+              onClick={loadData}
+              className="text-xs font-semibold px-4 py-2 rounded-xl bg-[var(--brand)] text-white hover:bg-[var(--brand-light)] transition-colors cursor-pointer"
+            >
+              Retry
+            </button>
+          </div>
+        ) : (
+          <>
+            <p className="text-sm text-[var(--text-tertiary)] mb-6">
+              Showing {resultCount} of{" "}
+              {page === "people"
+                ? people.length
+                : page === "events"
+                  ? events.length
+                  : articles.length}{" "}
+              {page}
+            </p>
+            {page === "people" && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 animate-stagger">
+                {filteredPeople.map((profile) => (
+                  <div
+                    key={profile.digitalSlug}
+                    onClick={() =>
+                      onSelectContent({ type: "person", item: profile })
+                    }
+                    className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6 cursor-pointer"
+                  >
+                    <div className="flex items-center gap-4 mb-5">
+                      <img
+                        src={profile.profilePhoto}
+                        alt={profile.fullName}
+                        className="w-16 h-16 rounded-2xl object-cover"
+                      />
+                      <div>
+                        <h2 className="font-serif text-xl text-[var(--text-primary)]">
+                          {profile.fullName}
+                        </h2>
+                        <p className="text-sm text-[var(--accent-dark)]">
+                          {profile.professionalTitle}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-5 line-clamp-3">
+                      {profile.shortBio}
                     </p>
+                    <div className="flex items-center justify-between text-xs text-[var(--text-tertiary)]">
+                      <span>
+                        {profile.city}, {profile.country}
+                      </span>
+                      <span>{profile.digitalSlug}</span>
+                    </div>
                   </div>
-                </div>
-                <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-5 line-clamp-3">
-                  {profile.shortBio}
-                </p>
-                <div className="flex items-center justify-between text-xs text-[var(--text-tertiary)]">
-                  <span>
-                    {profile.city}, {profile.country}
-                  </span>
-                  <span>{profile.digitalSlug}</span>
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
+            )}
 
-        {(page === "articles" || page === "blogs") && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-stagger">
-            {filteredArticles.map((item) => (
-              <article
-                key={item.id}
-                onClick={() =>
-                  onSelectContent({
-                    type: page === "articles" ? "article" : "blog",
-                    item,
-                  })
-                }
-                className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden cursor-pointer"
-              >
-                <img
-                  src={item.featuredImage}
-                  alt={item.title}
-                  className="w-full h-44 object-cover"
-                />
-                <div className="p-5">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-dark)] mb-2">
-                    {item.topic}
-                  </p>
-                  <h2 className="font-serif text-xl text-[var(--text-primary)] mb-3">
-                    {item.title}
-                  </h2>
-                  <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-5 line-clamp-3">
-                    {item.excerpt}
-                  </p>
-                  <div className="flex items-center justify-between text-xs text-[var(--text-tertiary)]">
-                    <span>{item.publishedDate}</span>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
+            {(page === "articles" || page === "blogs") && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-stagger">
+                {filteredArticles.map((item) => (
+                  <article
+                    key={item.id}
+                    onClick={() =>
+                      onSelectContent({
+                        type: page === "articles" ? "article" : "blog",
+                        item,
+                      })
+                    }
+                    className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden cursor-pointer"
+                  >
+                    <img
+                      src={item.featuredImage}
+                      alt={item.title}
+                      className="w-full h-44 object-cover"
+                    />
+                    <div className="p-5">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-dark)] mb-2">
+                        {item.topic}
+                      </p>
+                      <h2 className="font-serif text-xl text-[var(--text-primary)] mb-3">
+                        {item.title}
+                      </h2>
+                      <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-5 line-clamp-3">
+                        {item.excerpt}
+                      </p>
+                      <div className="flex items-center justify-between text-xs text-[var(--text-tertiary)]">
+                        <span>{item.publishedDate}</span>
+                        <span>{item.author}</span>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
 
-        {page === "events" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-stagger">
-            {filteredEvents.map((event) => (
-              <article
-                key={event.id}
-                onClick={() => onSelectContent({ type: "event", item: event })}
-                className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden cursor-pointer"
-              >
-                <img
-                  src={event.eventImage}
-                  alt={event.title}
-                  className="w-full h-44 object-cover"
-                />
-                <div className="p-5">
-                  <div className="flex items-center justify-between gap-3 mb-3">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-dark)]">
-                      {event.eventType}
-                    </span>
-                    <span className="text-xs text-[var(--text-tertiary)]">
-                      {event.online ? "Online" : "In person"}
-                    </span>
-                  </div>
-                  <h2 className="font-serif text-xl text-[var(--text-primary)] mb-3">
-                    {event.title}
-                  </h2>
-                  <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-5 line-clamp-3">
-                    {event.description}
-                  </p>
-                  <div className="space-y-1 text-xs text-[var(--text-tertiary)]">
-                    <p>{event.startDate}</p>
-                    <p>{event.location}</p>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
-        {resultCount === 0 && (
-          <div className="text-center py-20 text-[var(--text-tertiary)]">
-            No matching {page} found.
-          </div>
+            {page === "events" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-stagger">
+                {filteredEvents.map((event) => (
+                  <article
+                    key={event.id}
+                    onClick={() => onSelectContent({ type: "event", item: event })}
+                    className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden cursor-pointer"
+                  >
+                    <img
+                      src={event.eventImage}
+                      alt={event.title}
+                      className="w-full h-44 object-cover"
+                    />
+                    <div className="p-5">
+                      <div className="flex items-center justify-between gap-3 mb-3">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-dark)]">
+                          {event.eventType}
+                        </span>
+                        <span className="text-xs text-[var(--text-tertiary)]">
+                          {event.online ? "Online" : "In person"}
+                        </span>
+                      </div>
+                      <h2 className="font-serif text-xl text-[var(--text-primary)] mb-3">
+                        {event.title}
+                      </h2>
+                      <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-5 line-clamp-3">
+                        {event.description}
+                      </p>
+                      <div className="space-y-1 text-xs text-[var(--text-tertiary)]">
+                        <p>{event.startDate}</p>
+                        <p>{event.location}</p>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+            {resultCount === 0 && (
+              <div className="text-center py-20 text-[var(--text-tertiary)]">
+                No matching {page} found.
+              </div>
+            )}
+          </>
         )}
       </div>
     </main>
@@ -753,19 +664,80 @@ function PublicPersonDetail({
     useState<"profile" | "blogs" | "articles" | "events" | "companies">(
       "profile",
     )
-  const member = getPublicUserDashboardData().find(
-    (data) => data.profile.digitalSlug === item.digitalSlug,
-  )
+  const [companies, setCompanies] = useState<Company[]>([])
+  const [blogs, setBlogs] = useState<UserArticleData[]>([])
+  const [articles, setArticles] = useState<UserArticleData[]>([])
+  const [events, setEvents] = useState<UserEventData[]>([])
+  const [tabLoading, setTabLoading] = useState(false)
+
   const tabs = ["profile", "blogs", "articles", "events", "companies"] as const
+
+  useEffect(() => {
+    let active = true
+    setTabLoading(true)
+    Promise.all([
+      fetchCompanies({ is_active: true, limit: 50 }).catch(() => ({ companies: [] })),
+      fetchBlogs().catch(() => []),
+      fetchArticles().catch(() => []),
+      fetchEvents().catch(() => []),
+    ])
+      .then(([compRes, bList, aList, eList]) => {
+        if (!active) return
+        const userName = item.fullName.toLowerCase()
+        const userSlug = item.digitalSlug.toLowerCase()
+
+        setCompanies(
+          (compRes.companies || []).filter(
+            (c) =>
+              c.ownerName?.toLowerCase().includes(userName) ||
+              c.id.toLowerCase() === userSlug,
+          ),
+        )
+        setBlogs(
+          (bList || [])
+            .filter(
+              (b) =>
+                b.author_id === item.digitalSlug ||
+                b.author?.full_name?.toLowerCase().includes(userName),
+            )
+            .map(mapBlogToUserArticleData),
+        )
+        setArticles(
+          (aList || [])
+            .filter(
+              (a) =>
+                a.author_id === item.digitalSlug ||
+                a.author?.full_name?.toLowerCase().includes(userName),
+            )
+            .map(mapArticleToUserArticleData),
+        )
+        setEvents(
+          (eList || [])
+            .filter(
+              (e) =>
+                e.created_by?.toLowerCase().includes(userSlug) ||
+                e.created_by?.toLowerCase().includes(userName),
+            )
+            .map(mapEventToUserEventData),
+        )
+      })
+      .finally(() => {
+        if (active) setTabLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [item])
+
   const content =
     activeTab === "blogs"
-      ? (member?.blogs ?? [])
+      ? blogs
       : activeTab === "articles"
-        ? (member?.articles ?? [])
+        ? articles
         : activeTab === "events"
-          ? (member?.events ?? [])
+          ? events
           : []
-  const isAbel = item.digitalSlug === "abel-tesfaye"
 
   function emptyState(label: string) {
     return (
@@ -785,19 +757,36 @@ function PublicPersonDetail({
 
   function renderTab() {
     if (activeTab === "profile") return <PublicPersonDetailLegacy item={item} />
-    if (activeTab === "companies")
-      return isAbel ? (
-        <CompanyCard
-          company={ABEL_DEMO_COMPANY}
-          onClick={() => onSelectCompany(ABEL_DEMO_COMPANY, item)}
-        />
-      ) : (
-        emptyState("companies")
-      )
-    if (!content.length) return emptyState(activeTab)
-    if (activeTab === "articles" || activeTab === "blogs")
+
+    if (tabLoading) {
       return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="text-center py-16 bg-white rounded-2xl border border-[var(--border-light)] p-8">
+          <div className="w-8 h-8 border-3 border-[var(--brand)]/30 border-t-[var(--brand)] rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-xs text-[var(--text-tertiary)]">Loading {activeTab}...</p>
+        </div>
+      )
+    }
+
+    if (activeTab === "companies") {
+      if (!companies.length) return emptyState("companies")
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-stagger">
+          {companies.map((c) => (
+            <CompanyCard
+              key={c.id}
+              company={c}
+              onClick={() => onSelectCompany(c, item)}
+            />
+          ))}
+        </div>
+      )
+    }
+
+    if (!content.length) return emptyState(activeTab)
+
+    if (activeTab === "articles" || activeTab === "blogs") {
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-stagger">
           {content.map((post) => (
             <article
               key={post.id}
@@ -830,8 +819,10 @@ function PublicPersonDetail({
           ))}
         </div>
       )
+    }
+
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-stagger">
         {content.map((event) => (
           <article
             key={event.id}
@@ -873,7 +864,7 @@ function PublicPersonDetail({
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`flex-1 min-w-[92px] px-4 py-2.5 rounded-xl text-sm font-semibold capitalize transition-colors ${
+            className={`flex-1 min-w-[92px] px-4 py-2.5 rounded-xl text-sm font-semibold capitalize transition-colors cursor-pointer ${
               activeTab === tab
                 ? "bg-[var(--brand)] text-white shadow-sm"
                 : "text-[var(--text-secondary)] hover:bg-[var(--surface-alt)]"
@@ -1102,52 +1093,115 @@ function CompanyDashboardWrapper() {
 function PublicPageWrapper({ page }: { page: PublicPage }) {
   const { id } = useParams<{ id?: string }>()
   const navigate = useNavigate()
-  const memberData = getPublicUserDashboardData()
 
-  const resolvedSelection = useMemo<PublicSelection | null>(() => {
-    if (!id) return null
+  const [selection, setSelection] = useState<PublicSelection | null>(null)
+  const [loading, setLoading] = useState(!!id)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!id) {
+      setSelection(null)
+      setLoading(false)
+      setError(null)
+      return
+    }
+
+    let active = true
+    setLoading(true)
+    setError(null)
+
     if (page === "people") {
-      const found = memberData
-        .map((d) => d.profile)
-        .find(
-          (p) =>
-            p.digitalSlug === id ||
-            p.fullName.toLowerCase().replace(/[^a-z0-9]+/g, "-") === id,
-        )
-      return found ? { type: "person", item: found } : null
+      fetchUserById(id)
+        .then((user) => {
+          if (!active) return
+          if (user) {
+            setSelection({ type: "person", item: mapUserToProfileData(user) })
+          } else {
+            setError(`Could not find community member with ID "${id}".`)
+          }
+        })
+        .catch((err) => {
+          if (!active) return
+          setError(
+            err instanceof Error ? err.message : "Failed to load member profile.",
+          )
+        })
+        .finally(() => {
+          if (active) setLoading(false)
+        })
+    } else if (page === "events") {
+      fetchEventById(id)
+        .then((evt) => {
+          if (!active) return
+          if (evt) {
+            setSelection({ type: "event", item: mapEventToUserEventData(evt) })
+          } else {
+            setError(`Could not find event with ID "${id}".`)
+          }
+        })
+        .catch((err) => {
+          if (!active) return
+          setError(
+            err instanceof Error ? err.message : "Failed to load event.",
+          )
+        })
+        .finally(() => {
+          if (active) setLoading(false)
+        })
+    } else if (page === "blogs") {
+      fetchBlogById(id)
+        .then((blog) => {
+          if (!active) return
+          if (blog) {
+            setSelection({ type: "blog", item: mapBlogToUserArticleData(blog) })
+          } else {
+            setError(`Could not find blog post with ID "${id}".`)
+          }
+        })
+        .catch((err) => {
+          if (!active) return
+          setError(
+            err instanceof Error ? err.message : "Failed to load blog post.",
+          )
+        })
+        .finally(() => {
+          if (active) setLoading(false)
+        })
+    } else if (page === "articles") {
+      fetchArticleById(id)
+        .then((article) => {
+          if (!active) return
+          if (article) {
+            setSelection({
+              type: "article",
+              item: mapArticleToUserArticleData(article),
+            })
+          } else {
+            setError(`Could not find article with ID "${id}".`)
+          }
+        })
+        .catch((err) => {
+          if (!active) return
+          setError(
+            err instanceof Error ? err.message : "Failed to load article.",
+          )
+        })
+        .finally(() => {
+          if (active) setLoading(false)
+        })
     }
-    if (page === "events") {
-      const events = memberData.flatMap((d) => d.events)
-      const found = events.find(
-        (e) =>
-          e.id === id ||
-          e.eventUrl.toLowerCase().replace(/[^a-z0-9]+/g, "-").includes(id) ||
-          e.title.toLowerCase().replace(/[^a-z0-9]+/g, "-") === id,
-      )
-      return found ? { type: "event", item: found } : null
-    }
-    if (page === "articles" || page === "blogs") {
-      const articles = memberData.flatMap((d) =>
-        page === "articles" ? d.articles : d.blogs,
-      )
-      const found = articles.find(
-        (a) =>
-          a.id === id ||
-          a.title.toLowerCase().replace(/[^a-z0-9]+/g, "-") === id,
-      )
-      return found
-        ? { type: page === "articles" ? "article" : "blog", item: found }
-        : null
-    }
-    return null
-  }, [id, page, memberData])
 
-  const handleSelectContent = (selection: PublicSelection) => {
+    return () => {
+      active = false
+    }
+  }, [id, page])
+
+  const handleSelectContent = (newSelection: PublicSelection) => {
     const targetId =
-      selection.type === "person"
-        ? selection.item.digitalSlug ||
-          selection.item.fullName.toLowerCase().replace(/[^a-z0-9]+/g, "-")
-        : selection.item.id
+      newSelection.type === "person"
+        ? newSelection.item.digitalSlug ||
+          newSelection.item.fullName.toLowerCase().replace(/[^a-z0-9]+/g, "-")
+        : newSelection.item.id
     navigate(`/${page}/${targetId}`)
   }
 
@@ -1161,9 +1215,34 @@ function PublicPageWrapper({ page }: { page: PublicPage }) {
           navigate("/")
         }}
       />
-      {resolvedSelection ? (
+      {loading ? (
+        <div className="max-w-4xl mx-auto py-24 text-center animate-fade-in">
+          <div className="w-10 h-10 border-3 border-[var(--brand)]/30 border-t-[var(--brand)] rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-sm text-[var(--text-tertiary)]">
+            Loading {page.slice(0, -1)} details...
+          </p>
+        </div>
+      ) : error ? (
+        <div className="max-w-4xl mx-auto py-20 px-4 text-center animate-fade-in">
+          <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-950/30 text-amber-600 flex items-center justify-center mx-auto mb-4 text-2xl border border-amber-200 dark:border-amber-900/40">
+            🔍
+          </div>
+          <h2 className="font-serif text-2xl text-[var(--text-primary)] mb-2">
+            Item Not Found
+          </h2>
+          <p className="text-sm text-[var(--text-tertiary)] mb-6 max-w-md mx-auto">
+            {error}
+          </p>
+          <button
+            onClick={() => navigate(`/${page}`)}
+            className="inline-flex items-center gap-2 text-sm font-semibold text-white bg-[var(--brand)] px-5 py-2.5 rounded-xl hover:bg-[var(--brand-light)] transition-colors cursor-pointer shadow-sm"
+          >
+            ← Back to {page.charAt(0).toUpperCase() + page.slice(1)}
+          </button>
+        </div>
+      ) : selection ? (
         <PublicContentDetail
-          selection={resolvedSelection}
+          selection={selection}
           onBack={() => {
             navigate(`/${page}`)
           }}

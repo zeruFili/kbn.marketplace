@@ -1,8 +1,20 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import Navbar from "../components/Navbar"
 import { CompanyCard } from "../components/CompanyProfile"
-import { getCompanies, subscribe, type Company } from "../data/companyStore"
+import {
+  fetchCompanies,
+  type Company,
+} from "../api/companyApi"
+import {
+  fetchEvents,
+  mapEventToUserEventData,
+} from "../api/eventsApi"
+import {
+  fetchBlogs,
+  mapBlogToUserArticleData,
+} from "../api/blogsApi"
+import type { UserEventData, UserArticleData } from "../data/userDataStore"
 
 const knbLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
 
@@ -44,80 +56,158 @@ export function SectionHeading({
   )
 }
 
-const EVENTS = [
-  {
-    image:
-      "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=600&h=400&fit=crop&auto=format",
-    date: "Aug 15, 2025",
-    time: "7:30 AM – 9:30 AM",
-    location: "Abren Cafe, Addis Ababa",
-    title: "Quarterly Networking Breakfast",
-    description:
-      "Start your morning with fellowship, prayer, and purposeful connections with fellow Christian entrepreneurs over coffee and breakfast at our quarterly gathering.",
-  },
-  {
-    image:
-      "https://images.unsplash.com/photo-1511578314322-379afb476865?w=600&h=400&fit=crop&auto=format",
-    date: "Sep 20, 2025",
-    time: "9:00 AM – 4:00 PM",
-    location: "Betesha Retreat Center, Addis Ababa",
-    title: "National Ethiopian Christian Business Summit",
-    description:
-      "A full day of worship, keynote sessions, and workshops designed to equip Christian leaders for greater Kingdom impact across Ethiopia.",
-  },
-  {
-    image:
-      "https://images.unsplash.com/photo-1504052434569-70ad5836ab65?w=600&h=400&fit=crop&auto=format",
-    date: "Oct 7, 2025",
-    time: "6:30 PM – 8:30 PM",
-    location: "Addis Ababa, Ethiopia",
-    title: "Prayer & Worship Gathering",
-    description:
-      "An evening of powerful worship and intercessory prayer for our businesses, families, and nation. All are welcome.",
-  },
-  {
-    image:
-      "https://images.unsplash.com/photo-1559223607-a43c990c692c?w=600&h=400&fit=crop&auto=format",
-    date: "Nov 11, 2025",
-    time: "9:00 AM – 12:30 PM",
-    location: "Hawassa, SNNPR, Ethiopia",
-    title: "Hawassa Regional Networking Event",
-    description:
-      "Strategic networking event in Hawassa — chosen for its 85% Christian population — uniting local Christian entrepreneurs and professionals.",
-  },
-  {
-    image:
-      "https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=600&h=400&fit=crop&auto=format",
-    date: "Dec 5, 2025",
-    time: "8:00 AM – 5:00 PM",
-    location: "Addis Ababa, Ethiopia",
-    title: "Kingdom Builders Leadership Academy Launch",
-    description:
-      "Launch of our leadership academy equipping believers with business skills and spiritual grounding for Kingdom impact.",
-  },
-  {
-    image:
-      "https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=600&h=400&fit=crop&auto=format",
-    date: "Dec 19, 2025",
-    time: "6:00 PM – 8:00 PM",
-    location: "Abren Cafe, Addis Ababa",
-    title: "Year-End Celebration & Prayer",
-    description:
-      "Wind down the year with fellowship and celebration. Share testimonies of God's faithfulness and look ahead to the new year together.",
-  },
-]
+function LoadingSkeleton({ count = 3 }: { count?: number }) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
+      {Array.from({ length: count }).map((_, i) => (
+        <div
+          key={i}
+          className="bg-[var(--surface)] border border-[var(--border-light)] rounded-2xl p-5 h-72 flex flex-col justify-between"
+        >
+          <div className="space-y-3">
+            <div className="h-36 bg-[var(--surface-alt)] rounded-xl" />
+            <div className="h-4 bg-[var(--surface-alt)] rounded w-3/4" />
+            <div className="h-3 bg-[var(--surface-alt)] rounded w-1/2" />
+          </div>
+          <div className="h-8 bg-[var(--surface-alt)] rounded-lg w-1/3" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function SectionError({
+  message,
+  onRetry,
+}: {
+  message: string
+  onRetry: () => void
+}) {
+  return (
+    <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/30 rounded-2xl p-6 text-center max-w-md mx-auto my-6">
+      <p className="text-sm text-red-600 dark:text-red-400 mb-4">{message}</p>
+      <button
+        onClick={onRetry}
+        className="px-4 py-2 text-xs font-semibold rounded-xl bg-red-600 hover:bg-red-700 text-white transition-colors cursor-pointer"
+      >
+        Try Again
+      </button>
+    </div>
+  )
+}
+
+function SectionEmpty({
+  title,
+  description,
+  actionLabel,
+  onAction,
+}: {
+  title: string
+  description: string
+  actionLabel?: string
+  onAction?: () => void
+}) {
+  return (
+    <div className="text-center py-12 px-4 bg-[var(--surface)] border border-[var(--border-light)] rounded-2xl max-w-lg mx-auto">
+      <div className="w-12 h-12 rounded-2xl bg-[var(--surface-alt)] flex items-center justify-center mx-auto mb-3 text-xl">
+        ✦
+      </div>
+      <h3 className="font-serif text-lg text-[var(--text-primary)] mb-1">
+        {title}
+      </h3>
+      <p className="text-xs text-[var(--text-tertiary)] max-w-sm mx-auto mb-4 leading-relaxed">
+        {description}
+      </p>
+      {actionLabel && onAction && (
+        <button
+          onClick={onAction}
+          className="text-xs font-semibold text-[var(--brand)] hover:underline cursor-pointer"
+        >
+          {actionLabel} &rarr;
+        </button>
+      )}
+    </div>
+  )
+}
 
 export default function HomePage() {
   const navigate = useNavigate()
-  const [liveCompanies, setLiveCompanies] = useState<Company[]>(getCompanies())
 
-  useEffect(() => {
-    setLiveCompanies(getCompanies())
-    const unsub = subscribe(() => setLiveCompanies(getCompanies()))
-    return unsub
+  // Dynamic companies state
+  const [companies, setCompanies] = useState<Company[]>([])
+  const [loadingCompanies, setLoadingCompanies] = useState(true)
+  const [companiesError, setCompaniesError] = useState<string | null>(null)
+
+  // Dynamic events state
+  const [events, setEvents] = useState<UserEventData[]>([])
+  const [loadingEvents, setLoadingEvents] = useState(true)
+  const [eventsError, setEventsError] = useState<string | null>(null)
+
+  // Dynamic blogs state
+  const [blogs, setBlogs] = useState<UserArticleData[]>([])
+  const [loadingBlogs, setLoadingBlogs] = useState(true)
+  const [blogsError, setBlogsError] = useState<string | null>(null)
+
+  const loadCompaniesData = useCallback(async () => {
+    setLoadingCompanies(true)
+    setCompaniesError(null)
+    try {
+      const res = await fetchCompanies({ limit: 12, is_active: true })
+      setCompanies(res.companies)
+    } catch (err: unknown) {
+      setCompaniesError(
+        err instanceof Error
+          ? err.message
+          : "Unable to load community members."
+      )
+    } finally {
+      setLoadingCompanies(false)
+    }
   }, [])
 
-  const featured = liveCompanies.filter((c) => c.featured)
+  const loadEventsData = useCallback(async () => {
+    setLoadingEvents(true)
+    setEventsError(null)
+    try {
+      const apiEvents = await fetchEvents()
+      const mapped = apiEvents.map(mapEventToUserEventData)
+      setEvents(mapped)
+    } catch (err: unknown) {
+      setEventsError(
+        err instanceof Error ? err.message : "Unable to load events."
+      )
+    } finally {
+      setLoadingEvents(false)
+    }
+  }, [])
+
+  const loadBlogsData = useCallback(async () => {
+    setLoadingBlogs(true)
+    setBlogsError(null)
+    try {
+      const apiBlogs = await fetchBlogs()
+      const mapped = apiBlogs.map(mapBlogToUserArticleData)
+      setBlogs(mapped)
+    } catch (err: unknown) {
+      setBlogsError(
+        err instanceof Error ? err.message : "Unable to load articles and blogs."
+      )
+    } finally {
+      setLoadingBlogs(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadCompaniesData()
+    loadEventsData()
+    loadBlogsData()
+  }, [loadCompaniesData, loadEventsData, loadBlogsData])
+
+  // Featured or top companies from database
+  const featured = companies.filter((c) => c.featured)
+  const displayCompanies = featured.length > 0 ? featured.slice(0, 6) : companies.slice(0, 6)
+  const displayEvents = events.slice(0, 6)
+  const displayBlogs = blogs.slice(0, 3)
 
   return (
     <div className="min-h-screen bg-[var(--surface-alt)]">
@@ -131,15 +221,30 @@ export default function HomePage() {
             title="Featured Members"
             subtitle="Meet some of the incredible Ethiopian Christian business owners and professionals in our network."
           />
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 animate-stagger">
-            {featured.map((company) => (
-              <CompanyCard
-                key={company.id}
-                company={company}
-                onClick={() => navigate(`/companies/${company.id}`)}
-              />
-            ))}
-          </div>
+
+          {loadingCompanies ? (
+            <LoadingSkeleton count={3} />
+          ) : companiesError ? (
+            <SectionError message={companiesError} onRetry={loadCompaniesData} />
+          ) : displayCompanies.length === 0 ? (
+            <SectionEmpty
+              title="No Members Listed Yet"
+              description="Be the first to list your Christian-owned business or organization in our community directory."
+              actionLabel="Register Your Business"
+              onAction={() => navigate("/companies/new")}
+            />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 animate-stagger">
+              {displayCompanies.map((company) => (
+                <CompanyCard
+                  key={company.id}
+                  company={company}
+                  onClick={() => navigate(`/companies/${company.id}`)}
+                />
+              ))}
+            </div>
+          )}
+
           <div className="flex flex-wrap items-center justify-center gap-3 mt-10">
             <button
               onClick={() => navigate("/companies")}
@@ -164,8 +269,18 @@ export default function HomePage() {
               onClick={() => navigate("/companies/new")}
               className="inline-flex items-center gap-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-6 py-3 rounded-xl transition-colors shadow-lg shadow-amber-600/20 cursor-pointer"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
               </svg>
               Register Your Business
             </button>
@@ -174,100 +289,145 @@ export default function HomePage() {
       </section>
 
       {/* Events */}
-      <section
-        id="events"
-        className="py-16 sm:py-20 md:py-28 animate-fade-in-up"
-      >
+      <section id="events" className="py-16 sm:py-20 md:py-28 animate-fade-in-up">
         <div className="max-w-7xl mx-auto px-4 md:px-8">
           <SectionHeading
             overline="Get Involved"
             title="Upcoming Events"
             subtitle="Grow in faith, build relationships, and sharpen your skills at our upcoming gatherings."
           />
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {EVENTS.map((ev, i) => (
-              <div
-                key={ev.title}
-                className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden group"
-                style={{ animationDelay: `${i * 80}ms` }}
+
+          {loadingEvents ? (
+            <LoadingSkeleton count={3} />
+          ) : eventsError ? (
+            <SectionError message={eventsError} onRetry={loadEventsData} />
+          ) : displayEvents.length === 0 ? (
+            <SectionEmpty
+              title="No Upcoming Events Scheduled"
+              description="New networking gatherings, leadership workshops, and prayer breakfasts are announced regularly."
+              actionLabel="Browse Events"
+              onAction={() => navigate("/events")}
+            />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {displayEvents.map((ev, i) => (
+                <div
+                  key={ev.id || ev.title}
+                  onClick={() => navigate(`/events/${ev.id}`)}
+                  className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden group cursor-pointer"
+                  style={{ animationDelay: `${i * 80}ms` }}
+                >
+                  <div className="relative h-44 overflow-hidden">
+                    <img
+                      src={ev.eventImage}
+                      alt={ev.title}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                    />
+                    <div className="absolute top-3 left-3 bg-white/90 dark:bg-[var(--surface-raised)]/90 backdrop-blur-sm rounded-lg px-3 py-1.5 text-xs font-bold text-[var(--brand)]">
+                      {ev.startDate}
+                    </div>
+                  </div>
+                  <div className="p-5">
+                    <div className="flex items-center gap-2 text-xs text-[var(--text-tertiary)] mb-2">
+                      <span className="font-semibold text-[var(--accent-dark)] uppercase tracking-wide">
+                        {ev.eventType}
+                      </span>
+                      <span>·</span>
+                      <span className="truncate">{ev.location}</span>
+                    </div>
+                    <h3 className="font-semibold text-[var(--text-primary)] mb-2 leading-tight">
+                      {ev.title}
+                    </h3>
+                    <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-4 line-clamp-2">
+                      {ev.description}
+                    </p>
+                    <div className="text-xs font-semibold text-[var(--accent-dark)] hover:text-[var(--brand)] transition-colors flex items-center gap-1">
+                      View Details &rarr;
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {displayEvents.length > 0 && (
+            <div className="text-center mt-10">
+              <button
+                onClick={() => navigate("/events")}
+                className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand)] border border-[var(--border-default)] bg-[var(--surface)] px-6 py-2.5 rounded-xl hover:border-[var(--brand)] transition-colors cursor-pointer"
               >
-                <div className="relative h-40 overflow-hidden">
-                  <img
-                    src={ev.image}
-                    alt={ev.title}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                  />
-                  <div className="absolute top-3 left-3 bg-white/90 dark:bg-[var(--surface-raised)]/90 backdrop-blur-sm rounded-lg px-3 py-1.5 text-xs font-bold text-[var(--brand)]">
-                    {ev.date}
+                Browse All Events &rarr;
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Latest from KBN Journal / Blogs */}
+      <section className="py-16 sm:py-20 md:py-28 bg-[var(--surface)] animate-fade-in-up">
+        <div className="max-w-7xl mx-auto px-4 md:px-8">
+          <SectionHeading
+            overline="Stories & Insights"
+            title="Latest from KBN Journal"
+            subtitle="Perspectives on faithful enterprise, purposeful leadership, and local innovation."
+          />
+
+          {loadingBlogs ? (
+            <LoadingSkeleton count={3} />
+          ) : blogsError ? (
+            <SectionError message={blogsError} onRetry={loadBlogsData} />
+          ) : displayBlogs.length === 0 ? (
+            <SectionEmpty
+              title="No Articles Published Yet"
+              description="Reflections, interviews, and community updates will be published here soon."
+              actionLabel="View Journal"
+              onAction={() => navigate("/blogs")}
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-stagger">
+              {displayBlogs.map((blog) => (
+                <article
+                  key={blog.id}
+                  onClick={() => navigate(`/blogs/${blog.id}`)}
+                  className="card-hover bg-[var(--surface-alt)] rounded-2xl border border-[var(--border-light)] overflow-hidden cursor-pointer flex flex-col justify-between"
+                >
+                  <div>
+                    <img
+                      src={blog.featuredImage}
+                      alt={blog.title}
+                      className="w-full h-44 object-cover"
+                    />
+                    <div className="p-5">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-dark)] mb-2">
+                        {blog.topic}
+                      </p>
+                      <h3 className="font-serif text-xl text-[var(--text-primary)] mb-2 leading-snug">
+                        {blog.title}
+                      </h3>
+                      <p className="text-sm text-[var(--text-secondary)] line-clamp-3 leading-relaxed">
+                        {blog.excerpt}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="p-5">
-                  <div className="flex items-center gap-2 text-xs text-[var(--text-tertiary)] mb-2">
-                    <svg
-                      className="w-3.5 h-3.5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                    {ev.time}
-                    <span className="mx-1">·</span>
-                    <svg
-                      className="w-3.5 h-3.5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                    </svg>
-                    {ev.location.split(",")[0]}
+                  <div className="px-5 pb-5 pt-2 flex items-center justify-between text-xs text-[var(--text-tertiary)] border-t border-[var(--border-light)] mt-2">
+                    <span>By {blog.author}</span>
+                    <span>{blog.publishedDate}</span>
                   </div>
-                  <h3 className="font-semibold text-[var(--text-primary)] mb-2 leading-tight">
-                    {ev.title}
-                  </h3>
-                  <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-4 line-clamp-2">
-                    {ev.description}
-                  </p>
-                  <button
-                    onClick={() => navigate("/events")}
-                    className="text-xs font-semibold text-[var(--accent-dark)] hover:text-[var(--brand)] transition-colors flex items-center gap-1 cursor-pointer"
-                  >
-                    Register Now
-                    <svg
-                      className="w-3.5 h-3.5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+                </article>
+              ))}
+            </div>
+          )}
+
+          {displayBlogs.length > 0 && (
+            <div className="text-center mt-10">
+              <button
+                onClick={() => navigate("/blogs")}
+                className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand)] border border-[var(--brand)] px-6 py-2.5 rounded-xl hover:bg-[var(--brand)] hover:text-white transition-colors cursor-pointer"
+              >
+                Read More Stories &rarr;
+              </button>
+            </div>
+          )}
         </div>
       </section>
 
@@ -360,13 +520,17 @@ export default function HomePage() {
                   "KBN Journal",
                   "FAQ",
                 ].map((link) => (
-                  <a
+                  <button
                     key={link}
-                    href="#"
-                    className="block text-sm text-[#94A3B8] hover:text-white transition-colors"
+                    onClick={() => {
+                      if (link === "KBN Journal") navigate("/blogs")
+                      else navigate("/events")
+                      window.scrollTo(0, 0)
+                    }}
+                    className="block text-sm text-[#94A3B8] hover:text-white transition-colors cursor-pointer"
                   >
                     {link}
-                  </a>
+                  </button>
                 ))}
               </div>
             </div>
@@ -376,38 +540,6 @@ export default function HomePage() {
                 <p>info@kbn.org</p>
                 <p>+251 91 196 3232</p>
                 <p>Addis Ababa, Ethiopia</p>
-              </div>
-              <div className="flex items-center gap-3 mt-5">
-                <a
-                  href="https://www.tiktok.com/@kbn_ethiopia?is_from_webapp=1&sender_device=pc"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-white/50 hover:bg-[var(--accent)]/20 hover:text-[var(--accent)] transition-all"
-                  aria-label="TikTok"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z" />
-                  </svg>
-                </a>
-                <a
-                  href="https://www.tiktok.com/link/v2?aid=1988&lang=en&scene=bio_url&target=https%3A%2F%2Fwww.facebook.com%2Fshare%2F17VqXsVbz6%2F%3Fmibextid%3DwwXIfr"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-white/50 hover:bg-[var(--accent)]/20 hover:text-[var(--accent)] transition-all"
-                  aria-label="Facebook"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                  </svg>
-                </a>
               </div>
             </div>
           </div>

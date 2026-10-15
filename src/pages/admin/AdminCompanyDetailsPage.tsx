@@ -265,6 +265,24 @@ export default function AdminCompanyDetailsPage() {
           ))}
         </div>
 
+        {company.services && company.services.length > 0 && (
+          <div>
+            <h3 className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-3">
+              Services Offered
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {company.services.map((s, idx) => (
+                <span
+                  key={idx}
+                  className="text-xs font-medium text-[var(--text-primary)] bg-[var(--surface-alt)] px-3 py-1.5 rounded-xl border border-[var(--border-light)]"
+                >
+                  {s}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div>
           <h3 className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-3">
             Assigned Categories

@@ -6,7 +6,6 @@ import {
   type ArticleApiResponse,
 } from "../../api/articlesApi"
 import { resolveAssetUrl } from "../../api/baseApi"
-import { getPublicUserDashboardData } from "../../data/userDataStore"
 
 export default function AdminArticleDetailsPage() {
   const { id } = useParams<{ id: string }>()
@@ -33,62 +32,12 @@ export default function AdminArticleDetailsPage() {
         if (data) {
           setArticle(data)
         } else {
-          // Check fallback demo articles
-          const demoArticles = getPublicUserDashboardData().flatMap((m) => m.articles)
-          const fallback = demoArticles.find(
-            (a) => a.id === id || a.title.toLowerCase().replace(/[^a-z0-9]+/g, "-") === id
-          )
-          if (fallback) {
-            setArticle({
-              id: fallback.id,
-              title: fallback.title,
-              slug: fallback.title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-              topic: fallback.topic || "General",
-              featured_image: fallback.featuredImage ? [fallback.featuredImage] : [],
-              publication_date: fallback.publishedDate || new Date().toISOString(),
-              status: fallback.status?.toLowerCase() === "published" ? "published" : "draft",
-              excerpt: fallback.excerpt || fallback.content || "",
-              author_id: "demo-author",
-              author: {
-                id: "demo-author",
-                full_name: fallback.author || "Kingdom Builders Admin",
-                email: "admin@kingdombuilders.et",
-              },
-              created_at: new Date().toISOString(),
-            })
-          } else {
-            setError(`Could not find article with ID "${id}".`)
-          }
+          setError(`Could not find article with ID "${id}".`)
         }
       })
       .catch((err) => {
         if (!isMounted) return
-        // Check fallback demo articles on network failure
-        const demoArticles = getPublicUserDashboardData().flatMap((m) => m.articles)
-        const fallback = demoArticles.find(
-          (a) => a.id === id || a.title.toLowerCase().replace(/[^a-z0-9]+/g, "-") === id
-        )
-        if (fallback) {
-          setArticle({
-            id: fallback.id,
-            title: fallback.title,
-            slug: fallback.title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-            topic: fallback.topic || "General",
-            featured_image: fallback.featuredImage ? [fallback.featuredImage] : [],
-            publication_date: fallback.publishedDate || new Date().toISOString(),
-            status: fallback.status?.toLowerCase() === "published" ? "published" : "draft",
-            excerpt: fallback.excerpt || fallback.content || "",
-            author_id: "demo-author",
-            author: {
-              id: "demo-author",
-              full_name: fallback.author || "Kingdom Builders Admin",
-              email: "admin@kingdombuilders.et",
-            },
-            created_at: new Date().toISOString(),
-          })
-        } else {
-          setError(err instanceof Error ? err.message : "Failed to load article details.")
-        }
+        setError(err instanceof Error ? err.message : "Failed to load article details.")
       })
       .finally(() => {
         if (isMounted) setLoading(false)

@@ -392,36 +392,42 @@ export default function CompanyProfile({
 
             <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6 md:p-8 animate-fade-in-up">
               <h2 className="font-serif text-2xl text-[var(--text-primary)] mb-5">
-                Services & Products
+                Services
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {company.services.map((svc, i) => (
-                  <div
-                    key={svc}
-                    className="flex items-center gap-3 p-3.5 bg-[var(--surface-alt)] rounded-xl border border-[var(--border-light)] hover:border-[var(--brand)]/30 hover:bg-[var(--brand)]/5 transition-all group"
-                    style={{ animationDelay: `${i * 50}ms` }}
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-[var(--brand)]/10 flex items-center justify-center flex-shrink-0 group-hover:bg-[var(--brand)]/20 transition-colors">
-                      <svg
-                        className="w-4 h-4 text-[var(--brand)]"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
+              {company.services && company.services.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {company.services.map((svc, i) => (
+                    <div
+                      key={svc}
+                      className="flex items-center gap-3 p-3.5 bg-[var(--surface-alt)] rounded-xl border border-[var(--border-light)] hover:border-[var(--brand)]/30 hover:bg-[var(--brand)]/5 transition-all group"
+                      style={{ animationDelay: `${i * 50}ms` }}
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-[var(--brand)]/10 flex items-center justify-center flex-shrink-0 group-hover:bg-[var(--brand)]/20 transition-colors">
+                        <svg
+                          className="w-4 h-4 text-[var(--brand)]"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      </div>
+                      <span className="text-sm font-medium text-[var(--text-primary)]">
+                        {svc}
+                      </span>
                     </div>
-                    <span className="text-sm font-medium text-[var(--text-primary)]">
-                      {svc}
-                    </span>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-[var(--text-tertiary)] italic">
+                  No services listed yet.
+                </p>
+              )}
             </section>
 
             {company.gallery.length > 0 && (

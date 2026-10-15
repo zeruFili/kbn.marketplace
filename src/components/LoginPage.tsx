@@ -4,10 +4,6 @@ import { useAuth } from "../auth/AuthContext"
 import { type UserRole } from "../auth/auth"
 const knbLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
 
-const MOCK_CREDENTIALS = [
-  { email: "abel@example.com", name: "Abel Tesfaye", role: "user" as UserRole },
-  { email: "admin@kbn.org", name: "Admin KBN", role: "admin" as UserRole },
-]
 
 export default function LoginPage({
   onBack,
@@ -244,59 +240,6 @@ export default function LoginPage({
               Sign up
             </button>
           </p>
-        </div>
-
-        <div className="mt-8">
-          <p className="text-xs text-[var(--text-tertiary)] text-center mb-3 font-medium uppercase tracking-wider">
-            Demo Accounts
-          </p>
-          <div className="space-y-2">
-            {MOCK_CREDENTIALS.map((cred) => (
-              <button
-                key={cred.email}
-                onClick={() => {
-                  setEmail(cred.email)
-                  setPassword("password123")
-                }}
-                className="w-full flex items-center gap-3 bg-[var(--surface)] border border-[var(--border-light)] rounded-xl px-4 py-2.5 text-left hover:border-[var(--brand)]/30 hover:bg-[var(--surface-alt)] transition-all group"
-              >
-                <div className="w-8 h-8 rounded-lg bg-[var(--brand)]/10 flex items-center justify-center group-hover:bg-[var(--brand)]/20 transition-colors flex-shrink-0">
-                  <svg
-                    className="w-4 h-4 text-[var(--brand)]"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                    />
-                  </svg>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium text-[var(--text-primary)] truncate">
-                    {cred.name}
-                  </div>
-                  <div className="text-xs text-[var(--text-tertiary)] truncate">
-                    {cred.email}
-                  </div>
-                </div>
-                <span
-                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                    cred.role === "admin"
-                      ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
-                      : cred.role === "company"
-                        ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
-                        : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
-                  }`}
-                >
-                  {cred.role}
-                </span>
-              </button>
-            ))}
-          </div>
         </div>
       </div>
     </div>
