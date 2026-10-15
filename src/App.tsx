@@ -33,6 +33,8 @@ import AdminUserEditPage from "./pages/admin/AdminUserEditPage"
 import AdminPayments from "./components/admin/AdminPayments"
 import AdminCategories from "./components/admin/AdminCategories"
 import AdminContent from "./components/admin/AdminContent"
+import AdminEventDetailsPage from "./pages/admin/AdminEventDetailsPage"
+import AdminEventEditPage from "./pages/admin/AdminEventEditPage"
 import UserLayout from "./pages/user/UserLayout"
 import UserProfilePage from "./pages/user/UserProfilePage"
 import UserProfileEditPage from "./pages/user/UserProfileEditPage"
@@ -1324,6 +1326,8 @@ export default function App() {
           <Route path="payments" element={<AdminPayments />} />
           <Route path="categories" element={<AdminCategories />} />
           <Route path="events" element={<AdminContent kind="events" />} />
+          <Route path="events/:id" element={<AdminEventDetailsPage />} />
+          <Route path="events/:id/edit" element={<AdminEventEditPage />} />
           <Route path="articles" element={<AdminContent kind="articles" />} />
           <Route path="blogs" element={<AdminContent kind="blogs" />} />
         </Route>

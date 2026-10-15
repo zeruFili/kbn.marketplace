@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useRef } from "react"
+import { useNavigate } from "react-router-dom"
 
 import {
   getPublicUserDashboardData,
@@ -16,6 +17,7 @@ type ContentKind = "events" | "articles" | "blogs"
 type ContentItem = UserArticleData | UserEventData
 
 export default function AdminContent({ kind }: { kind: ContentKind }) {
+  const navigate = useNavigate()
   const [search, setSearch] = useState("")
 
   const [status, setStatus] = useState<"all" | "Published" | "Draft">("all")
@@ -198,7 +200,16 @@ export default function AdminContent({ kind }: { kind: ContentKind }) {
           {filtered.map((item) => (
             <article
               key={item.id}
-              className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden card-hover"
+              onClick={() => {
+                if (kind === "events") {
+                  navigate(`/admin/events/${item.id}`)
+                }
+              }}
+              className={`bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden card-hover transition-all ${
+                kind === "events"
+                  ? "cursor-pointer hover:border-[var(--brand)]/50 hover:shadow-lg"
+                  : ""
+              }`}
             >
               <img
                 src={
@@ -229,10 +240,21 @@ export default function AdminContent({ kind }: { kind: ContentKind }) {
                   {"eventType" in item ? item.description : item.excerpt}
                 </p>
                 <div className="flex items-center justify-between gap-3 mt-5 pt-4 border-t border-[var(--border-light)] text-xs text-[var(--text-tertiary)]">
-                  <span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5 text-[var(--accent-dark)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
                     {"eventType" in item ? item.startDate : item.publishedDate}
                   </span>
-                  {"eventType" in item && <span>{item.location}</span>}
+                  {"eventType" in item && (
+                    <span className="inline-flex items-center gap-1.5 truncate max-w-[50%]">
+                      <svg className="w-3.5 h-3.5 text-[var(--accent-dark)] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      <span className="truncate">{item.location}</span>
+                    </span>
+                  )}
                 </div>
               </div>
             </article>
@@ -267,6 +289,7 @@ function AdminContentForm({
     location: "Addis Ababa, Ethiopia",
     eventType: "Workshop",
     status: "Published" as "Published" | "Draft",
+    availability: "public" as "public" | "private",
   })
 
   // File upload state for events
@@ -349,7 +372,7 @@ function AdminContentForm({
         formData.append("description", form.description.trim())
         formData.append("start_date", form.date)
         formData.append("status", form.status.toLowerCase())
-        formData.append("availability", "public")
+        formData.append("availability", form.availability || "public")
         // Cover image file
         formData.append("image", imageFile)
 
@@ -387,6 +410,319 @@ function AdminContentForm({
     }
   }
 
+  // Modern, attractive Event Creation Form consistent with Company Registration
+  if (isEvent) {
+    return (
+      <form
+        onSubmit={submit}
+        className="bg-[var(--surface)] rounded-3xl border border-[var(--border-light)] p-6 md:p-10 mb-8 shadow-sm animate-scale-in space-y-8"
+      >
+        {/* Header with Icon Badge */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--border-light)] pb-6">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-[var(--accent-light)] text-[var(--accent-dark)] border border-[var(--accent)]/25 flex items-center justify-center flex-shrink-0 shadow-xs">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.8}
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+            </div>
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-dark)] block">
+                Event Management · New Event
+              </span>
+              <h3 className="font-serif text-2xl md:text-3xl font-bold text-[var(--text-primary)]">
+                Create New Event
+              </h3>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={submitting}
+            className="self-start sm:self-center inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-tertiary)] hover:text-[var(--text-primary)] px-3.5 py-2 rounded-xl border border-[var(--border-light)] hover:border-[var(--border-default)] transition-colors cursor-pointer"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            Cancel
+          </button>
+        </div>
+
+        {errorMessage && (
+          <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-xs text-red-700 dark:text-red-300 flex items-center justify-between animate-fade-in">
+            <div className="flex items-center gap-2">
+              <span className="text-base">⚠️</span>
+              <span>{errorMessage}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setErrorMessage("")}
+              className="text-red-500 hover:text-red-700 font-bold ml-2 cursor-pointer"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        {/* Section 1: Basic Information */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 text-sm font-serif font-bold text-[var(--text-primary)] border-b border-[var(--border-light)] pb-2.5">
+            <svg className="w-4 h-4 text-[var(--accent-dark)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>1. Basic Information</span>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
+              Event Title <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={form.title}
+              onChange={(e) => update("title", e.target.value)}
+              placeholder="e.g. Annual Architecture & Urban Design Summit"
+              className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-4 py-2.5 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 transition-all"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
+                Event Type
+              </label>
+              <select
+                value={form.eventType}
+                onChange={(e) => update("eventType", e.target.value)}
+                className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-4 py-2.5 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer transition-all"
+              >
+                {["Workshop", "Conference", "Fellowship", "Meetup", "Hackathon", "Webinar", "General"].map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
+                Status
+              </label>
+              <select
+                value={form.status}
+                onChange={(e) => update("status", e.target.value as "Published" | "Draft")}
+                className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-4 py-2.5 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer transition-all"
+              >
+                <option value="Published">Published</option>
+                <option value="Draft">Draft</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
+                Availability
+              </label>
+              <select
+                value={form.availability}
+                onChange={(e) => update("availability", e.target.value as "public" | "private")}
+                className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-4 py-2.5 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer transition-all"
+              >
+                <option value="public">Public</option>
+                <option value="private">Private</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Section 2: Schedule & Location */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 text-sm font-serif font-bold text-[var(--text-primary)] border-b border-[var(--border-light)] pb-2.5">
+            <svg className="w-4 h-4 text-[var(--accent-dark)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span>2. Schedule & Location</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
+                Start Date & Time <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="datetime-local"
+                value={form.date}
+                onChange={(e) => update("date", e.target.value)}
+                className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-4 py-2.5 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 transition-all"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
+                Location <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={form.location}
+                onChange={(e) => update("location", e.target.value)}
+                placeholder="e.g. Addis Ababa, Ethiopia or Online"
+                className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-4 py-2.5 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 transition-all"
+                required
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Section 3: Event Cover Image */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-sm font-serif font-bold text-[var(--text-primary)] border-b border-[var(--border-light)] pb-2.5">
+            <svg className="w-4 h-4 text-[var(--accent-dark)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+              />
+            </svg>
+            <span>3. Event Cover Image <span className="text-red-500">*</span></span>
+          </div>
+          <p className="text-xs text-[var(--text-tertiary)]">
+            Select a high-resolution cover image to represent your event across cards, banners, and member feeds.
+          </p>
+
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) handleFileSelected(file)
+            }}
+          />
+
+          {imagePreview && imageFile ? (
+            <div className="p-4 rounded-2xl border border-[var(--brand)]/30 bg-[var(--brand)]/5 flex flex-col sm:flex-row items-center gap-4 animate-fade-in">
+              <div className="w-full sm:w-48 h-28 rounded-xl overflow-hidden border border-[var(--border-light)] bg-black/10 flex-shrink-0">
+                <img
+                  src={imagePreview}
+                  alt="Event cover preview"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="flex-1 min-w-0 text-left">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--brand)] text-white">
+                    Image Selected
+                  </span>
+                </div>
+                <p className="text-xs font-semibold text-[var(--text-primary)] truncate">
+                  {imageFile.name}
+                </p>
+                <p className="text-[11px] text-[var(--text-tertiary)]">
+                  {(imageFile.size / (1024 * 1024)).toFixed(2)} MB · {imageFile.type || "Image"}
+                </p>
+                <div className="flex items-center gap-3 mt-3">
+                  <button
+                    type="button"
+                    onClick={() => imageInputRef.current?.click()}
+                    className="text-xs font-semibold text-[var(--brand)] hover:underline cursor-pointer"
+                  >
+                    Change Image
+                  </button>
+                  <span className="text-[var(--text-tertiary)]">·</span>
+                  <button
+                    type="button"
+                    onClick={clearImage}
+                    className="text-xs font-semibold text-red-600 hover:underline cursor-pointer"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div
+              onClick={() => imageInputRef.current?.click()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={handleDrop}
+              className="border-2 border-dashed border-[var(--border-default)] hover:border-[var(--brand)] rounded-2xl p-8 text-center cursor-pointer transition-colors bg-[var(--surface-alt)] hover:bg-[var(--surface-alt)]/80 group"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-[var(--accent-light)] text-[var(--accent-dark)] border border-[var(--accent)]/20 flex items-center justify-center mx-auto mb-3 text-2xl group-hover:scale-105 transition-transform shadow-xs">
+                🖼️
+              </div>
+              <p className="text-sm font-semibold text-[var(--text-primary)] mb-1">
+                Click or drag image file here to upload
+              </p>
+              <p className="text-xs text-[var(--text-tertiary)] mb-3">
+                PNG, JPG, WebP, or SVG (max 10MB)
+              </p>
+              <span className="inline-block bg-[var(--surface)] border border-[var(--border-default)] text-xs font-semibold px-4 py-2 rounded-xl text-[var(--text-secondary)] group-hover:border-[var(--brand)] group-hover:text-[var(--brand)] transition-colors shadow-xs">
+                Browse Files
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Section 4: Event Description */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-sm font-serif font-bold text-[var(--text-primary)] border-b border-[var(--border-light)] pb-2.5">
+            <svg className="w-4 h-4 text-[var(--accent-dark)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
+            </svg>
+            <span>4. Event Description <span className="text-red-500">*</span></span>
+          </div>
+
+          <textarea
+            rows={4}
+            value={form.description}
+            onChange={(e) => update("description", e.target.value)}
+            placeholder="Describe what attendees will learn, key speakers, schedule highlights, and prerequisites..."
+            className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl p-4 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 transition-all leading-relaxed"
+            required
+          />
+        </div>
+
+        {/* Footer Actions */}
+        <div className="pt-6 border-t border-[var(--border-light)] flex items-center justify-between">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={submitting}
+            className="text-xs font-semibold text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-semibold bg-[var(--brand)] text-white hover:bg-[var(--brand-light)] transition-all shadow-md shadow-[var(--brand)]/15 cursor-pointer disabled:opacity-50"
+          >
+            {submitting ? (
+              <>
+                <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>Creating Event...</span>
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Create Event</span>
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+    )
+  }
+
   return (
     <form
       onSubmit={submit}
@@ -394,7 +730,7 @@ function AdminContentForm({
     >
       <div className="flex items-center justify-between gap-4 mb-5">
         <h3 className="font-serif text-xl text-[var(--text-primary)]">
-          Add {isEvent ? "Event" : kind === "blogs" ? "Blog" : "Article"}
+          Add {kind === "blogs" ? "Blog" : "Article"}
         </h3>
         <button
           type="button"
@@ -424,122 +760,26 @@ function AdminContentForm({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <AdminField
-          label={isEvent ? "Event title" : "Title"}
+          label="Title"
           value={form.title}
           onChange={(value) => update("title", value)}
           required
         />
-        {isEvent ? (
-          <AdminField
-            label="Event type"
-            value={form.eventType}
-            onChange={(value) => update("eventType", value)}
-            select
-            options={[
-              "Workshop",
-              "Conference",
-              "Networking",
-              "Worship",
-              "Exhibition",
-              "Fellowship",
-              "Seminar",
-              "General",
-            ]}
-          />
-        ) : (
-          <AdminField
-            label="Topic"
-            value={form.topic}
-            onChange={(value) => update("topic", value)}
-          />
-        )}
-
-        {/* Dedicated File Upload Widget for Events */}
-        {isEvent ? (
-          <div className="sm:col-span-2">
-            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
-              Event Cover Image <span className="text-red-500">*</span>
-            </label>
-            <input
-              ref={imageInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) handleFileSelected(file)
-              }}
-            />
-            {imagePreview && imageFile ? (
-              <div className="relative rounded-2xl overflow-hidden border border-[var(--border-default)] bg-[var(--surface-alt)]">
-                <img
-                  src={imagePreview}
-                  alt="Event preview"
-                  className="w-full h-44 object-cover"
-                />
-                <div className="p-3 flex items-center justify-between bg-[var(--surface)]/95 backdrop-blur-sm border-t border-[var(--border-light)]">
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-[var(--text-primary)] truncate">
-                      {imageFile.name}
-                    </p>
-                    <p className="text-[11px] text-[var(--text-tertiary)]">
-                      {(imageFile.size / 1024).toFixed(1)} KB · {imageFile.type || "Image"}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => imageInputRef.current?.click()}
-                      className="text-xs text-[var(--brand)] hover:underline px-2 py-1 font-medium cursor-pointer"
-                    >
-                      Change
-                    </button>
-                    <button
-                      type="button"
-                      onClick={clearImage}
-                      className="text-xs text-red-500 hover:underline px-2 py-1 font-medium cursor-pointer"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div
-                onClick={() => imageInputRef.current?.click()}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={handleDrop}
-                className="border-2 border-dashed border-[var(--border-default)] hover:border-[var(--brand)] rounded-2xl p-6 text-center cursor-pointer transition-colors bg-[var(--surface-alt)]/50 group"
-              >
-                <div className="w-12 h-12 rounded-2xl bg-[var(--brand)]/10 text-[var(--brand)] flex items-center justify-center mx-auto mb-3 text-2xl group-hover:scale-105 transition-transform">
-                  📸
-                </div>
-                <p className="text-sm font-semibold text-[var(--text-primary)] mb-1">
-                  Click or drag image to upload
-                </p>
-                <p className="text-xs text-[var(--text-tertiary)] mb-3">
-                  PNG, JPG, WebP, or SVG up to 10MB
-                </p>
-                <span className="inline-block bg-[var(--surface)] border border-[var(--border-default)] text-xs font-medium px-3.5 py-1.5 rounded-lg text-[var(--text-secondary)] group-hover:border-[var(--brand)] group-hover:text-[var(--brand)] transition-colors">
-                  Browse Files
-                </span>
-              </div>
-            )}
-          </div>
-        ) : (
-          <AdminField
-            label="Featured image URL"
-            value={form.image}
-            onChange={(value) => update("image", value)}
-            required
-          />
-        )}
-
         <AdminField
-          label={isEvent ? "Start date & time" : "Publication date"}
+          label="Topic"
+          value={form.topic}
+          onChange={(value) => update("topic", value)}
+        />
+        <AdminField
+          label="Featured image URL"
+          value={form.image}
+          onChange={(value) => update("image", value)}
+          required
+        />
+        <AdminField
+          label="Publication date"
           value={form.date}
           onChange={(value) => update("date", value)}
-          type={isEvent ? "datetime-local" : "text"}
           required
         />
         <AdminField
@@ -549,23 +789,14 @@ function AdminContentForm({
           select
           options={["Published", "Draft"]}
         />
-        {isEvent ? (
-          <AdminField
-            label="Location"
-            value={form.location}
-            onChange={(value) => update("location", value)}
-            required
-          />
-        ) : (
-          <AdminField
-            label="Author"
-            value={form.author}
-            onChange={(value) => update("author", value)}
-          />
-        )}
+        <AdminField
+          label="Author"
+          value={form.author}
+          onChange={(value) => update("author", value)}
+        />
         <div className="sm:col-span-2">
           <AdminField
-            label={isEvent ? "Description" : "Excerpt"}
+            label="Excerpt"
             value={form.description}
             onChange={(value) => update("description", value)}
             multiline
@@ -587,14 +818,7 @@ function AdminContentForm({
           disabled={submitting}
           className="px-5 py-2 rounded-lg text-sm font-semibold bg-[var(--brand)] text-white hover:bg-[var(--brand-light)] transition-all shadow-sm disabled:opacity-50 flex items-center gap-2 cursor-pointer"
         >
-          {submitting ? (
-            <>
-              <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              Creating Event...
-            </>
-          ) : (
-            `Save ${isEvent ? "Event" : ""}`
-          )}
+          {submitting ? "Saving..." : "Save"}
         </button>
       </div>
     </form>

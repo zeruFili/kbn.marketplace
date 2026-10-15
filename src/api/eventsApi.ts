@@ -114,13 +114,20 @@ export async function updateEvent(
 /**
  * Delete an event by ID
  */
-export async function deleteEventApi(id: string): Promise<boolean> {
+export async function deleteEventApi(
+  id: string
+): Promise<{ success: boolean; message?: string }> {
   try {
-    const res = await baseApi.delete(`/events/${id}`)
-    return !!res.success
-  } catch (err) {
+    const res = await baseApi.delete<{ message?: string }>(`/events/${id}`)
+    return {
+      success: !!res.success,
+      message: res.message || "Event deleted successfully",
+    }
+  } catch (err: unknown) {
     console.warn(`Could not delete event ${id}:`, err)
-    return false
+    const message =
+      err instanceof Error ? err.message : "Failed to delete event. Please try again."
+    return { success: false, message }
   }
 }
 
