@@ -37,6 +37,8 @@ import AdminEventDetailsPage from "./pages/admin/AdminEventDetailsPage"
 import AdminEventEditPage from "./pages/admin/AdminEventEditPage"
 import AdminBlogDetailsPage from "./pages/admin/AdminBlogDetailsPage"
 import AdminBlogEditPage from "./pages/admin/AdminBlogEditPage"
+import AdminArticleDetailsPage from "./pages/admin/AdminArticleDetailsPage"
+import AdminArticleEditPage from "./pages/admin/AdminArticleEditPage"
 import UserLayout from "./pages/user/UserLayout"
 import UserProfilePage from "./pages/user/UserProfilePage"
 import UserProfileEditPage from "./pages/user/UserProfileEditPage"
@@ -1334,6 +1336,8 @@ export default function App() {
           <Route path="events/:id" element={<AdminEventDetailsPage />} />
           <Route path="events/:id/edit" element={<AdminEventEditPage />} />
           <Route path="articles" element={<AdminContent kind="articles" />} />
+          <Route path="articles/:id" element={<AdminArticleDetailsPage />} />
+          <Route path="articles/:id/edit" element={<AdminArticleEditPage />} />
           <Route path="blogs" element={<AdminContent kind="blogs" />} />
           <Route path="blogs/:id" element={<AdminBlogDetailsPage />} />
           <Route path="blogs/:id/edit" element={<AdminBlogEditPage />} />

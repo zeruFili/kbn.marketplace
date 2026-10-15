@@ -13,6 +13,9 @@ import {
   fetchBlogs,
   createBlog,
   mapBlogToUserArticleData,
+  fetchArticles,
+  createArticle,
+  mapArticleToUserArticleData,
 } from "../../api"
 
 type ContentKind = "events" | "articles" | "blogs"
@@ -78,6 +81,25 @@ export default function AdminContent({ kind }: { kind: ContentKind }) {
         })
         .catch((err) => {
           console.warn("Could not load blogs from backend, using fallback:", err)
+          if (active) setItems(initialItems)
+        })
+        .finally(() => {
+          if (active) setLoading(false)
+        })
+    } else if (kind === "articles") {
+      setLoading(true)
+      fetchArticles()
+        .then((backendArticles) => {
+          if (active) {
+            if (backendArticles && backendArticles.length > 0) {
+              setItems(backendArticles.map(mapArticleToUserArticleData))
+            } else {
+              setItems(initialItems)
+            }
+          }
+        })
+        .catch((err) => {
+          console.warn("Could not load articles from backend, using fallback:", err)
           if (active) setItems(initialItems)
         })
         .finally(() => {
@@ -227,10 +249,12 @@ export default function AdminContent({ kind }: { kind: ContentKind }) {
                   navigate(`/admin/events/${item.id}`)
                 } else if (kind === "blogs") {
                   navigate(`/admin/blogs/${item.id}`)
+                } else if (kind === "articles") {
+                  navigate(`/admin/articles/${item.id}`)
                 }
               }}
               className={`bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden card-hover transition-all ${
-                kind === "events" || kind === "blogs"
+                kind === "events" || kind === "blogs" || kind === "articles"
                   ? "cursor-pointer hover:border-[var(--brand)]/50 hover:shadow-lg"
                   : ""
               }`}
@@ -311,6 +335,7 @@ function AdminContentForm({
 }) {
   const isEvent = kind === "events"
   const isBlog = kind === "blogs"
+  const isArticle = kind === "articles"
 
   const [form, setForm] = useState({
     title: "",
@@ -377,6 +402,55 @@ function AdminContentForm({
   async function submit(event: React.FormEvent) {
     event.preventDefault()
     setErrorMessage("")
+
+    if (isArticle) {
+      if (!form.title.trim()) {
+        setErrorMessage("Article title is required.")
+        return
+      }
+      if (!imageFile && !form.image.trim()) {
+        setErrorMessage("Please select an article cover image file.")
+        return
+      }
+      if (!form.description.trim()) {
+        setErrorMessage("Article excerpt or content summary is required.")
+        return
+      }
+
+      setSubmitting(true)
+      try {
+        const formData = new FormData()
+        formData.append("title", form.title.trim())
+        formData.append("topic", form.topic.trim() || "General")
+        formData.append("excerpt", form.description.trim())
+        formData.append("publication_date", form.date ? new Date(form.date).toISOString() : new Date().toISOString())
+        formData.append("status", form.status.toLowerCase())
+
+        if (imageFile) {
+          formData.append("image", imageFile)
+        } else if (form.image.trim()) {
+          formData.append("image", form.image.trim())
+        }
+
+        const result = await createArticle(formData)
+        if (result.success && result.data) {
+          const mapped = mapArticleToUserArticleData(result.data)
+          onSubmit(mapped)
+        } else {
+          setErrorMessage(result.message || "Failed to create article. Please check the details.")
+        }
+      } catch (err: unknown) {
+        console.error("Article creation error:", err)
+        setErrorMessage(
+          err instanceof Error
+            ? err.message
+            : "An unexpected error occurred while creating the article."
+        )
+      } finally {
+        setSubmitting(false)
+      }
+      return
+    }
 
     if (isBlog) {
       if (!form.title.trim()) {
@@ -492,8 +566,8 @@ function AdminContentForm({
     })
   }
 
-  // Modern, attractive Creation Form for Blogs and Events
-  if (isBlog || isEvent) {
+  // Modern, attractive Creation Form for Blogs, Articles, and Events
+  if (isBlog || isEvent || isArticle) {
     return (
       <form
         onSubmit={submit}
@@ -503,16 +577,7 @@ function AdminContentForm({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--border-light)] pb-6">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-[var(--accent-light)] text-[var(--accent-dark)] border border-[var(--accent)]/25 flex items-center justify-center flex-shrink-0 shadow-xs">
-              {isBlog ? (
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.8}
-                    d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
-                  />
-                </svg>
-              ) : (
+              {isEvent ? (
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path
                     strokeLinecap="round"
@@ -521,14 +586,23 @@ function AdminContentForm({
                     d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
                   />
                 </svg>
+              ) : (
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.8}
+                    d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
+                  />
+                </svg>
               )}
             </div>
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-dark)] block">
-                {isBlog ? "Blog Management · New Blog Post" : "Event Management · New Event"}
+                {isEvent ? "Event Management · New Event" : isBlog ? "Blog Management · New Blog Post" : "Article Management · New Article"}
               </span>
               <h3 className="font-serif text-2xl md:text-3xl font-bold text-[var(--text-primary)]">
-                {isBlog ? "Create New Blog Post" : "Create New Event"}
+                {isEvent ? "Create New Event" : isBlog ? "Create New Blog Post" : "Create New Article"}
               </h3>
             </div>
           </div>
@@ -572,29 +646,29 @@ function AdminContentForm({
 
           <div>
             <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
-              {isBlog ? "Blog Post Title" : "Event Title"} <span className="text-red-500">*</span>
+              {isEvent ? "Event Title" : isBlog ? "Blog Post Title" : "Article Title"} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={form.title}
               onChange={(e) => update("title", e.target.value)}
-              placeholder={isBlog ? "e.g. Building Kingdom Foundations in Modern Urban Planning" : "e.g. Annual Architecture & Urban Design Summit"}
+              placeholder={isEvent ? "e.g. Annual Architecture & Urban Design Summit" : isBlog ? "e.g. Building Kingdom Foundations in Modern Urban Planning" : "e.g. Modern Architecture and Urban Planning Trends"}
               className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-4 py-2.5 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 transition-all"
               required
             />
           </div>
 
-          <div className={`grid grid-cols-1 ${isBlog ? "sm:grid-cols-2" : "sm:grid-cols-3"} gap-4`}>
+          <div className={`grid grid-cols-1 ${!isEvent ? "sm:grid-cols-2" : "sm:grid-cols-3"} gap-4`}>
             <div>
               <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
-                {isBlog ? "Topic / Category" : "Event Type"} <span className="text-red-500">*</span>
+                {!isEvent ? "Topic / Category" : "Event Type"} <span className="text-red-500">*</span>
               </label>
-              {isBlog ? (
+              {!isEvent ? (
                 <input
                   type="text"
                   value={form.topic}
                   onChange={(e) => update("topic", e.target.value)}
-                  placeholder="e.g. Leadership, Faith & Work, Architecture"
+                  placeholder={isBlog ? "e.g. Leadership, Faith & Work, Architecture" : "e.g. Technology, Leadership, Innovation"}
                   className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-4 py-2.5 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 transition-all"
                   required
                 />
@@ -627,7 +701,7 @@ function AdminContentForm({
               </select>
             </div>
 
-            {!isBlog && (
+            {isEvent && (
               <div>
                 <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
                   Availability
@@ -651,13 +725,13 @@ function AdminContentForm({
             <svg className="w-4 h-4 text-[var(--accent-dark)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            <span>2. {isBlog ? "Publication Schedule" : "Schedule & Location"}</span>
+            <span>2. {!isEvent ? "Publication Schedule" : "Schedule & Location"}</span>
           </div>
 
-          <div className={`grid grid-cols-1 ${isBlog ? "sm:grid-cols-1" : "sm:grid-cols-2"} gap-4`}>
+          <div className={`grid grid-cols-1 ${!isEvent ? "sm:grid-cols-1" : "sm:grid-cols-2"} gap-4`}>
             <div>
               <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
-                {isBlog ? "Publication Date & Time" : "Start Date & Time"} <span className="text-red-500">*</span>
+                {!isEvent ? "Publication Date & Time" : "Start Date & Time"} <span className="text-red-500">*</span>
               </label>
               <input
                 type="datetime-local"
@@ -668,7 +742,7 @@ function AdminContentForm({
               />
             </div>
 
-            {!isBlog && (
+            {isEvent && (
               <div>
                 <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
                   Location <span className="text-red-500">*</span>
@@ -697,7 +771,7 @@ function AdminContentForm({
                 d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
               />
             </svg>
-            <span>3. {isBlog ? "Blog Cover Image" : "Event Cover Image"} <span className="text-red-500">*</span></span>
+            <span>3. {isEvent ? "Event Cover Image" : isBlog ? "Blog Cover Image" : "Article Cover Image"} <span className="text-red-500">*</span></span>
           </div>
           <p className="text-xs text-[var(--text-tertiary)]">
             Upload a high-resolution cover image file to be displayed on article feeds, banners, and reader views.
@@ -783,7 +857,7 @@ function AdminContentForm({
             <svg className="w-4 h-4 text-[var(--accent-dark)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
             </svg>
-            <span>4. {isBlog ? "Blog Excerpt & Summary" : "Event Description"} <span className="text-red-500">*</span></span>
+            <span>4. {isEvent ? "Event Description" : isBlog ? "Blog Excerpt & Summary" : "Article Excerpt & Summary"} <span className="text-red-500">*</span></span>
           </div>
 
           <textarea
@@ -791,9 +865,11 @@ function AdminContentForm({
             value={form.description}
             onChange={(e) => update("description", e.target.value)}
             placeholder={
-              isBlog
-                ? "Write a compelling summary or excerpt introducing the key insights, biblical principles, and takeaways of this blog post..."
-                : "Describe what attendees will learn, key speakers, schedule highlights, and prerequisites..."
+              isEvent
+                ? "Describe what attendees will learn, key speakers, schedule highlights, and prerequisites..."
+                : isBlog
+                  ? "Write a compelling summary or excerpt introducing the key insights, biblical principles, and takeaways of this blog post..."
+                  : "Write a compelling summary or excerpt introducing the key insights and takeaways of this article..."
             }
             className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl p-4 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 transition-all leading-relaxed"
             required
@@ -818,14 +894,14 @@ function AdminContentForm({
             {submitting ? (
               <>
                 <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                <span>{isBlog ? "Publishing Blog..." : "Creating Event..."}</span>
+                <span>{isEvent ? "Creating Event..." : isBlog ? "Publishing Blog..." : "Publishing Article..."}</span>
               </>
             ) : (
               <>
                 <svg className="w-4 h-4 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                <span>{isBlog ? "Create Blog Post" : "Create Event"}</span>
+                <span>{isEvent ? "Create Event" : isBlog ? "Create Blog Post" : "Create Article"}</span>
               </>
             )}
           </button>
