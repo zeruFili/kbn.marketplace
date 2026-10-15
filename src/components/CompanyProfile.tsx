@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom"
 import { useAuth } from "../auth/AuthContext"
 import { type Company, type Category } from "../data/companies"
 
-function CategoryIcon({ category }: { category: Category }) {
-  const icons: Record<Category, string> = {
+function CategoryIcon({ category }: { category: string }) {
+  const icons: Record<string, string> = {
     Automotive: "🚗",
     Cars: "🚗",
     Clothing: "👕",
@@ -21,11 +21,14 @@ function CategoryIcon({ category }: { category: Category }) {
     Ministry: "⛪",
     "Professional Services": "💼",
   }
-  return <span>{icons[category]}</span>
+  const match = Object.keys(icons).find(
+    (k) => k.toLowerCase() === (category || "").toLowerCase()
+  )
+  return <span>{match ? icons[match] : "🏢"}</span>
 }
 
-function getCategoryGradient(cat: Category): string {
-  const g: Record<Category, string> = {
+function getCategoryGradient(cat: string): string {
+  const g: Record<string, string> = {
     Construction: "from-amber-500/10 to-orange-500/10",
     Hospitals: "from-emerald-500/10 to-teal-500/10",
     Healthcare: "from-emerald-500/10 to-teal-500/10",
@@ -42,11 +45,14 @@ function getCategoryGradient(cat: Category): string {
     "Professional Services": "from-indigo-500/10 to-blue-500/10",
     Automotive: "from-red-500/10 to-orange-500/10",
   }
-  return g[cat]
+  const match = Object.keys(g).find(
+    (k) => k.toLowerCase() === (cat || "").toLowerCase()
+  )
+  return match ? g[match] : "from-indigo-500/10 to-blue-500/10"
 }
 
-function getCategoryColor(cat: Category): string {
-  const c: Record<Category, string> = {
+function getCategoryColor(cat: string): string {
+  const c: Record<string, string> = {
     Construction:
       "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
     Hospitals:
@@ -73,7 +79,13 @@ function getCategoryColor(cat: Category): string {
       "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300",
     Automotive: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
   }
-  return c[cat]
+  const match = Object.keys(c).find(
+    (k) => k.toLowerCase() === (cat || "").toLowerCase()
+  )
+  return (
+    (match ? c[match] : null) ||
+    "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300"
+  )
 }
 
 function CompanyCard({
@@ -137,8 +149,8 @@ function CompanyCard({
                 d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
               />
             </svg>
-            {company.address.split(",")[1]?.trim() ||
-              company.address.split(",")[0]}
+            {(company.address || "Addis Ababa").split(",")[1]?.trim() ||
+              (company.address || "Addis Ababa").split(",")[0]}
           </span>
         </div>
         <h3 className="font-semibold text-[var(--text-primary)] text-[15px] leading-tight mb-1.5 truncate group-hover:text-[var(--brand)] transition-colors">

@@ -108,7 +108,7 @@ export async function fetchCompanies(
     }
   } catch (err) {
     console.warn("Could not fetch companies from backend:", err)
-    return { companies: [], total: 0, raw: [] }
+    throw err
   }
 }
 
@@ -216,6 +216,36 @@ export async function fetchCompanyById(
   }
 }
 
+export function normalizeCategoryName(raw?: string): Category {
+  if (!raw) return "Professional Services"
+  const clean = raw.trim().toLowerCase()
+  const map: Record<string, Category> = {
+    construction: "Construction",
+    hospital: "Hospitals",
+    hospitals: "Hospitals",
+    healthcare: "Healthcare",
+    hotel: "Hotels",
+    hotels: "Hotels",
+    hospitality: "Hospitality",
+    "guest house": "Guest Houses",
+    "guest houses": "Guest Houses",
+    clothing: "Clothing",
+    fashion: "Fashion",
+    "coffee shop": "Coffee Shops",
+    "coffee shops": "Coffee Shops",
+    "food & beverage": "Food & Beverage",
+    "food and beverage": "Food & Beverage",
+    furniture: "Furniture",
+    car: "Cars",
+    cars: "Cars",
+    automotive: "Automotive",
+    ministry: "Ministry",
+    church: "Ministry",
+    "professional services": "Professional Services",
+  }
+  return map[clean] || (raw.charAt(0).toUpperCase() + raw.slice(1) as Category)
+}
+
 export function mapApiResponseToCompany(c: CompanyApiResponse): Company {
   const rawLogo = resolveFileUrl(c.company_logo)
   const logo =
@@ -229,7 +259,7 @@ export function mapApiResponseToCompany(c: CompanyApiResponse): Company {
   return {
     id: c.id,
     name: c.company_name,
-    category: (c.business_category?.name as Category) || "Professional Services",
+    category: normalizeCategoryName(c.business_category?.name),
     logo,
     banner,
     rating: 5.0,

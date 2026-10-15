@@ -87,8 +87,12 @@ export function resolveAssetUrl(filePath?: string): string {
   ) {
     return filePath
   }
-  const base = API_BASE_URL.replace(/\/api\/v1\/?$/, "")
-  return `${base}${filePath.startsWith("/") ? "" : "/"}${filePath}`
+  const cleanPath = filePath.startsWith("/") ? filePath : `/${filePath}`
+  if (API_BASE_URL.startsWith("http://") || API_BASE_URL.startsWith("https://")) {
+    const base = API_BASE_URL.replace(/\/api\/v1\/?$/, "")
+    return `${base}${cleanPath}`
+  }
+  return `http://localhost:3001${cleanPath}`
 }
 
 export const resolveFileUrl = resolveAssetUrl
