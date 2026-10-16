@@ -10,6 +10,7 @@ import {
 import CompanyProfile, { CompanyCard } from "./components/CompanyProfile"
 import LoginPage from "./components/LoginPage"
 import SignUpPage from "./components/SignUpPage"
+import ForgotPasswordPage from "./components/ForgotPasswordPage"
 import ProtectedRoute from "./components/ProtectedRoute"
 import Navbar from "./components/Navbar"
 import HomePage from "./pages/HomePage"
@@ -1367,6 +1368,8 @@ export default function App() {
         {/* Authentication */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignUpPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ForgotPasswordPage />} />
 
         {/* Payment Verification & Receiver Gateway */}
         <Route

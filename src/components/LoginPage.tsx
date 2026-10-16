@@ -9,10 +9,12 @@ export default function LoginPage({
   onBack,
   onSwitch,
   onSuccess,
+  onForgotPassword,
 }: {
   onBack?: () => void
   onSwitch?: () => void
   onSuccess?: (role: UserRole) => void
+  onForgotPassword?: () => void
 } = {}) {
   const { user, login } = useAuth()
   const navigate = useNavigate()
@@ -45,6 +47,11 @@ export default function LoginPage({
   const handleSwitch = () => {
     if (onSwitch) onSwitch()
     else navigate("/signup")
+  }
+
+  const handleForgotPassword = () => {
+    if (onForgotPassword) onForgotPassword()
+    else navigate("/forgot-password", { state: { email: email.trim() } })
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -162,9 +169,18 @@ export default function LoginPage({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-                Password
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-sm font-medium text-[var(--text-secondary)]">
+                  Password
+                </label>
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  className="text-xs font-semibold text-[var(--brand)] hover:text-[var(--brand-light)] transition-colors cursor-pointer"
+                >
+                  Forgot password?
+                </button>
+              </div>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -250,6 +266,16 @@ export default function LoginPage({
                 "Sign In"
               )}
             </button>
+
+            <div className="text-center pt-1">
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                className="text-xs text-[var(--text-tertiary)] hover:text-[var(--brand)] transition-colors cursor-pointer"
+              >
+                Forgot your password?
+              </button>
+            </div>
           </form>
 
           <p className="text-sm text-center text-[var(--text-tertiary)] mt-6">
