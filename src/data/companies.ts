@@ -30,6 +30,7 @@ export interface Company {
   featured: boolean
   ownerName?: string
   missionStatement?: string
+  createdBy?: string
 }
 
 export const CATEGORIES: Category[] = [

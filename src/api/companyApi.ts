@@ -37,7 +37,7 @@ export interface CompanyApiResponse {
   business_category?: CategoryItem
   social_media?: { id?: string; platform: string; link: string }[]
   created_at?: string
-  services?: string[]
+  created_by?: string
 }
 
 export interface FetchCompaniesOptions {
@@ -51,6 +51,9 @@ export interface FetchCompaniesOptions {
   verification_status?: string
   sort_by?: "created_at" | "company_name" | "updated_at"
   sort_order?: "ASC" | "DESC"
+  user_id?: string
+  created_by?: string
+  user_email?: string
 }
 
 export interface PaginatedCompaniesResponse {
@@ -80,6 +83,9 @@ export async function fetchCompanies(
           verification_status: options.verification_status,
           sort_by: options.sort_by,
           sort_order: options.sort_order,
+          user_id: options.user_id || options.created_by,
+          created_by: options.created_by,
+          user_email: options.user_email,
         },
       }
     )
@@ -276,5 +282,51 @@ export function mapApiResponseToCompany(c: CompanyApiResponse): Company {
     reviews: [],
     featured: false,
     ownerName: c.owner_primary_contact,
+    createdBy: c.created_by,
   }
 }
+
+export async function fetchCompaniesByUserId(
+  userId: string,
+  _userEmail?: string
+): Promise<Company[]> {
+  if (!userId) return []
+  try {
+    const res = await fetchCompanies({
+      created_by: userId,
+      user_id: userId,
+      is_active: true,
+      limit: 10,
+    })
+    const validActive = (res.companies || []).filter(
+      (c) => c.createdBy === userId || (c as any).created_by === userId
+    )
+    if (validActive.length > 0) {
+      return validActive
+    }
+
+    // Secondary fallback: query without is_active in case verification is pending
+    const allForUser = await fetchCompanies({
+      created_by: userId,
+      user_id: userId,
+      limit: 10,
+    })
+    const validAll = (allForUser.companies || []).filter(
+      (c) => c.createdBy === userId || (c as any).created_by === userId
+    )
+    return validAll
+  } catch (err) {
+    console.warn(`Could not fetch companies for user ${userId}:`, err)
+  }
+  return []
+}
+
+export async function fetchCompanyByUserId(
+  userId: string,
+  userEmail?: string
+): Promise<Company | null> {
+  const list = await fetchCompaniesByUserId(userId, userEmail)
+  return list.length > 0 ? list[0] : null
+}
+
+

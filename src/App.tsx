@@ -23,8 +23,6 @@ import NotFoundPage from "./pages/NotFoundPage"
 import CompanyDashboard from "./components/CompanyDashboard"
 import AdminLayout from "./pages/admin/AdminLayout"
 import AdminOverview from "./components/admin/AdminOverview"
-import AdminApplications from "./components/admin/AdminApplications"
-import AdminApplicationDetailsPage from "./pages/admin/AdminApplicationDetailsPage"
 import AdminCompanies from "./components/admin/AdminCompanies"
 import AdminCompanyDetailsPage from "./pages/admin/AdminCompanyDetailsPage"
 import AdminUsers from "./components/admin/AdminUsers"
@@ -52,7 +50,7 @@ import { useAuth } from "./auth/AuthContext"
 import { type UserRole } from "./auth/auth"
 import {
   fetchCompanies,
-  fetchCategories,
+  fetchCompaniesByUserId,
   fetchEvents,
   fetchEventById,
   mapEventToUserEventData,
@@ -211,9 +209,7 @@ function PublicContentPage({
   const categories =
     page === "people"
       ? [...new Set(people.map((person) => person.professionalTitle).filter(Boolean))]
-      : page === "events"
-        ? [...new Set(events.map((event) => event.eventType).filter(Boolean))]
-        : [...new Set(articles.map((article) => article.topic).filter(Boolean))]
+      : []
 
   const query = search.trim().toLowerCase()
   const filteredPeople = people.filter(
@@ -226,19 +222,17 @@ function PublicContentPage({
   )
   const filteredArticles = articles.filter(
     (article) =>
-      (!query ||
-        `${article.title} ${article.author} ${article.topic} ${article.excerpt}`
-          .toLowerCase()
-          .includes(query)) &&
-      (category === "All" || article.topic === category),
+      !query ||
+      `${article.title} ${article.author} ${article.topic} ${article.excerpt}`
+        .toLowerCase()
+        .includes(query),
   )
   const filteredEvents = events.filter(
     (event) =>
-      (!query ||
-        `${event.title} ${event.eventType} ${event.location} ${event.description}`
-          .toLowerCase()
-          .includes(query)) &&
-      (category === "All" || event.eventType === category),
+      !query ||
+      `${event.title} ${event.eventType} ${event.location} ${event.description}`
+        .toLowerCase()
+        .includes(query),
   )
 
   const resultCount =
@@ -250,10 +244,10 @@ function PublicContentPage({
 
   const placeholder =
     page === "people"
-      ? "Search people by name, title, or city..."
+      ? "Search people by name, experience, or achievement..."
       : page === "events"
-        ? "Search events by title, type, or location..."
-        : `Search ${page} by title or topic...`
+        ? "Search events by title or location..."
+        : `Search ${page} by title or author...`
 
   return (
     <main className="min-h-screen bg-[var(--surface-alt)]">
@@ -298,18 +292,20 @@ function PublicContentPage({
               className="w-full bg-[var(--surface)] border border-[var(--border-default)] rounded-xl py-3 pl-11 pr-4 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
             />
           </div>
-          <select
-            value={category}
-            onChange={(event) => setCategory(event.target.value)}
-            className="md:w-64 bg-[var(--surface)] border border-[var(--border-default)] rounded-xl px-4 py-3 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
-          >
-            <option value="All">All categories</option>
-            {categories.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
+          {page === "people" && categories.length > 0 && (
+            <select
+              value={category}
+              onChange={(event) => setCategory(event.target.value)}
+              className="md:w-64 bg-[var(--surface)] border border-[var(--border-default)] rounded-xl px-4 py-3 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
+            >
+              <option value="All">All titles</option>
+              {categories.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         {loading ? (
@@ -654,9 +650,8 @@ function PublicPersonDetailLegacy({ item }: { item: UserProfileData }) {
   const location = [item.city, item.country].filter(Boolean).join(", ")
 
   return (
-    <div className="max-w-6xl mx-auto px-4 md:px-8 py-10 md:py-16">
-      <div className="grid lg:grid-cols-[300px_1fr] gap-8 items-start">
-        <aside className="bg-[var(--brand)] rounded-[2rem] p-7 text-white lg:sticky lg:top-24 shadow-xl shadow-[var(--brand)]/10">
+    <div className="grid lg:grid-cols-[300px_1fr] gap-8 items-start">
+      <aside className="bg-[var(--brand)] rounded-[2rem] p-7 text-white lg:sticky lg:top-24 shadow-xl shadow-[var(--brand)]/10">
           <div className="flex items-center gap-2 text-[var(--accent)] text-xs font-bold uppercase tracking-[0.16em] mb-6">
             <PublicIcon
               path="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
@@ -866,79 +861,38 @@ function PublicPersonDetailLegacy({ item }: { item: UserProfileData }) {
           </div>
         </section>
       </div>
-    </div>
   )
 }
 
 function PublicPersonDetail({
   item,
   onSelectCompany,
-  onSelectContent,
+  onSelectContent: _onSelectContent,
 }: {
   item: UserProfileData
   onSelectCompany: (company: Company, returnToProfile?: UserProfileData) => void
   onSelectContent: (selection: PublicSelection) => void
 }) {
-  const [activeTab, setActiveTab] =
-    useState<"profile" | "blogs" | "articles" | "events" | "companies">(
-      "profile",
-    )
+  const [activeTab, setActiveTab] = useState<"profile" | "company">("profile")
   const [companies, setCompanies] = useState<Company[]>([])
-  const [blogs, setBlogs] = useState<UserArticleData[]>([])
-  const [articles, setArticles] = useState<UserArticleData[]>([])
-  const [events, setEvents] = useState<UserEventData[]>([])
   const [tabLoading, setTabLoading] = useState(false)
-
-  const tabs = ["profile", "blogs", "articles", "events", "companies"] as const
 
   useEffect(() => {
     let active = true
     setTabLoading(true)
-    Promise.all([
-      fetchCompanies({ is_active: true, limit: 50 }).catch(() => ({ companies: [] })),
-      fetchBlogs().catch(() => []),
-      fetchArticles().catch(() => []),
-      fetchEvents().catch(() => []),
-    ])
-      .then(([compRes, bList, aList, eList]) => {
-        if (!active) return
-        const userName = item.fullName.toLowerCase()
-        const userSlug = item.digitalSlug.toLowerCase()
 
-        setCompanies(
-          (compRes.companies || []).filter(
-            (c) =>
-              c.ownerName?.toLowerCase().includes(userName) ||
-              c.id.toLowerCase() === userSlug,
-          ),
-        )
-        setBlogs(
-          (bList || [])
-            .filter(
-              (b) =>
-                b.author_id === item.digitalSlug ||
-                b.author?.full_name?.toLowerCase().includes(userName),
-            )
-            .map(mapBlogToUserArticleData),
-        )
-        setArticles(
-          (aList || [])
-            .filter(
-              (a) =>
-                a.author_id === item.digitalSlug ||
-                a.author?.full_name?.toLowerCase().includes(userName),
-            )
-            .map(mapArticleToUserArticleData),
-        )
-        setEvents(
-          (eList || [])
-            .filter(
-              (e) =>
-                e.created_by?.toLowerCase().includes(userSlug) ||
-                e.created_by?.toLowerCase().includes(userName),
-            )
-            .map(mapEventToUserEventData),
-        )
+    fetchCompaniesByUserId(item.id || "", item.email)
+      .then((comps) => {
+        if (!active) return
+        setCompanies(comps)
+        if (comps.length === 0 && activeTab === "company") {
+          setActiveTab("profile")
+        }
+      })
+      .catch((err) => {
+        if (!active) return
+        console.warn("Could not fetch associated company:", err)
+        setCompanies([])
       })
       .finally(() => {
         if (active) setTabLoading(false)
@@ -947,49 +901,30 @@ function PublicPersonDetail({
     return () => {
       active = false
     }
-  }, [item])
+  }, [item.id, item.email])
 
-  const content =
-    activeTab === "blogs"
-      ? blogs
-      : activeTab === "articles"
-        ? articles
-        : activeTab === "events"
-          ? events
-          : []
-
-  function emptyState(label: string) {
-    return (
-      <div className="bg-white rounded-2xl border border-[var(--border-light)] p-12 text-center shadow-sm">
-        <div className="mx-auto mb-4 grid place-items-center w-12 h-12 rounded-2xl bg-[var(--accent-light)] text-[var(--accent-dark)]">
-          <PublicIcon path="M12 6v12m6-6H6" />
-        </div>
-        <h3 className="font-serif text-2xl text-[var(--text-primary)] mb-2">
-          No content available
-        </h3>
-        <p className="text-sm text-[var(--text-tertiary)]">
-          No {label} are currently available for this member.
-        </p>
-      </div>
-    )
-  }
+  const hasCompany = companies.length > 0
+  const tabs = hasCompany
+    ? (["profile", "company"] as const)
+    : (["profile"] as const)
 
   function renderTab() {
-    if (activeTab === "profile") return <PublicPersonDetailLegacy item={item} />
+    if (activeTab === "profile" || !hasCompany) {
+      return <PublicPersonDetailLegacy item={item} />
+    }
 
     if (tabLoading) {
       return (
         <div className="text-center py-16 bg-white rounded-2xl border border-[var(--border-light)] p-8">
           <div className="w-8 h-8 border-3 border-[var(--brand)]/30 border-t-[var(--brand)] rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-xs text-[var(--text-tertiary)]">Loading {activeTab}...</p>
+          <p className="text-xs text-[var(--text-tertiary)]">Loading company...</p>
         </div>
       )
     }
 
-    if (activeTab === "companies") {
-      if (!companies.length) return emptyState("companies")
-      return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-stagger">
+    return (
+      <div className="space-y-6 animate-stagger">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {companies.map((c) => (
             <CompanyCard
               key={c.id}
@@ -998,101 +933,29 @@ function PublicPersonDetail({
             />
           ))}
         </div>
-      )
-    }
-
-    if (!content.length) return emptyState(activeTab)
-
-    if (activeTab === "articles" || activeTab === "blogs") {
-      return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-stagger">
-          {content.map((post) => (
-            <article
-              key={post.id}
-              onClick={() =>
-                onSelectContent({
-                  type: activeTab === "articles" ? "article" : "blog",
-                  item: post,
-                  returnToProfile: item,
-                })
-              }
-              className="card-hover bg-white rounded-2xl overflow-hidden cursor-pointer"
-            >
-              <img
-                src={post.featuredImage}
-                alt={post.title}
-                className="w-full h-44 object-cover"
-              />
-              <div className="p-5">
-                <p className="text-xs uppercase tracking-wide text-[var(--accent-dark)] mb-2">
-                  {post.topic}
-                </p>
-                <h3 className="font-serif text-xl text-[var(--text-primary)] mb-2">
-                  {post.title}
-                </h3>
-                <p className="text-sm text-[var(--text-secondary)] line-clamp-3">
-                  {post.excerpt}
-                </p>
-              </div>
-            </article>
-          ))}
-        </div>
-      )
-    }
-
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-stagger">
-        {content.map((event) => (
-          <article
-            key={event.id}
-            onClick={() =>
-              onSelectContent({
-                type: "event",
-                item: event,
-                returnToProfile: item,
-              })
-            }
-            className="card-hover bg-white rounded-2xl overflow-hidden cursor-pointer"
-          >
-            <img
-              src={event.eventImage}
-              alt={event.title}
-              className="w-full h-44 object-cover"
-            />
-            <div className="p-5">
-              <p className="text-xs uppercase tracking-wide text-[var(--accent-dark)] mb-2">
-                {event.eventType}
-              </p>
-              <h3 className="font-serif text-xl text-[var(--text-primary)] mb-2">
-                {event.title}
-              </h3>
-              <p className="text-sm text-[var(--text-secondary)] line-clamp-3">
-                {event.description}
-              </p>
-            </div>
-          </article>
-        ))}
       </div>
     )
   }
 
   return (
     <div className="max-w-6xl mx-auto px-4 md:px-8 py-10 md:py-16">
-      <div className="flex flex-wrap gap-2 bg-white rounded-2xl border border-[var(--border-light)] p-2 mb-6 shadow-sm">
-        {tabs.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`flex-1 min-w-[92px] px-4 py-2.5 rounded-xl text-sm font-semibold capitalize transition-colors cursor-pointer ${
-              activeTab === tab
-                ? "bg-[var(--brand)] text-white shadow-sm"
-                : "text-[var(--text-secondary)] hover:bg-[var(--surface-alt)]"
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
+      {hasCompany && (
+        <div className="flex flex-wrap gap-2 bg-white rounded-2xl border border-[var(--border-light)] p-2 mb-6 shadow-sm">
+          {tabs.map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`flex-1 min-w-[92px] px-4 py-2.5 rounded-xl text-sm font-semibold capitalize transition-colors cursor-pointer ${
+                activeTab === tab
+                  ? "bg-[var(--brand)] text-white shadow-sm"
+                  : "text-[var(--text-secondary)] hover:bg-[var(--surface-alt)]"
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+      )}
       {renderTab()}
     </div>
   )
@@ -1329,7 +1192,25 @@ function PublicPageWrapper({ page }: { page: PublicPage }) {
           if (user) {
             setSelection({ type: "person", item: mapUserToProfileData(user) })
           } else {
-            setError(`Could not find community member with ID "${id}".`)
+            return fetchUsersApi().then((allUsers) => {
+              if (!active) return
+              const cleanId = id.toLowerCase().replace(/^@/, "")
+              const found = (allUsers || []).find(
+                (u) =>
+                  u.id === id ||
+                  (u.fullName || u.full_name || "")
+                    .toLowerCase()
+                    .replace(/\s+/g, "_") === cleanId ||
+                  (u.fullName || u.full_name || "")
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, "-") === cleanId
+              )
+              if (found) {
+                setSelection({ type: "person", item: mapUserToProfileData(found) })
+              } else {
+                setError(`Could not find community member with ID "${id}".`)
+              }
+            })
           }
         })
         .catch((err) => {
@@ -1411,7 +1292,8 @@ function PublicPageWrapper({ page }: { page: PublicPage }) {
   const handleSelectContent = (newSelection: PublicSelection) => {
     const targetId =
       newSelection.type === "person"
-        ? newSelection.item.digitalSlug ||
+        ? newSelection.item.id ||
+          newSelection.item.digitalSlug ||
           newSelection.item.fullName.toLowerCase().replace(/[^a-z0-9]+/g, "-")
         : newSelection.item.id
     navigate(`/${page}/${targetId}`)
@@ -1722,10 +1604,13 @@ export default function App() {
         >
           <Route index element={<Navigate to="/admin/overview" replace />} />
           <Route path="overview" element={<AdminOverview />} />
-          <Route path="applications" element={<AdminApplications />} />
           <Route
-            path="applications/:id"
-            element={<AdminApplicationDetailsPage />}
+            path="applications"
+            element={<Navigate to="/admin/overview" replace />}
+          />
+          <Route
+            path="applications/*"
+            element={<Navigate to="/admin/overview" replace />}
           />
           <Route path="companies" element={<AdminCompanies />} />
           <Route

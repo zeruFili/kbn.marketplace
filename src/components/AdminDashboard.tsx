@@ -3,20 +3,19 @@ import { useAuth } from "../auth/AuthContext"
 import UserAvatar from "./common/UserAvatar"
 const knbLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
 import AdminCompanies from "./admin/AdminCompanies"
-import AdminApplications from "./admin/AdminApplications"
 import AdminUsers from "./admin/AdminUsers"
 import AdminCategories from "./admin/AdminCategories"
 import AdminOverview from "./admin/AdminOverview"
 import AdminContent from "./admin/AdminContent"
 import AdminPayments from "./admin/AdminPayments"
 
-type Section = "overview" | "applications" | "companies" | "users" | "payments" | "categories" | "events" | "articles" | "blogs"
+type Section = "overview" | "companies" | "users" | "payments" | "categories" | "events" | "articles" | "blogs"
 
-const NAV_ITEMS: { id: Section label: string icon: string }[] = [
+const NAV_ITEMS: { id: Section; label: string; icon: string }[] = [
   {
-    id: "applications",
-    label: "Company Applications",
-    icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+    id: "overview",
+    label: "Overview",
+    icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
   },
   {
     id: "companies",
@@ -57,7 +56,7 @@ const NAV_ITEMS: { id: Section label: string icon: string }[] = [
 
 export default function AdminDashboard({ onBack }: { onBack: () => void }) {
   const { user, logout } = useAuth()
-  const [active, setActive] = useState<Section>("applications")
+  const [active, setActive] = useState<Section>("overview")
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
 
@@ -74,8 +73,6 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
     switch (active) {
       case "overview":
         return <AdminOverview />
-      case "applications":
-        return <AdminApplications />
       case "companies":
         return <AdminCompanies />
       case "users":

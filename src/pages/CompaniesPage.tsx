@@ -4,10 +4,8 @@ import Navbar from "../components/Navbar"
 import { CompanyCard } from "../components/CompanyProfile"
 import {
   fetchCompanies,
-  fetchCategories,
-  type CategoryItem,
 } from "../api/companyApi"
-import type { Company, Category } from "../data/companies"
+import type { Company } from "../data/companies"
 
 export default function CompaniesPage({
   title = "All Members",
@@ -19,11 +17,9 @@ export default function CompaniesPage({
   onSelectCompany?: (c: Company) => void
 } = {}) {
   const navigate = useNavigate()
-  const [dirCategory, setDirCategory] = useState<string | null>(null)
   const [dirSearch, setDirSearch] = useState("")
   const [dirSort, setDirSort] = useState<"rating" | "reviews" | "name">("rating")
   const [allCompanies, setAllCompanies] = useState<Company[]>([])
-  const [categories, setCategories] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -31,20 +27,8 @@ export default function CompaniesPage({
     setLoading(true)
     setError(null)
     try {
-      const [compRes, catRes] = await Promise.all([
-        fetchCompanies({ limit: 100, is_active: true }),
-        fetchCategories(),
-      ])
+      const compRes = await fetchCompanies({ limit: 100, is_active: true })
       setAllCompanies(compRes.companies)
-
-      if (catRes && catRes.length > 0) {
-        setCategories(catRes.map((c: CategoryItem) => c.name))
-      } else {
-        const uniqueCats = Array.from(
-          new Set(compRes.companies.map((c) => c.category))
-        ).filter(Boolean) as string[]
-        setCategories(uniqueCats)
-      }
     } catch (err: unknown) {
       setError(
         err instanceof Error ? err.message : "Failed to load directory companies."
@@ -59,17 +43,14 @@ export default function CompaniesPage({
   }, [loadData])
 
   const dirFiltered = useMemo(() => {
-    let result = dirCategory
-      ? allCompanies.filter((c) => c.category === dirCategory)
-      : allCompanies
+    let result = allCompanies
     if (dirSearch) {
       const q = dirSearch.toLowerCase()
       result = result.filter(
         (c) =>
           c.name.toLowerCase().includes(q) ||
           c.description.toLowerCase().includes(q) ||
-          c.tags.some((t) => t.toLowerCase().includes(q)) ||
-          c.category.toLowerCase().includes(q)
+          c.tags.some((t) => t.toLowerCase().includes(q))
       )
     }
     if (dirSort === "rating") result.sort((a, b) => b.rating - a.rating)
@@ -77,7 +58,7 @@ export default function CompaniesPage({
       result.sort((a, b) => b.reviewCount - a.reviewCount)
     else result.sort((a, b) => a.name.localeCompare(b.name))
     return result
-  }, [allCompanies, dirCategory, dirSearch, dirSort])
+  }, [allCompanies, dirSearch, dirSort])
 
   const handleBack = () => {
     if (onBack) onBack()
@@ -168,33 +149,6 @@ export default function CompaniesPage({
           </div>
         </div>
 
-        {categories.length > 0 && (
-          <div className="mb-6 flex overflow-x-auto gap-2 pb-2 hide-scrollbar">
-            <button
-              onClick={() => setDirCategory(null)}
-              className={`flex-shrink-0 text-xs font-medium px-4 py-2 rounded-xl border transition-all cursor-pointer ${
-                !dirCategory
-                  ? "bg-[var(--brand)] text-white border-[var(--brand)]"
-                  : "text-[var(--text-secondary)] border-[var(--border-default)] bg-[var(--surface)] hover:border-[var(--text-primary)]"
-              }`}
-            >
-              All
-            </button>
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setDirCategory(cat)}
-                className={`flex-shrink-0 text-xs font-medium px-4 py-2 rounded-xl border transition-all cursor-pointer ${
-                  dirCategory === cat
-                    ? "bg-[var(--brand)] text-white border-[var(--brand)]"
-                    : "text-[var(--text-secondary)] border-[var(--border-default)] bg-[var(--surface)] hover:border-[var(--text-primary)]"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-        )}
 
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-pulse">

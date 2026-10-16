@@ -186,12 +186,12 @@ export default function UserLayout() {
               </h1>
             </div>
           </div>
-          <button
+          {/* <button
             onClick={() => navigate("/companies/new")}
             className="hidden sm:inline-flex items-center gap-2 text-xs font-semibold text-[var(--brand-dark)] bg-[var(--accent)] hover:brightness-105 px-4 py-2.5 rounded-xl shadow-sm transition-all cursor-pointer"
           >
             + Register Business
-          </button>
+          </button> */}
         </header>
 
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-8">

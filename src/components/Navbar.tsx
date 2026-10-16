@@ -367,7 +367,7 @@ export default function Navbar({
                   </button>
                 )
               })}
-              {canShowRegisterBusiness && (
+              {/* {canShowRegisterBusiness && (
                 <button
                   onClick={() => {
                     handleCreateBusiness()
@@ -377,7 +377,7 @@ export default function Navbar({
                 >
                   + Register Business
                 </button>
-              )}
+              )} */}
             </>
           )}
 

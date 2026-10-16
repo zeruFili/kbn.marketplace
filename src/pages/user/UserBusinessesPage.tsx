@@ -471,14 +471,14 @@ function EmptyState({
       <p className="text-sm text-[var(--text-tertiary)] mb-5 max-w-md mx-auto">
         {description}
       </p>
-      {onAdd && (
+      {/* {onAdd && (
         <button
           onClick={onAdd}
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--brand)] text-white text-sm font-semibold hover:bg-[var(--brand-light)] transition-colors cursor-pointer"
         >
           + Register Business
         </button>
-      )}
+      )} */}
     </div>
   )
 }
