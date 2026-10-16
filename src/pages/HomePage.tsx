@@ -434,8 +434,8 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="bg-[var(--brand)] text-white">
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-12 sm:py-16">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8 sm:gap-10">
-            <div className="sm:col-span-2 lg:col-span-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10">
+            <div className="sm:col-span-2 lg:col-span-2 pr-4 sm:pr-8 lg:pr-12">
               <div className="flex items-center gap-2.5 mb-4">
                 <img
                   src={knbLogo}
@@ -446,13 +446,13 @@ export default function HomePage() {
                   Kingdom Builders Network
                 </span>
               </div>
-              <p className="text-sm text-[#94A3B8] leading-relaxed mb-6 max-w-sm">
+              <p className="text-sm text-[#94A3B8] leading-relaxed mb-6 max-w-md">
                 A registered ministry under the Ethiopian Council of Gospel
                 Believers Churches and in the United States — connecting
                 Christian entrepreneurs and professionals across borders.
               </p>
             </div>
-            <div className="mt-8 sm:mt-0">
+            <div className="sm:col-span-1 lg:col-span-1 pr-4 sm:pr-6 lg:pr-8">
               <h4 className="font-semibold text-white text-sm mb-4">
                 Navigation
               </h4>
@@ -508,33 +508,7 @@ export default function HomePage() {
                 )}
               </div>
             </div>
-            <div>
-              <h4 className="font-semibold text-white text-sm mb-4">
-                Resources
-              </h4>
-              <div className="space-y-2.5">
-                {[
-                  "Leadership Academy",
-                  "KBN App & Podcast",
-                  "Prayer Requests",
-                  "KBN Journal",
-                  "FAQ",
-                ].map((link) => (
-                  <button
-                    key={link}
-                    onClick={() => {
-                      if (link === "KBN Journal") navigate("/blogs")
-                      else navigate("/events")
-                      window.scrollTo(0, 0)
-                    }}
-                    className="block text-sm text-[#94A3B8] hover:text-white transition-colors cursor-pointer"
-                  >
-                    {link}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
+            <div className="sm:col-span-1 lg:col-span-1 pr-4 sm:pr-6">
               <h4 className="font-semibold text-white text-sm mb-4">Contact</h4>
               <div className="space-y-2.5 text-sm text-[#94A3B8]">
                 <p>info@kbn.org</p>

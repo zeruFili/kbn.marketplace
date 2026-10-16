@@ -1,6 +1,7 @@
 import React from "react"
 import ReactDOM from "react-dom/client"
-import { AuthProvider } from "./auth/AuthContext"
+import { AuthProvider } from "./auth/AuthProvider"
+import ErrorBoundary from "./components/ErrorBoundary"
 import App from "./App"
 import "./index.css"
 const kbnLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg?v=2`
@@ -15,8 +16,10 @@ document.head.appendChild(favicon)
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <AuthProvider>
-      <App />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </ErrorBoundary>
   </React.StrictMode>,
 )

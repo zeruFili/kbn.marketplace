@@ -15,7 +15,7 @@ export default function AdminUsers() {
   const [selected, setSelected] = useState<AdminUser | null>(null)
   const [search, setSearch] = useState("")
   const [roleFilter, setRoleFilter] =
-    useState<"all" | "admin" | "user" | "company">("all")
+    useState<"all" | "user" | "company">("all")
   const [statusFilter, setStatusFilter] =
     useState<"all" | "active" | "deactivated">("all")
 
@@ -114,7 +114,7 @@ export default function AdminUsers() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-1 bg-[var(--surface)] border border-[var(--border-light)] rounded-xl p-1 w-fit">
-            {(["all", "admin", "user", "company"] as const).map((f) => (
+            {(["all", "user", "company"] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => setRoleFilter(f)}

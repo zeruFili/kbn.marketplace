@@ -5,9 +5,19 @@ import {
   ApiError,
   resolveAssetUrl,
 } from "../api/baseApi"
-import { loginApi, registerApi, getMeApi } from "../api/authApi"
+import { loginApi, registerApi, getMeApi, sendOtpApi } from "../api/authApi"
 
 export type UserRole = "admin" | "user" | "company" | "church" | "ministry"
+export type UserStatus = "active" | "pending" | "inactive" | "suspended"
+
+export interface JwtTokenPayload {
+  sub: string
+  email: string
+  role: UserRole
+  status: UserStatus
+  iat?: number
+  exp?: number
+}
 
 export interface User {
   id: string
@@ -16,21 +26,58 @@ export interface User {
   avatar: string
   profileImage?: string | null
   role: UserRole
-  status?: string
+  status: UserStatus
   business?: string
   companyId?: string
+  phone?: string
 }
 
 export const getStoredToken = getAuthToken
 export const saveToken = setAuthToken
 export const clearToken = removeAuthToken
 
+/**
+ * Parses and decodes payload from a standard JWT token string.
+ */
+export function parseJwt(token: string): JwtTokenPayload | null {
+  try {
+    const parts = token.split(".")
+    if (parts.length !== 3) return null
+    const base64Url = parts[1]
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/")
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    )
+    return JSON.parse(jsonPayload)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Validates token signature structure and expiration time.
+ */
+export function isTokenValid(token: string | null): boolean {
+  if (!token) return false
+  const payload = parseJwt(token)
+  if (!payload || !payload.sub || !payload.exp) return false
+  const now = Math.floor(Date.now() / 1000)
+  return payload.exp > now
+}
+
 export function getStoredSession(): User | null {
   if (typeof localStorage === "undefined") return null
   const s = localStorage.getItem("kbn_session")
   if (!s) return null
   try {
-    return JSON.parse(s)
+    const user = JSON.parse(s) as User
+    if (user && user.avatar && user.avatar.includes("pravatar.cc")) {
+      user.avatar = user.profileImage || ""
+    }
+    return user
   } catch {
     return null
   }
@@ -54,7 +101,7 @@ export function clearSession() {
  */
 export async function getMe(): Promise<User | null> {
   const token = getStoredToken()
-  if (!token) {
+  if (!token || !isTokenValid(token)) {
     clearSession()
     return null
   }
@@ -77,11 +124,10 @@ export async function getMe(): Promise<User | null> {
           (safeUser.fullName as string) ||
           safeUser.email?.split("@")[0] ||
           "User",
-        avatar:
-          resolvedProfileImage || `https://i.pravatar.cc/96?u=${safeUser.id}`,
+        avatar: resolvedProfileImage || "",
         profileImage: resolvedProfileImage,
         role: (safeUser.role as UserRole) || "user",
-        status: (safeUser.status as string) || "active",
+        status: (String(safeUser.status || "pending").toLowerCase() as UserStatus),
       }
 
       saveSession(user)
@@ -90,7 +136,7 @@ export async function getMe(): Promise<User | null> {
 
     clearSession()
     return null
-  } catch (err) {
+  } catch {
     clearSession()
     return null
   }
@@ -105,6 +151,10 @@ export async function login(email: string, password: string): Promise<User> {
       const safeUser = apiData.user
       const token = apiData.accessToken
 
+      if (token) {
+        saveToken(token)
+      }
+
       const rawImg = (safeUser.profileImage || safeUser.profile_image) as
         | string
         | null
@@ -118,16 +168,12 @@ export async function login(email: string, password: string): Promise<User> {
           (safeUser.full_name as string) ||
           (safeUser.fullName as string) ||
           email.split("@")[0],
-        avatar:
-          resolvedProfileImage || `https://i.pravatar.cc/96?u=${safeUser.id}`,
+        avatar: resolvedProfileImage || "",
         profileImage: resolvedProfileImage,
         role: (safeUser.role as UserRole) || "user",
-        status: (safeUser.status as string) || "active",
+        status: (String(safeUser.status || "pending").toLowerCase() as UserStatus),
       }
 
-      if (token) {
-        saveToken(token)
-      }
       saveSession(user)
       return user
     }
@@ -145,14 +191,28 @@ export async function login(email: string, password: string): Promise<User> {
   }
 }
 
-export async function signUp(data: {
+export interface SignUpData {
   name: string
   email: string
   password: string
+  phone?: string
   business?: string
+  role?: UserRole
   profileImage?: File | string | null
-}): Promise<User> {
-  const role: UserRole = data.business ? "company" : "user"
+  otp?: string
+}
+
+export interface SignUpResult {
+  requiresOtp?: boolean
+  identifier?: string
+  expiresAt?: string
+  message?: string
+  user?: User
+  accessToken?: string
+}
+
+export async function signUp(data: SignUpData): Promise<SignUpResult> {
+  const role: UserRole = data.role || (data.business ? "company" : "user")
 
   try {
     const res = await registerApi({
@@ -161,10 +221,12 @@ export async function signUp(data: {
       password: data.password,
       role,
       business: data.business,
+      phone: data.phone,
       profileImage: data.profileImage,
+      otp: data.otp,
     })
 
-    if (!res.success || !res.data) {
+    if (!res.success) {
       let message = res.message || "Sign up failed."
       if (Array.isArray(res.errors) && res.errors.length > 0) {
         message = res.errors.join(". ")
@@ -172,9 +234,25 @@ export async function signUp(data: {
       throw new Error(message)
     }
 
-    const apiData = res.data
-    const safeUser = apiData.user
-    const token = apiData.accessToken
+    // Step 1: If backend requires OTP verification before user creation
+    if (res.requiresOtp || (res.data && (res.data as any).requiresOtp)) {
+      const dataObj = (res.data || {}) as any
+      return {
+        requiresOtp: true,
+        identifier: dataObj.identifier || (res as any).identifier || data.phone || "",
+        expiresAt: dataObj.expiresAt || (res as any).expiresAt || "",
+        message: res.message || "Verification code sent to your phone via SMS.",
+      }
+    }
+
+    // Step 3: Registration complete with OTP
+    const apiData = (res.data || {}) as any
+    const safeUser = apiData.user || apiData
+    const token = res.accessToken || apiData.accessToken
+
+    if (token) {
+      saveToken(token)
+    }
 
     const rawImg = (safeUser.profileImage || safeUser.profile_image) as
       | string
@@ -189,22 +267,50 @@ export async function signUp(data: {
         (safeUser.full_name as string) ||
         (safeUser.fullName as string) ||
         data.name.trim(),
-      avatar:
-        resolvedProfileImage || `https://i.pravatar.cc/96?u=${safeUser.id}`,
+      avatar: resolvedProfileImage || "",
       profileImage: resolvedProfileImage,
       role: (safeUser.role as UserRole) || role,
-      status: (safeUser.status as string) || "active",
+      status: (String(safeUser.status || "pending").toLowerCase() as UserStatus),
       business: data.business?.trim() || undefined,
+      phone: safeUser.phone || data.phone?.trim() || undefined,
     }
 
-    if (token) {
-      saveToken(token)
-    }
     saveSession(user)
-    return user
+    return {
+      requiresOtp: false,
+      user,
+      accessToken: token,
+      message: res.message || "User created successfully",
+    }
   } catch (err: unknown) {
     if (err instanceof ApiError) {
       let message = err.message || "Sign up failed."
+      if (Array.isArray(err.errors) && err.errors.length > 0) {
+        message = err.errors.join(". ")
+      }
+      throw new Error(message)
+    }
+    throw err
+  }
+}
+
+export async function resendRegistrationOtp(
+  identifier: string
+): Promise<{ success: boolean; message: string; identifier?: string; expiresAt?: string }> {
+  try {
+    const res = await sendOtpApi({
+      identifier: identifier.trim(),
+      purpose: "REGISTER",
+    })
+    return {
+      success: true,
+      message: res.message || "Verification code sent to your phone via SMS.",
+      identifier: res.data?.identifier,
+      expiresAt: res.data?.expiresAt,
+    }
+  } catch (err: unknown) {
+    if (err instanceof ApiError) {
+      let message = err.message || "Failed to resend verification code."
       if (Array.isArray(err.errors) && err.errors.length > 0) {
         message = err.errors.join(". ")
       }

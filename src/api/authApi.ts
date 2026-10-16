@@ -40,6 +40,17 @@ export interface RegisterPayload {
   phone?: string
   website?: string
   profileImage?: File | string | null
+  otp?: string
+}
+
+export interface SendOtpPayload {
+  identifier: string
+  purpose: "REGISTER" | "RESET_PASSWORD"
+}
+
+export interface SendOtpResponseData {
+  identifier: string
+  expiresAt: string
 }
 
 /**
@@ -55,13 +66,25 @@ export async function loginApi(
 }
 
 /**
+ * Send or resend OTP via backend /auth/otp/send
+ */
+export async function sendOtpApi(
+  payload: SendOtpPayload
+): Promise<ApiResponse<SendOtpResponseData>> {
+  return baseApi.post<SendOtpResponseData>("/auth/otp/send", {
+    identifier: payload.identifier.trim(),
+    purpose: payload.purpose,
+  })
+}
+
+/**
  * Register a new user via backend /auth/register
  */
 export async function registerApi(
   payload: RegisterPayload | FormData
-): Promise<ApiResponse<AuthResultData>> {
+): Promise<ApiResponse<any>> {
   if (payload instanceof FormData) {
-    return baseApi.post<AuthResultData>("/auth/register", payload)
+    return baseApi.post<any>("/auth/register", payload)
   }
 
   if (payload.profileImage instanceof File) {
@@ -73,11 +96,12 @@ export async function registerApi(
     if (payload.business?.trim()) formData.append("business", payload.business.trim())
     if (payload.phone?.trim()) formData.append("phone", payload.phone.trim())
     if (payload.website?.trim()) formData.append("website", payload.website.trim())
+    if (payload.otp?.trim()) formData.append("otp", payload.otp.trim())
     formData.append("profileImage", payload.profileImage)
-    return baseApi.post<AuthResultData>("/auth/register", formData)
+    return baseApi.post<any>("/auth/register", formData)
   }
 
-  return baseApi.post<AuthResultData>("/auth/register", {
+  return baseApi.post<any>("/auth/register", {
     full_name: payload.name.trim(),
     email: payload.email.trim(),
     password: payload.password,
@@ -86,6 +110,7 @@ export async function registerApi(
     phone: payload.phone?.trim() || undefined,
     website: payload.website?.trim() || undefined,
     profileImage: payload.profileImage || undefined,
+    otp: payload.otp?.trim() || undefined,
   })
 }
 

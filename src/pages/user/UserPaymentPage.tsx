@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom"
+
 export default function UserPaymentPage() {
   const today = new Date()
   const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1)
@@ -34,6 +36,15 @@ export default function UserPaymentPage() {
           <p className="text-sm text-white/75">
             Your next membership payment is due on {formatDate(nextPaymentDate)}.
           </p>
+          <div className="mt-4 pt-2">
+            <Link
+              to="/payment/receiver"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-white text-[var(--brand)] hover:bg-white/90 transition-colors shadow-sm"
+            >
+              <span>Verify Payment Receipt</span>
+              <span aria-hidden="true">→</span>
+            </Link>
+          </div>
         </div>
         <div className="absolute right-8 top-1/2 -translate-y-1/2 w-28 h-28 rounded-full border border-white/10 flex items-center justify-center">
           <svg

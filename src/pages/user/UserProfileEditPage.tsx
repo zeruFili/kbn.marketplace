@@ -129,7 +129,7 @@ export default function UserProfileEditPage() {
 
       updateAuthUser({
         name: form.fullName,
-        avatar: finalAvatarUrl || `https://i.pravatar.cc/96?u=${user.id}`,
+        avatar: finalAvatarUrl || "",
         profileImage: finalAvatarUrl || null,
       })
 

@@ -361,7 +361,7 @@ const defaultData: AdminData = {
       id: "admin1",
       name: "Admin KBN",
       email: "admin@kbn.org",
-      avatar: "https://i.pravatar.cc/96?img=68",
+      avatar: "",
       role: "admin",
       status: "active",
       registeredAt: "2024-01-01T00:00:00Z",
@@ -370,7 +370,7 @@ const defaultData: AdminData = {
       id: "regular1",
       name: "Abel Tesfaye",
       email: "abel@example.com",
-      avatar: "https://i.pravatar.cc/96?img=3",
+      avatar: "",
       role: "user",
       status: "active",
       registeredAt: "2024-03-12T08:30:00Z",
@@ -379,7 +379,7 @@ const defaultData: AdminData = {
       id: "regular2",
       name: "Tigist Lemma",
       email: "tigist@example.com",
-      avatar: "https://i.pravatar.cc/96?img=9",
+      avatar: "",
       role: "user",
       status: "active",
       registeredAt: "2024-04-05T10:15:00Z",
@@ -388,7 +388,7 @@ const defaultData: AdminData = {
       id: "u1",
       name: "Henok Kebede",
       email: "henok@kidusbuilders.com",
-      avatar: "https://i.pravatar.cc/96?img=11",
+      avatar: "",
       role: "company",
       business: "Kidus Builders Group",
       status: "active",
@@ -398,7 +398,7 @@ const defaultData: AdminData = {
       id: "u2",
       name: "Meron Tadesse",
       email: "meron@tsionwellness.org",
-      avatar: "https://i.pravatar.cc/96?img=47",
+      avatar: "",
       role: "company",
       business: "Tsion Wellness Center",
       status: "active",
@@ -408,7 +408,7 @@ const defaultData: AdminData = {
       id: "u3",
       name: "Dawit Alemu",
       email: "dawit@betesharetreat.org",
-      avatar: "https://i.pravatar.cc/96?img=8",
+      avatar: "",
       role: "company",
       business: "Betesha Retreat Center",
       status: "active",
@@ -418,7 +418,7 @@ const defaultData: AdminData = {
       id: "u4",
       name: "Bethlehem Haile",
       email: "bethlehem@bereketapparel.co",
-      avatar: "https://i.pravatar.cc/96?img=5",
+      avatar: "",
       role: "company",
       business: "Bereket Apparel",
       status: "active",
@@ -428,7 +428,7 @@ const defaultData: AdminData = {
       id: "u5",
       name: "Yohannes Assefa",
       email: "yohannes@stewardshipwealth.org",
-      avatar: "https://i.pravatar.cc/96?img=6",
+      avatar: "",
       role: "company",
       business: "Stewardship Wealth Management",
       status: "deactivated",
@@ -440,7 +440,7 @@ const defaultData: AdminData = {
       id: "reg3",
       name: "Fikir Tsegaye",
       email: "fikir@example.com",
-      avatar: "https://i.pravatar.cc/96?img=12",
+      avatar: "",
       role: "user",
       status: "deactivated",
       deactivatedAt: "2025-05-15T14:00:00Z",
@@ -451,7 +451,7 @@ const defaultData: AdminData = {
       id: "reg4",
       name: "Medhanit Abebe",
       email: "medhanit@example.com",
-      avatar: "https://i.pravatar.cc/96?img=16",
+      avatar: "",
       role: "user",
       status: "active",
       registeredAt: "2024-07-10T13:00:00Z",
@@ -460,7 +460,7 @@ const defaultData: AdminData = {
       id: "reg5",
       name: "Natnael Berhanu",
       email: "natnael@example.com",
-      avatar: "https://i.pravatar.cc/96?img=22",
+      avatar: "",
       role: "user",
       status: "active",
       registeredAt: "2024-09-01T11:00:00Z",
@@ -633,7 +633,15 @@ function getData(): AdminData {
   const stored = localStorage.getItem(STORAGE_KEY)
   if (stored) {
     try {
-      return JSON.parse(stored)
+      const parsed = JSON.parse(stored) as AdminData
+      if (Array.isArray(parsed?.adminUsers)) {
+        parsed.adminUsers.forEach((u) => {
+          if (u.avatar && u.avatar.includes("pravatar.cc")) {
+            u.avatar = ""
+          }
+        })
+      }
+      return parsed
     } catch {
       /* fall through */
     }
@@ -756,7 +764,7 @@ export function updateCompanyCategories(id: string, categories: string[]) {
 }
 
 export function getAdminUsers(): AdminUser[] {
-  return getData().adminUsers
+  return getData().adminUsers.filter((u) => u.role !== "admin")
 }
 
 export function deactivateUser(id: string, reason: string) {

@@ -313,7 +313,7 @@ export function getUserDashboardData(
             professionalTitle: email.startsWith("abel")
               ? "Builder and Community Leader"
               : "Founder and Creative Director",
-            profilePhoto: user.avatar,
+            profilePhoto: user.profileImage || user.avatar || "",
             shortBio: email.startsWith("abel")
               ? "I help build practical spaces and purposeful businesses that strengthen families and communities."
               : "I create thoughtful products and spaces that celebrate Ethiopian creativity and help people flourish.",
@@ -350,7 +350,7 @@ export function getUserDashboardData(
             fullName: user.name,
             phone: "Not provided",
             professionalTitle: "Community Member",
-            profilePhoto: user.avatar,
+            profilePhoto: user.profileImage || user.avatar || "",
             shortBio: "A member of the Kingdom Builders Network community.",
             professionalExperience: "Add your professional experience.",
             education: "Add your education.",
@@ -523,7 +523,7 @@ export function getPublicUserDashboardData(): UserDashboardData[] {
 
   return names.map((name, index) => {
     const email = `public-member-${index + 1}@kbn.demo`
-    const avatar = `https://i.pravatar.cc/96?img=${index + 10}`
+    const avatar = ""
     const articleImage = `https://images.unsplash.com/photo-${articleImages[index % articleImages.length]}?w=900&h=520&fit=crop&auto=format`
     const blogImage = `https://images.unsplash.com/photo-${blogImages[index % blogImages.length]}?w=900&h=520&fit=crop&auto=format`
     const eventImage = `https://images.unsplash.com/photo-${eventImages[index % eventImages.length]}?w=900&h=520&fit=crop&auto=format`

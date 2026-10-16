@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../auth/AuthContext"
+import { resendRegistrationOtp } from "../auth/auth"
 const knbLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
 
 export default function SignUpPage({
@@ -14,17 +15,33 @@ export default function SignUpPage({
 } = {}) {
   const { signUp } = useAuth()
   const navigate = useNavigate()
+
+  // Form State
+  const [step, setStep] = useState<"form" | "otp">("form")
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
+  const [phone, setPhone] = useState("")
   const [business, setBusiness] = useState("")
   const [password, setPassword] = useState("")
   const [confirm, setConfirm] = useState("")
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const [error, setError] = useState("")
-  const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Status and Error State
+  const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
+
+  // OTP State (Step 2 & 3)
+  const [otp, setOtp] = useState<string[]>(["", "", "", "", "", ""])
+  const [identifier, setIdentifier] = useState("")
+  const [countdown, setCountdown] = useState(60)
+  const [isResending, setIsResending] = useState(false)
+  const [resendSuccess, setResendSuccess] = useState("")
+  const [otpError, setOtpError] = useState("")
+  const [otpLoading, setOtpLoading] = useState(false)
+  const otpInputRefs = useRef<(HTMLInputElement | null)[]>([])
 
   useEffect(() => {
     if (!imageFile) {
@@ -36,9 +53,22 @@ export default function SignUpPage({
     return () => URL.revokeObjectURL(url)
   }, [imageFile])
 
+  // Cooldown countdown timer for OTP resend
+  useEffect(() => {
+    if (step !== "otp" || countdown <= 0) return
+    const timer = setInterval(() => {
+      setCountdown((prev) => Math.max(0, prev - 1))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [step, countdown])
+
   const handleBack = () => {
+    if (step === "otp") {
+      setStep("form")
+      return
+    }
     if (onBack) onBack()
-    else navigate("/")
+    else navigate("/login")
   }
 
   const handleSwitch = () => {
@@ -46,9 +76,11 @@ export default function SignUpPage({
     else navigate("/login")
   }
 
+  // Step 1: Submit Registration Form (Without OTP)
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError("")
+
     if (!name.trim()) {
       setError("Please enter your full name.")
       return
@@ -60,6 +92,16 @@ export default function SignUpPage({
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email.trim())) {
       setError("Please enter a valid email address.")
+      return
+    }
+    if (!phone.trim()) {
+      setError("Please enter your phone number.")
+      return
+    }
+    const cleanPhone = phone.trim().replace(/[\s\-]/g, "")
+    const phoneRegex = /^(\+?[1-9]\d{7,14}|0[79]\d{8})$/
+    if (!phoneRegex.test(cleanPhone)) {
+      setError("Please enter a valid phone number (e.g., 0911002233 or +251911002233).")
       return
     }
     if (!password) {
@@ -100,19 +142,35 @@ export default function SignUpPage({
         return
       }
     }
+
     setLoading(true)
     try {
-      await signUp({
+      const res = await signUp({
         name: name.trim(),
         email: email.trim(),
+        phone: phone.trim(),
         password,
         business: business.trim() || undefined,
         profileImage: imageFile,
       })
-      if (onSuccess) {
-        onSuccess()
-      } else {
-        navigate("/dashboard", { replace: true })
+
+      // Backend returns requiresOtp: true
+      if (res.requiresOtp) {
+        setIdentifier(res.identifier || phone.trim())
+        setStep("otp")
+        setCountdown(60)
+        setOtp(["", "", "", "", "", ""])
+        setOtpError("")
+        setResendSuccess("")
+        setTimeout(() => {
+          otpInputRefs.current[0]?.focus()
+        }, 100)
+        return
+      }
+
+      // In case server created user directly
+      if (res.user) {
+        handlePostRegistrationSuccess(res.user)
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Sign up failed.")
@@ -121,29 +179,117 @@ export default function SignUpPage({
     }
   }
 
+  // Step 3: Complete Registration (With OTP)
+  async function handleVerifyAndRegister(e: React.FormEvent) {
+    e.preventDefault()
+    setOtpError("")
+    const code = otp.join("").trim()
+    if (code.length !== 6) {
+      setOtpError("Please enter all 6 digits of the verification code.")
+      return
+    }
+
+    setOtpLoading(true)
+    try {
+      const res = await signUp({
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        password,
+        business: business.trim() || undefined,
+        profileImage: imageFile,
+        otp: code,
+      })
+
+      if (res.user) {
+        handlePostRegistrationSuccess(res.user)
+      } else {
+        throw new Error(res.message || "Failed to complete registration.")
+      }
+    } catch (err: unknown) {
+      setOtpError(err instanceof Error ? err.message : "Verification failed.")
+    } finally {
+      setOtpLoading(false)
+    }
+  }
+
+  // Step 4: Resend OTP
+  async function handleResendOtp() {
+    if (countdown > 0 || isResending) return
+    setIsResending(true)
+    setOtpError("")
+    setResendSuccess("")
+
+    try {
+      const res = await resendRegistrationOtp(phone.trim())
+      setResendSuccess(res.message || "A new verification code was sent to your phone.")
+      setCountdown(60)
+    } catch (err: unknown) {
+      setOtpError(err instanceof Error ? err.message : "Failed to resend verification code.")
+    } finally {
+      setIsResending(false)
+    }
+  }
+
+  function handlePostRegistrationSuccess(user: any) {
+    if (onSuccess) {
+      onSuccess()
+    } else {
+      const userStatus = (user?.status || "pending").toLowerCase()
+      if (userStatus === "pending" || userStatus === "inactive") {
+        navigate("/payment", { replace: true })
+      } else if (userStatus === "suspended") {
+        navigate("/account-status", { replace: true })
+      } else {
+        navigate("/", { replace: true })
+      }
+    }
+  }
+
+  // OTP Input handlers
+  const handleOtpChange = (index: number, value: string) => {
+    const cleaned = value.replace(/\D/g, "")
+    if (!cleaned) {
+      const newOtp = [...otp]
+      newOtp[index] = ""
+      setOtp(newOtp)
+      return
+    }
+
+    const digit = cleaned.slice(-1)
+    const newOtp = [...otp]
+    newOtp[index] = digit
+    setOtp(newOtp)
+
+    if (index < 5) {
+      otpInputRefs.current[index + 1]?.focus()
+    }
+  }
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !otp[index] && index > 0) {
+      otpInputRefs.current[index - 1]?.focus()
+    }
+  }
+
+  const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault()
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6)
+    if (!pasted) return
+    const newOtp = [...otp]
+    for (let i = 0; i < 6; i++) {
+      newOtp[i] = pasted[i] || ""
+    }
+    setOtp(newOtp)
+    const focusIndex = Math.min(pasted.length, 5)
+    otpInputRefs.current[focusIndex]?.focus()
+  }
 
   return (
     <div className="min-h-screen bg-[var(--surface-alt)] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
-        <button
-          onClick={handleBack}
-          className="flex items-center gap-1 text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors mb-6 cursor-pointer"
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M10 19l-7-7m0 0l7-7m-7 7h18"
-            />
-          </svg>
-          Back to Home
-        </button>
+        
+
         <a
           href={import.meta.env.BASE_URL}
           className="flex items-center gap-2.5 justify-center mb-10 group"
@@ -158,251 +304,400 @@ export default function SignUpPage({
           </span>
         </a>
 
-        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-5 sm:p-8 shadow-sm">
-          <h1 className="font-serif text-2xl text-[var(--text-primary)] mb-1">
-            Create your account
-          </h1>
-          <p className="text-sm text-[var(--text-tertiary)] mb-8">
-            Join the Kingdom Builders Network community
-          </p>
-
-          {error && (
-            <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 mb-6 animate-scale-in">
-              <svg
-                className="w-5 h-5 text-red-500 flex-shrink-0"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
+        {step === "otp" ? (
+          /* Step 2: Prompt for OTP on Frontend */
+          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-5 sm:p-8 shadow-sm">
+            <div className="w-12 h-12 rounded-2xl bg-[var(--brand)]/10 text-[var(--brand)] flex items-center justify-center mx-auto mb-4">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
                 />
               </svg>
-              <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
             </div>
-          )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="flex items-center gap-4 p-3 bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl">
-              <div className="relative w-14 h-14 rounded-xl bg-[var(--surface)] border border-[var(--border-light)] flex items-center justify-center overflow-hidden flex-shrink-0 shadow-xs">
-                {imagePreview ? (
-                  <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                ) : (
-                  <svg className="w-7 h-7 text-[var(--text-tertiary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                )}
+            <h1 className="font-serif text-2xl text-[var(--text-primary)] text-center mb-1">
+              Verify your phone
+            </h1>
+            <p className="text-sm text-[var(--text-tertiary)] text-center mb-6">
+              Enter the 6-digit verification code sent via SMS to{" "}
+              <strong className="text-[var(--text-primary)] font-semibold">
+                {identifier || phone}
+              </strong>
+            </p>
+
+            {resendSuccess && (
+              <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-3 mb-6 animate-scale-in">
+                <svg
+                  className="w-5 h-5 text-emerald-500 flex-shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                <p className="text-sm text-emerald-700 dark:text-emerald-300">
+                  {resendSuccess}
+                </p>
               </div>
-              <div className="flex-1 min-w-0">
-                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
-                  Profile Photo <span className="text-[var(--text-tertiary)] font-normal">(optional)</span>
-                </label>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="text-xs font-medium text-[var(--brand)] bg-[var(--brand)]/10 hover:bg-[var(--brand)]/20 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
-                  >
-                    {imageFile ? "Change" : "Upload Photo"}
-                  </button>
-                  {imageFile && (
+            )}
+
+            {otpError && (
+              <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 mb-6 animate-scale-in">
+                <svg
+                  className="w-5 h-5 text-red-500 flex-shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <p className="text-sm text-red-700 dark:text-red-300">{otpError}</p>
+              </div>
+            )}
+
+            <form onSubmit={handleVerifyAndRegister} className="space-y-6">
+              {/* 6 Digit OTP Input Boxes */}
+              <div className="flex items-center justify-center gap-2 sm:gap-3" onPaste={handleOtpPaste}>
+                {otp.map((digit, idx) => (
+                  <input
+                    key={idx}
+                    ref={(el) => {
+                      otpInputRefs.current[idx] = el
+                    }}
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    pattern="[0-9]*"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleOtpChange(idx, e.target.value)}
+                    onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                    className="w-12 h-14 sm:w-13 sm:h-16 text-center text-xl sm:text-2xl font-bold bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/30 focus:border-[var(--brand)] transition-all shadow-xs"
+                  />
+                ))}
+              </div>
+
+              {/* Resend Cooldown Section */}
+              <div className="text-center text-xs text-[var(--text-tertiary)]">
+                {countdown > 0 ? (
+                  <span className="flex items-center justify-center gap-1.5">
+                    <svg className="w-3.5 h-3.5 animate-spin text-[var(--brand)]" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Resend code in <strong className="text-[var(--brand)]">{countdown}s</strong>
+                  </span>
+                ) : (
+                  <span>
+                    Didn't receive the code?{" "}
                     <button
                       type="button"
-                      onClick={() => {
-                        setImageFile(null)
-                        if (fileInputRef.current) fileInputRef.current.value = ""
-                      }}
-                      className="text-xs text-red-500 hover:text-red-600 px-2 py-1.5 transition-colors cursor-pointer"
+                      onClick={handleResendOtp}
+                      disabled={isResending}
+                      className="font-semibold text-[var(--brand)] hover:underline cursor-pointer disabled:opacity-50"
                     >
-                      Remove
+                      {isResending ? "Sending..." : "Resend Code"}
                     </button>
+                  </span>
+                )}
+              </div>
+
+              {/* Verify & Register Button */}
+              <button
+                type="submit"
+                disabled={otpLoading || otp.join("").length < 6}
+                className="w-full bg-[var(--accent)] text-[var(--brand-dark)] text-sm font-bold py-3 rounded-xl hover:bg-[var(--accent-dark)] transition-colors shadow-lg shadow-[var(--accent)]/30 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                {otpLoading ? (
+                  <>
+                    <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Verifying & Registering...
+                  </>
+                ) : (
+                  "Verify & Register"
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStep("form")}
+                className="w-full text-center text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+              >
+                Incorrect phone number? Edit registration details
+              </button>
+            </form>
+          </div>
+        ) : (
+          /* Step 1: Initial Registration Form */
+          <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-5 sm:p-8 shadow-sm">
+            <h1 className="font-serif text-2xl text-[var(--text-primary)] mb-1">
+              Create your account
+            </h1>
+            <p className="text-sm text-[var(--text-tertiary)] mb-8">
+              Join the Kingdom Builders Network community
+            </p>
+
+            {error && (
+              <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 mb-6 animate-scale-in">
+                <svg
+                  className="w-5 h-5 text-red-500 flex-shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="flex items-center gap-4 p-3 bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl">
+                <div className="relative w-14 h-14 rounded-xl bg-[var(--surface)] border border-[var(--border-light)] flex items-center justify-center overflow-hidden flex-shrink-0 shadow-xs">
+                  {imagePreview ? (
+                    <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <svg className="w-7 h-7 text-[var(--text-tertiary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
                   )}
                 </div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,image/svg+xml"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) {
-                      if (file.size > 5 * 1024 * 1024) {
-                        setError("Profile image must be less than 5MB.")
-                        return
+                <div className="flex-1 min-w-0">
+                  <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
+                    Profile Photo <span className="text-[var(--text-tertiary)] font-normal">(optional)</span>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="text-xs font-medium text-[var(--brand)] bg-[var(--brand)]/10 hover:bg-[var(--brand)]/20 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                    >
+                      {imageFile ? "Change" : "Upload Photo"}
+                    </button>
+                    {imageFile && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImageFile(null)
+                          if (fileInputRef.current) fileInputRef.current.value = ""
+                        }}
+                        className="text-xs text-red-500 hover:text-red-600 px-2 py-1.5 transition-colors cursor-pointer"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,image/svg+xml"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        if (file.size > 5 * 1024 * 1024) {
+                          setError("Profile image must be less than 5MB.")
+                          return
+                        }
+                        setError("")
+                        setImageFile(file)
                       }
-                      setError("")
-                      setImageFile(file)
-                    }
-                  }}
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+                  Full Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="John Doe"
+                  autoComplete="name"
+                  className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-4 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]/50 transition-all"
                 />
               </div>
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-                Full Name
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="John Doe"
-                autoComplete="name"
-                className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-4 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]/50 transition-all"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-                Email
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                autoComplete="email"
-                className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-4 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]/50 transition-all"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-                Business Name{" "}
-                <span className="text-[var(--text-tertiary)] font-normal">
-                  (optional)
-                </span>
-              </label>
-              <input
-                type="text"
-                value={business}
-                onChange={(e) => setBusiness(e.target.value)}
-                placeholder="Your company or organization"
-                className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-4 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]/50 transition-all"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-                Password
-              </label>
-              <div className="relative">
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+                  Email Address <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-4 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]/50 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+                  Phone Number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="0911002233"
+                  autoComplete="tel"
+                  className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-4 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]/50 transition-all"
+                />
+                <p className="text-xs text-[var(--text-tertiary)] mt-1">
+                  We'll send a 6-digit SMS verification code to this phone number.
+                </p>
+              </div>
+
+              
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+                  Password <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="At least 8 chars (upper, lower, digit, symbol)"
+                    autoComplete="new-password"
+                    className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-4 pr-12 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]/50 transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+                  >
+                    {showPassword ? (
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+                        />
+                      </svg>
+                    ) : (
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                        />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+                <p className="text-xs text-[var(--text-tertiary)] mt-1.5">
+                  Must include 8+ characters, uppercase, lowercase, number, and special symbol.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+                  Confirm Password <span className="text-red-500">*</span>
+                </label>
                 <input
                   type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 8 chars (upper, lower, digit, symbol)"
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  placeholder="Re-enter your password"
                   autoComplete="new-password"
-                  className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-4 pr-12 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]/50 transition-all"
+                  className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-4 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]/50 transition-all"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
-                >
-                  {showPassword ? (
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
-                      />
-                    </svg>
-                  ) : (
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                      />
-                    </svg>
-                  )}
-                </button>
               </div>
-              <p className="text-xs text-[var(--text-tertiary)] mt-1.5">
-                Must include 8+ characters, uppercase, lowercase, number, and special symbol.
-              </p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-                Confirm Password
-              </label>
-              <input
-                type={showPassword ? "text" : "password"}
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                placeholder="Re-enter your password"
-                autoComplete="new-password"
-                className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-4 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]/50 transition-all"
-              />
-            </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-[var(--accent)] text-[var(--brand-dark)] text-sm font-bold py-3 rounded-xl hover:bg-[var(--accent-dark)] transition-colors shadow-lg shadow-[var(--accent)]/30 disabled:opacity-60 flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <svg
-                    className="w-5 h-5 animate-spin"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
-                  </svg>{" "}
-                  Creating account...
-                </>
-              ) : (
-                "Create Account"
-              )}
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-[var(--accent)] text-[var(--brand-dark)] text-sm font-bold py-3 rounded-xl hover:bg-[var(--accent-dark)] transition-colors shadow-lg shadow-[var(--accent)]/30 disabled:opacity-60 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                {loading ? (
+                  <>
+                    <svg
+                      className="w-5 h-5 animate-spin"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                      />
+                    </svg>{" "}
+                    Sending verification code...
+                  </>
+                ) : (
+                  "Create Account"
+                )}
+              </button>
+            </form>
 
-          <p className="text-xs text-[var(--text-tertiary)] text-center mt-5">
-            By signing up, you agree to our Terms of Service and Privacy Policy.
-          </p>
+            <p className="text-xs text-[var(--text-tertiary)] text-center mt-5">
+              By signing up, you agree to our Terms of Service and Privacy Policy.
+            </p>
 
-          <p className="text-sm text-center text-[var(--text-tertiary)] mt-5 pt-5 border-t border-[var(--border-light)]">
-            Already have an account?{" "}
-            <button
-              onClick={handleSwitch}
-              className="font-semibold text-[var(--brand)] hover:text-[var(--brand-light)] transition-colors cursor-pointer"
-            >
-              Sign in
-            </button>
-          </p>
-        </div>
+            <p className="text-sm text-center text-[var(--text-tertiary)] mt-5 pt-5 border-t border-[var(--border-light)]">
+              Already have an account?{" "}
+              <button
+                onClick={handleSwitch}
+                className="font-semibold text-[var(--brand)] hover:text-[var(--brand-light)] transition-colors cursor-pointer"
+              >
+                Sign in
+              </button>
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )

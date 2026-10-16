@@ -7,6 +7,7 @@ interface UserAvatarProps {
   name?: string
   className?: string
   size?: "xs" | "sm" | "md" | "lg" | "xl"
+  showInitial?: boolean
 }
 
 const SIZE_CLASSES = {
@@ -17,12 +18,22 @@ const SIZE_CLASSES = {
   xl: "w-20 h-20 sm:w-24 sm:h-24 text-2xl",
 }
 
+function isValidUploadedPhoto(url?: string | null): boolean {
+  if (!url || typeof url !== "string") return false
+  const trimmed = url.trim()
+  if (!trimmed) return false
+  // Filter out placeholder/random picture generators like pravatar
+  if (trimmed.includes("pravatar.cc")) return false
+  return true
+}
+
 export default function UserAvatar({
   src,
   alt = "User Avatar",
   name = "",
   className = "",
   size = "md",
+  showInitial = false,
 }: UserAvatarProps) {
   const [hasError, setHasError] = useState(false)
 
@@ -31,8 +42,11 @@ export default function UserAvatar({
     setHasError(false)
   }, [src])
 
-  const resolvedUrl = src ? resolveAssetUrl(src) : null
+  const hasPhoto = isValidUploadedPhoto(src)
+  const resolvedUrl = hasPhoto && src ? resolveAssetUrl(src) : null
   const sizeClass = SIZE_CLASSES[size] || SIZE_CLASSES.md
+  const isCustomRounded = className.includes("rounded-")
+  const roundedClass = isCustomRounded ? "" : "rounded-2xl"
 
   if (resolvedUrl && !hasError) {
     return (
@@ -40,24 +54,25 @@ export default function UserAvatar({
         src={resolvedUrl}
         alt={alt}
         onError={() => setHasError(true)}
-        className={`${sizeClass} rounded-2xl object-cover flex-shrink-0 ${className}`}
+        className={`${sizeClass} ${roundedClass} object-cover flex-shrink-0 ${className}`}
       />
     )
   }
 
-  // Fallback: Default avatar with user initial or generic user SVG
+  // Fallback: Default user icon
   const initial = name.trim().charAt(0).toUpperCase()
 
   return (
     <div
-      className={`${sizeClass} rounded-2xl flex-shrink-0 flex items-center justify-center font-semibold bg-gradient-to-br from-amber-500/20 to-blue-500/20 text-[var(--brand)] border border-[var(--border-light)] shadow-xs select-none ${className}`}
+      className={`${sizeClass} ${roundedClass} flex-shrink-0 flex items-center justify-center bg-[var(--surface-alt,#f1f5f9)] text-[var(--text-tertiary,#94a3b8)] border border-[var(--border-light,#e2e8f0)] shadow-xs select-none ${className}`}
       aria-label={alt}
+      title={name || alt}
     >
-      {initial ? (
-        <span>{initial}</span>
+      {showInitial && initial ? (
+        <span className="font-semibold text-[var(--brand)]">{initial}</span>
       ) : (
         <svg
-          className="w-1/2 h-1/2 text-[var(--text-tertiary)]"
+          className="w-1/2 h-1/2 text-current"
           fill="currentColor"
           viewBox="0 0 24 24"
           aria-hidden="true"

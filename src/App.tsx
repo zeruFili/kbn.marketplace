@@ -44,6 +44,10 @@ import UserProfilePage from "./pages/user/UserProfilePage"
 import UserProfileEditPage from "./pages/user/UserProfileEditPage"
 import UserBusinessesPage from "./pages/user/UserBusinessesPage"
 import UserPaymentPage from "./pages/user/UserPaymentPage"
+import PaymentVerificationPage from "./pages/PaymentVerificationPage"
+import PaymentReceiverPage from "./pages/PaymentReceiverPage"
+import AccountStatusPage from "./components/AccountStatusPage"
+import UserAvatar from "./components/common/UserAvatar"
 import { useAuth } from "./auth/AuthContext"
 import { type UserRole } from "./auth/auth"
 import {
@@ -332,10 +336,11 @@ function PublicContentPage({
                     className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6 cursor-pointer"
                   >
                     <div className="flex items-center gap-4 mb-5">
-                      <img
+                      <UserAvatar
                         src={profile.profilePhoto}
-                        alt={profile.fullName}
-                        className="w-16 h-16 rounded-2xl object-cover"
+                        name={profile.fullName}
+                        size="lg"
+                        className="w-16 h-16 rounded-2xl"
                       />
                       <div>
                         <h2 className="font-serif text-xl text-[var(--text-primary)]">
@@ -559,10 +564,11 @@ function PublicPersonDetailLegacy({ item }: { item: UserProfileData }) {
             />{" "}
             Member profile
           </div>
-          <img
+          <UserAvatar
             src={item.profilePhoto}
-            alt={item.fullName}
-            className="w-32 h-32 rounded-2xl object-cover ring-4 ring-white/20 mb-6"
+            name={item.fullName}
+            size="xl"
+            className="w-32 h-32 rounded-2xl ring-4 ring-white/20 mb-6"
           />
           <p className="text-sm text-[var(--accent)] font-semibold mb-2">
             {item.professionalTitle}
@@ -1270,16 +1276,79 @@ export default function App() {
   return (
     <BrowserRouter basename={basename}>
       <Routes>
-        {/* Public Landing & Marketing */}
-        <Route path="/" element={<HomePage />} />
-        <Route path="/about" element={<AboutPage />} />
-
         {/* Authentication */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignUpPage />} />
 
+        {/* Payment Verification & Receiver Gateway */}
+        <Route
+          path="/payment"
+          element={
+            <ProtectedRoute allowStatus={["pending", "inactive", "active"]}>
+              <PaymentReceiverPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payment/receiver"
+          element={
+            <ProtectedRoute allowStatus={["pending", "inactive", "active"]}>
+              <PaymentReceiverPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payment/sender"
+          element={
+            <ProtectedRoute allowStatus={["pending", "inactive", "active"]}>
+              <PaymentReceiverPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payment/verify"
+          element={
+            <ProtectedRoute allowStatus={["pending", "inactive", "active"]}>
+              <PaymentReceiverPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/account-status"
+          element={
+            <ProtectedRoute allowStatus={["suspended", "pending", "inactive"]}>
+              <AccountStatusPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Landing Page (protected: unauthenticated redirected to /login, pending/inactive to /payment) */}
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <HomePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/about"
+          element={
+            <ProtectedRoute>
+              <AboutPage />
+            </ProtectedRoute>
+          }
+        />
+
         {/* Companies Directory & Management */}
-        <Route path="/companies" element={<CompaniesPage />} />
+        <Route
+          path="/companies"
+          element={
+            <ProtectedRoute>
+              <CompaniesPage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/companies/new"
           element={
@@ -1296,7 +1365,14 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-        <Route path="/companies/:id" element={<CompanyDetailsPage />} />
+        <Route
+          path="/companies/:id"
+          element={
+            <ProtectedRoute>
+              <CompanyDetailsPage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/companies/:id/edit"
           element={
@@ -1306,26 +1382,70 @@ export default function App() {
           }
         />
 
-        {/* Public Sections with Deep-Linking */}
-        <Route path="/people" element={<PublicPageWrapper page="people" />} />
+        {/* Public Content Sections (protected from unauthenticated & pending/inactive users) */}
+        <Route
+          path="/people"
+          element={
+            <ProtectedRoute>
+              <PublicPageWrapper page="people" />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/people/:id"
-          element={<PublicPageWrapper page="people" />}
+          element={
+            <ProtectedRoute>
+              <PublicPageWrapper page="people" />
+            </ProtectedRoute>
+          }
         />
-        <Route path="/blogs" element={<PublicPageWrapper page="blogs" />} />
-        <Route path="/blogs/:id" element={<PublicPageWrapper page="blogs" />} />
-        <Route path="/events" element={<PublicPageWrapper page="events" />} />
+        <Route
+          path="/blogs"
+          element={
+            <ProtectedRoute>
+              <PublicPageWrapper page="blogs" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/blogs/:id"
+          element={
+            <ProtectedRoute>
+              <PublicPageWrapper page="blogs" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/events"
+          element={
+            <ProtectedRoute>
+              <PublicPageWrapper page="events" />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/events/:id"
-          element={<PublicPageWrapper page="events" />}
+          element={
+            <ProtectedRoute>
+              <PublicPageWrapper page="events" />
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/articles"
-          element={<PublicPageWrapper page="articles" />}
+          element={
+            <ProtectedRoute>
+              <PublicPageWrapper page="articles" />
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/articles/:id"
-          element={<PublicPageWrapper page="articles" />}
+          element={
+            <ProtectedRoute>
+              <PublicPageWrapper page="articles" />
+            </ProtectedRoute>
+          }
         />
 
         {/* Main Dashboard Dispatcher */}

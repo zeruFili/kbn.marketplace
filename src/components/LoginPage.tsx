@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { useAuth } from "../auth/AuthContext"
 import { type UserRole } from "../auth/auth"
@@ -14,7 +14,7 @@ export default function LoginPage({
   onSwitch?: () => void
   onSuccess?: (role: UserRole) => void
 } = {}) {
-  const { login } = useAuth()
+  const { user, login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [email, setEmail] = useState("")
@@ -22,6 +22,20 @@ export default function LoginPage({
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+
+  // Auto-redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      const status = (user.status || "pending").toLowerCase()
+      if (status === "suspended") {
+        navigate("/account-status", { replace: true })
+      } else if (status === "pending" || status === "inactive") {
+        navigate("/payment", { replace: true })
+      } else if (status === "active") {
+        navigate("/", { replace: true })
+      }
+    }
+  }, [user, navigate])
 
   const handleBack = () => {
     if (onBack) onBack()
@@ -46,13 +60,38 @@ export default function LoginPage({
     }
     setLoading(true)
     try {
-      const role = await login(email, password)
+      const loggedUser = await login(email, password)
+      const userStatus = (loggedUser.status || "pending").toLowerCase()
+
+      // Redirect based on account status
+      if (userStatus === "suspended") {
+        navigate("/account-status", { replace: true })
+        return
+      }
+
+      if (userStatus === "pending" || userStatus === "inactive") {
+        navigate("/payment", { replace: true })
+        return
+      }
+
+      // If active:
       if (onSuccess) {
-        onSuccess(role)
+        onSuccess(loggedUser.role)
       } else {
         const fromPath = (location.state as { from?: { pathname?: string } })?.from?.pathname
-        const destination = fromPath && !fromPath.startsWith("/dashboard") ? fromPath : "/"
-        navigate(destination, { replace: true })
+        if (
+          fromPath &&
+          fromPath !== "/login" &&
+          fromPath !== "/payment" &&
+          fromPath !== "/account-status"
+        ) {
+          navigate(fromPath, { replace: true })
+        } else {
+          const role = loggedUser.role?.toLowerCase()
+          if (role === "admin") navigate("/admin/overview", { replace: true })
+          else if (role === "company") navigate("/dashboard/company", { replace: true })
+          else navigate("/", { replace: true })
+        }
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Login failed.")
@@ -64,25 +103,7 @@ export default function LoginPage({
   return (
     <div className="login-page-bg min-h-screen flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
-        <button
-          onClick={handleBack}
-          className="flex items-center gap-1 text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors mb-6 cursor-pointer"
-        >
-          <svg
-              className="w-4 h-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10 19l-7-7m0 0l7-7m-7 7h18"
-              />
-            </svg>
-            Back to Home
-          </button>
+        
         <button
           onClick={handleBack}
           type="button"

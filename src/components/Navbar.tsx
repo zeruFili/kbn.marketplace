@@ -7,7 +7,7 @@ const knbLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
 
 export type PublicPage = "companies" | "people" | "blogs" | "events" | "articles"
 
-export const NAV_ITEMS: { id: PublicPage; label: string; path: string }[] = [
+const NAV_ITEMS: { id: PublicPage; label: string; path: string }[] = [
   { id: "companies", label: "Companies", path: "/companies" },
   { id: "people", label: "People", path: "/people" },
   { id: "blogs", label: "Blogs", path: "/blogs" },
@@ -36,9 +36,17 @@ export default function Navbar({
   const [menuOpen, setMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
 
+  const currentStatus = user ? (user.status || "pending").toLowerCase() : null
+  const isActiveUser = currentStatus === "active"
+
   const handleHome = () => {
     if (onHome) onHome()
-    else navigate("/")
+    else {
+      if (!user) navigate("/login")
+      else if (currentStatus === "suspended") navigate("/account-status")
+      else if (currentStatus === "pending" || currentStatus === "inactive") navigate("/payment")
+      else navigate("/")
+    }
   }
 
   const handleLogin = () => {
@@ -54,6 +62,10 @@ export default function Navbar({
   const handleDashboard = () => {
     if (onDashboard) onDashboard()
     else {
+      if (!isActiveUser) {
+        navigate(currentStatus === "suspended" ? "/account-status" : "/payment")
+        return
+      }
       const role = user?.role?.toLowerCase()
       if (role === "admin") navigate("/admin/overview")
       else if (role === "company") navigate("/dashboard/company")
@@ -67,6 +79,10 @@ export default function Navbar({
   }
 
   const handleNavigatePage = (item: (typeof NAV_ITEMS)[0]) => {
+    if (!isActiveUser) {
+      navigate(currentStatus === "suspended" ? "/account-status" : "/payment")
+      return
+    }
     if (onPublicPage) onPublicPage(item.id)
     else navigate(item.path)
   }
@@ -75,7 +91,7 @@ export default function Navbar({
     await logout()
     setUserMenuOpen(false)
     setMenuOpen(false)
-    navigate("/")
+    navigate("/login")
   }
 
   return (
@@ -95,49 +111,67 @@ export default function Navbar({
           </span>
         </button>
 
-        <nav className="hidden lg:flex items-center gap-1">
-          {NAV_ITEMS.map((item) => {
-            const isActive =
-              location.pathname === item.path ||
-              (item.path !== "/" &&
-                location.pathname.startsWith(item.path + "/"))
-            return (
-              <button
-                key={item.id}
-                onClick={() => handleNavigatePage(item)}
-                className={`text-sm font-medium px-3 py-2 rounded-xl transition-all cursor-pointer ${
-                  isActive
-                    ? "text-[var(--brand)] bg-[var(--surface-alt)] font-semibold"
-                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-alt)]"
-                }`}
-              >
-                {item.label}
-              </button>
-            )
-          })}
-        </nav>
+        {/* Navigation links only for ACTIVE users */}
+        {isActiveUser && (
+          <nav className="hidden lg:flex items-center gap-1">
+            {NAV_ITEMS.map((item) => {
+              const isActive =
+                location.pathname === item.path ||
+                (item.path !== "/" &&
+                  location.pathname.startsWith(item.path + "/"))
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleNavigatePage(item)}
+                  className={`text-sm font-medium px-3 py-2 rounded-xl transition-all cursor-pointer ${
+                    isActive
+                      ? "text-[var(--brand)] bg-[var(--surface-alt)] font-semibold"
+                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-alt)]"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              )
+            })}
+          </nav>
+        )}
+
+        {/* If pending or inactive, show Payment Verification badge */}
+        {user && !isActiveUser && (
+          <div className="hidden sm:flex items-center gap-2">
+            <Link
+              to={currentStatus === "suspended" ? "/account-status" : "/payment"}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+              {currentStatus === "suspended" ? "Account Suspended" : "Payment Verification Required"}
+            </Link>
+          </div>
+        )}
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleCreateBusiness}
-            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-3 py-2 rounded-xl shadow-sm transition-all cursor-pointer"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+          {isActiveUser && (
+            <button
+              onClick={handleCreateBusiness}
+              className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-3 py-2 rounded-xl shadow-sm transition-all cursor-pointer"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            <span className="hidden sm:inline">Register Business</span>
-            <span className="sm:hidden">Register</span>
-          </button>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              <span className="hidden sm:inline">Register Business</span>
+              <span className="sm:hidden">Register</span>
+            </button>
+          )}
 
           {user ? (
             <>
@@ -304,37 +338,51 @@ export default function Navbar({
 
       {menuOpen && (
         <div className="lg:hidden border-t border-[var(--border-light)] bg-[var(--surface)] px-4 py-4 space-y-2 animate-slide-down">
-          {NAV_ITEMS.map((item) => {
-            const isActive =
-              location.pathname === item.path ||
-              (item.path !== "/" &&
-                location.pathname.startsWith(item.path + "/"))
-            return (
+          {isActiveUser && (
+            <>
+              {NAV_ITEMS.map((item) => {
+                const isActive =
+                  location.pathname === item.path ||
+                  (item.path !== "/" &&
+                    location.pathname.startsWith(item.path + "/"))
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      handleNavigatePage(item)
+                      setMenuOpen(false)
+                    }}
+                    className={`block w-full text-left text-sm font-medium px-3 py-2.5 rounded-xl transition-colors cursor-pointer ${
+                      isActive
+                        ? "text-[var(--brand)] bg-[var(--surface-alt)] font-semibold"
+                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-alt)]"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                )
+              })}
               <button
-                key={item.id}
                 onClick={() => {
-                  handleNavigatePage(item)
+                  handleCreateBusiness()
                   setMenuOpen(false)
                 }}
-                className={`block w-full text-left text-sm font-medium px-3 py-2.5 rounded-xl transition-colors cursor-pointer ${
-                  isActive
-                    ? "text-[var(--brand)] bg-[var(--surface-alt)] font-semibold"
-                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-alt)]"
-                }`}
+                className="block w-full text-left text-sm font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-3 py-2.5 rounded-xl hover:bg-amber-100 transition-colors cursor-pointer"
               >
-                {item.label}
+                + Register Business
               </button>
-            )
-          })}
-          <button
-            onClick={() => {
-              handleCreateBusiness()
-              setMenuOpen(false)
-            }}
-            className="block w-full text-left text-sm font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-3 py-2.5 rounded-xl hover:bg-amber-100 transition-colors cursor-pointer"
-          >
-            + Register Business
-          </button>
+            </>
+          )}
+
+          {user && !isActiveUser && (
+            <Link
+              to={currentStatus === "suspended" ? "/account-status" : "/payment"}
+              onClick={() => setMenuOpen(false)}
+              className="block w-full text-left text-sm font-semibold text-amber-700 bg-amber-50 px-3 py-2.5 rounded-xl hover:bg-amber-100 transition-colors"
+            >
+              {currentStatus === "suspended" ? "⚠️ Account Suspended" : "🧾 Payment Verification"}
+            </Link>
+          )}
           <div className="pt-2 border-t border-[var(--border-light)] space-y-2">
             {user ? (
               <>

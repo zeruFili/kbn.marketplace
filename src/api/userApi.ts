@@ -50,8 +50,12 @@ export async function fetchUsersApi(
       params: { is_active: "true", limit: "50", ...params },
     })
     if (res.success && res.data) {
-      if (Array.isArray(res.data)) return res.data
-      if (Array.isArray(res.data.data)) return res.data.data
+      const rawList: UserProfileResponse[] = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data.data)
+        ? res.data.data
+        : []
+      return rawList.filter((u) => u.role?.toLowerCase() !== "admin")
     }
     return []
   } catch (err) {
