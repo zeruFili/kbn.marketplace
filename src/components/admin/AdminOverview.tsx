@@ -2,14 +2,10 @@ import { useState, useEffect } from "react"
 import {
   getApplications,
   getListedCompanies,
-  getAdminUsers,
   getAdminCategories,
   adminSubscribe,
-  type CompanyApplication,
-  type AdminCompany,
-  type AdminUser,
-  type AdminCategory,
 } from "../../data/adminStore"
+import { fetchAdminUsersApi } from "../../api/userApi"
 
 interface Counts {
   applications: number
@@ -30,18 +26,28 @@ export default function AdminOverview() {
     function refresh() {
       const apps = getApplications()
       const companies = getListedCompanies()
-      const users = getAdminUsers()
       const cats = getAdminCategories()
-      setCounts({
+      setCounts((prev) => ({
+        ...prev,
         applications: apps.filter((a) => a.status === "pending").length,
         companies: companies.filter((c) => c.status === "active").length,
-        users: users.filter((u) => u.status === "active").length,
         categories: cats.filter((c) => c.status === "active").length,
-      })
+      }))
     }
     refresh()
+
+    // Fetch real registered users from live backend
+    fetchAdminUsersApi({ limit: 1 })
+      .then((res) => {
+        if (res.success && res.meta?.total !== undefined) {
+          setCounts((prev) => ({ ...prev, users: res.meta!.total }))
+        }
+      })
+      .catch(() => {})
+
     return adminSubscribe(refresh)
   }, [])
+
 
   const cards = [
     {
