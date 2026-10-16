@@ -155,29 +155,6 @@ export default function Navbar({
         )}
 
         <div className="flex items-center gap-2">
-          {canShowRegisterBusiness && isActiveUser && (
-            <button
-              onClick={handleCreateBusiness}
-              className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-3 py-2 rounded-xl shadow-sm transition-all cursor-pointer"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              <span className="hidden sm:inline">Register Business</span>
-              <span className="sm:hidden">Register</span>
-            </button>
-          )}
-
           {user ? (
             <>
               <button
@@ -367,17 +344,6 @@ export default function Navbar({
                   </button>
                 )
               })}
-              {/* {canShowRegisterBusiness && (
-                <button
-                  onClick={() => {
-                    handleCreateBusiness()
-                    setMenuOpen(false)
-                  }}
-                  className="block w-full text-left text-sm font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-3 py-2.5 rounded-xl hover:bg-amber-100 transition-colors cursor-pointer"
-                >
-                  + Register Business
-                </button>
-              )} */}
             </>
           )}
 

@@ -127,3 +127,39 @@ export async function getMeApi(): Promise<ApiResponse<AuthUserApi>> {
 export function logoutApi(): void {
   baseApi.removeToken()
 }
+
+export interface ForgotPasswordPayload {
+  identifier: string // phone number (e.g. 0911223344) or email address
+}
+
+export interface ResetPasswordWithOtpPayload {
+  identifier: string
+  otp: string
+  password: string
+  confirmPassword: string
+}
+
+/**
+ * Request password reset OTP via SMS or Email (/auth/forgot-password)
+ */
+export async function forgotPasswordApi(
+  payload: ForgotPasswordPayload
+): Promise<ApiResponse<any>> {
+  return baseApi.post<any>("/auth/forgot-password", {
+    identifier: payload.identifier.trim(),
+  })
+}
+
+/**
+ * Reset password using verified OTP (/auth/reset-password)
+ */
+export async function resetPasswordWithOtpApi(
+  payload: ResetPasswordWithOtpPayload
+): Promise<ApiResponse<any>> {
+  return baseApi.post<any>("/auth/reset-password", {
+    identifier: payload.identifier.trim(),
+    otp: payload.otp.trim(),
+    password: payload.password,
+    confirmPassword: payload.confirmPassword,
+  })
+}
