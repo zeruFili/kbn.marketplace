@@ -124,6 +124,71 @@ export async function fetchPaymentValidity(): Promise<PaymentValidityData | null
 }
 
 /**
+ * Fetch user payment validity and latest payment status by userId via GET /api/v1/payments/user/:userId/status
+ * Falls back to /payments/status if userId is omitted
+ */
+export async function fetchUserPaymentValidity(
+  userId?: string
+): Promise<PaymentValidityData | null> {
+  try {
+    const endpoint = userId ? `/payments/user/${userId}/status` : "/payments/status"
+    const res = await baseApi.get<PaymentValidityData>(endpoint)
+    if (res.success && res.data) {
+      return res.data
+    }
+    // Fallback to /payments/status if user-specific endpoint did not return data
+    if (userId) {
+      return await fetchPaymentValidity()
+    }
+    return null
+  } catch {
+    if (userId) {
+      return await fetchPaymentValidity()
+    }
+    return null
+  }
+}
+
+/**
+ * Fetch payments list for a specific user via GET /api/v1/payments/user/:userId
+ * Falls back to GET /api/v1/payments?userId=:userId or GET /api/v1/payments
+ */
+export async function fetchUserPayments(userId?: string): Promise<PaymentItem[]> {
+  try {
+    const endpoint = userId ? `/payments/user/${userId}` : "/payments"
+    const res = await baseApi.get<PaymentItem[]>(endpoint)
+    if (res.success && Array.isArray(res.data)) {
+      return res.data
+    }
+    // Fallback to query parameter if route is structured that way
+    if (userId) {
+      const fallbackRes = await baseApi.get<PaymentItem[]>("/payments", {
+        params: { userId },
+      })
+      if (fallbackRes.success && Array.isArray(fallbackRes.data)) {
+        return fallbackRes.data
+      }
+    }
+    return []
+  } catch {
+    // If user endpoint threw, attempt query param fallback
+    if (userId) {
+      try {
+        const fallbackRes = await baseApi.get<PaymentItem[]>("/payments", {
+          params: { userId },
+        })
+        if (fallbackRes.success && Array.isArray(fallbackRes.data)) {
+          return fallbackRes.data
+        }
+      } catch {
+        return []
+      }
+    }
+    return []
+  }
+}
+
+/**
  * Upload and verify a payment receipt image or PDF via POST /api/v1/payments/verify
  *
  * @param file Receipt file (PNG, JPG, JPEG, PDF up to 10MB)
