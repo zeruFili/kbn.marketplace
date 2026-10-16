@@ -1,19 +1,34 @@
 import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../../auth/AuthContext"
-import {
-  getUserDashboardData,
-  updateUserProfile,
-  type UserProfileData,
-} from "../../data/userDataStore"
-import { updateUserApi, resolveAssetUrl } from "../../api"
+import { fetchUserById, updateUserApi, resolveAssetUrl } from "../../api"
 import UserAvatar from "../../components/common/UserAvatar"
+
+interface ProfileFormState {
+  fullName: string
+  phone: string
+  website: string
+  education: string
+  achievement: string
+  professionalExperience: string
+  profilePhoto: string
+}
 
 export default function UserProfileEditPage() {
   const { user, updateUser: updateAuthUser } = useAuth()
   const navigate = useNavigate()
 
-  const [form, setForm] = useState<UserProfileData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [form, setForm] = useState<ProfileFormState>({
+    fullName: "",
+    phone: "",
+    website: "",
+    education: "",
+    achievement: "",
+    professionalExperience: "",
+    profilePhoto: "",
+  })
+
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [imageRemoved, setImageRemoved] = useState(false)
@@ -22,10 +37,49 @@ export default function UserProfileEditPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (!user) return
-    const data = getUserDashboardData(user.email, user)
-    setForm({ ...data.profile })
-  }, [user])
+    if (!user?.id) return
+
+    let cancelled = false
+    setLoading(true)
+
+    fetchUserById(user.id)
+      .then((fresh) => {
+        if (cancelled) return
+        if (fresh) {
+          const raw = fresh.profileImage || fresh.profile_image
+          setForm({
+            fullName: fresh.fullName || fresh.full_name || user.name || "",
+            phone: fresh.phone || "",
+            website: fresh.website || "",
+            education: fresh.education || "",
+            achievement: fresh.achievement || "",
+            professionalExperience:
+              fresh.professional_experience || fresh.professionalExperience || "",
+            profilePhoto: raw ? resolveAssetUrl(raw) : "",
+          })
+        } else {
+          setForm({
+            fullName: user.name || "",
+            phone: user.phone || "",
+            website: "",
+            education: "",
+            achievement: "",
+            professionalExperience: "",
+            profilePhoto: user.profileImage || user.avatar || "",
+          })
+        }
+      })
+      .catch((err) => {
+        console.warn("Could not load user data for edit:", err)
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [user?.id])
 
   // Object URL preview lifecycle
   useEffect(() => {
@@ -38,21 +92,14 @@ export default function UserProfileEditPage() {
     return () => URL.revokeObjectURL(url)
   }, [imageFile])
 
-  if (!user || !form) return null
-
-  const update = <K extends keyof UserProfileData>(
-    key: K,
-    value: UserProfileData[K],
-  ) => {
-    setForm((curr) => (curr ? { ...curr, [key]: value } : null))
-  }
+  if (!user) return null
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
     if (!file.type.startsWith("image/")) {
-      setError("Please select a valid image file (JPEG, PNG, WebP, etc.).")
+      setError("Please select a valid image file (JPEG, PNG, WebP).")
       return
     }
 
@@ -77,7 +124,7 @@ export default function UserProfileEditPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form || !user) return
+    if (!user) return
     setError("")
     setSaving(true)
 
@@ -86,51 +133,51 @@ export default function UserProfileEditPage() {
 
       if (imageFile) {
         const formData = new FormData()
-        formData.append("full_name", form.fullName)
-        if (form.phone && form.phone !== "Not provided") {
-          formData.append("phone", form.phone)
-        }
-        if (form.website && form.website !== "Not provided") {
-          formData.append("website", form.website)
+        formData.append("full_name", form.fullName.trim())
+        if (form.phone.trim()) formData.append("phone", form.phone.trim())
+        if (form.website.trim()) formData.append("website", form.website.trim())
+        if (form.education.trim()) formData.append("education", form.education.trim())
+        if (form.achievement.trim()) formData.append("achievement", form.achievement.trim())
+        if (form.professionalExperience.trim()) {
+          formData.append("professional_experience", form.professionalExperience.trim())
         }
         formData.append("profileImage", imageFile)
 
         const res = await updateUserApi(user.id, formData)
-        if (res.data?.profileImage) {
-          finalAvatarUrl = resolveAssetUrl(res.data.profileImage)
+        if (res.data?.profileImage || (res.data as any)?.profile_image) {
+          const raw = res.data?.profileImage || (res.data as any)?.profile_image
+          finalAvatarUrl = resolveAssetUrl(raw)
         }
       } else if (imageRemoved) {
         const formData = new FormData()
-        formData.append("full_name", form.fullName)
-        if (form.phone && form.phone !== "Not provided") {
-          formData.append("phone", form.phone)
-        }
-        if (form.website && form.website !== "Not provided") {
-          formData.append("website", form.website)
+        formData.append("full_name", form.fullName.trim())
+        if (form.phone.trim()) formData.append("phone", form.phone.trim())
+        if (form.website.trim()) formData.append("website", form.website.trim())
+        if (form.education.trim()) formData.append("education", form.education.trim())
+        if (form.achievement.trim()) formData.append("achievement", form.achievement.trim())
+        if (form.professionalExperience.trim()) {
+          formData.append("professional_experience", form.professionalExperience.trim())
         }
         formData.append("remove_profile_image", "true")
 
         await updateUserApi(user.id, formData)
         finalAvatarUrl = ""
       } else {
-        // Preserving existing photo
         await updateUserApi(user.id, {
-          full_name: form.fullName,
-          phone: form.phone && form.phone !== "Not provided" ? form.phone : undefined,
-          website: form.website && form.website !== "Not provided" ? form.website : undefined,
+          full_name: form.fullName.trim(),
+          phone: form.phone.trim() || undefined,
+          website: form.website.trim() || undefined,
+          education: form.education.trim() || undefined,
+          achievement: form.achievement.trim() || undefined,
+          professional_experience: form.professionalExperience.trim() || undefined,
         })
       }
 
-      const updatedProfile: UserProfileData = {
-        ...form,
-        profilePhoto: finalAvatarUrl,
-      }
-      updateUserProfile(user.email, updatedProfile)
-
       updateAuthUser({
-        name: form.fullName,
+        name: form.fullName.trim(),
         avatar: finalAvatarUrl || "",
         profileImage: finalAvatarUrl || null,
+        phone: form.phone.trim() || undefined,
       })
 
       navigate("/dashboard/profile")
@@ -142,8 +189,17 @@ export default function UserProfileEditPage() {
     }
   }
 
-  // Determine current image to preview in UI
-  const currentPhotoUrl = imagePreview || (!imageRemoved ? form.profilePhoto : "")
+  const currentPhotoUrl =
+    imagePreview || (!imageRemoved ? form.profilePhoto : "") || user.profileImage || user.avatar
+
+  if (loading) {
+    return (
+      <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-12 text-center animate-fade-in">
+        <div className="w-10 h-10 border-3 border-[var(--brand)]/30 border-t-[var(--brand)] rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-sm text-[var(--text-tertiary)]">Loading profile...</p>
+      </section>
+    )
+  }
 
   return (
     <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden animate-scale-in">
@@ -166,7 +222,7 @@ export default function UserProfileEditPage() {
               d="M10 19l-7-7m0 0l7-7m-7 7h18"
             />
           </svg>
-          Cancel
+          Back to Profile
         </button>
         <span className="text-sm font-semibold text-white">Edit Profile</span>
       </div>
@@ -183,7 +239,7 @@ export default function UserProfileEditPage() {
           <div className="relative">
             <UserAvatar
               src={currentPhotoUrl}
-              name={form.fullName}
+              name={form.fullName || user.name}
               size="xl"
               className="w-20 h-20 sm:w-24 sm:h-24 ring-2 ring-[var(--border-light)]"
             />
@@ -194,7 +250,7 @@ export default function UserProfileEditPage() {
               Profile Photo
             </label>
             <p className="text-xs text-[var(--text-secondary)] mb-3">
-              Upload a clear photo from your device. Supported formats: JPG, PNG, WebP, GIF (Max 5MB).
+              Upload a photo from your device (Max 5MB).
             </p>
 
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
@@ -220,13 +276,14 @@ export default function UserProfileEditPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,image/svg+xml"
+              accept="image/jpeg,image/png,image/webp,image/gif"
               className="hidden"
               onChange={handleImageSelect}
             />
           </div>
         </div>
 
+        {/* Existing Database Fields only */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-1">
@@ -236,20 +293,7 @@ export default function UserProfileEditPage() {
               type="text"
               required
               value={form.fullName}
-              onChange={(e) => update("fullName", e.target.value)}
-              className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-3 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-1">
-              Professional Title
-            </label>
-            <input
-              type="text"
-              value={form.professionalTitle}
-              onChange={(e) => update("professionalTitle", e.target.value)}
-              placeholder="e.g. Managing Partner, Architect"
+              onChange={(e) => setForm((prev) => ({ ...prev, fullName: e.target.value }))}
               className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-3 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
             />
           </div>
@@ -261,34 +305,8 @@ export default function UserProfileEditPage() {
             <input
               type="tel"
               value={form.phone}
-              onChange={(e) => update("phone", e.target.value)}
+              onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))}
               placeholder="+251 9..."
-              className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-3 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-1">
-              City
-            </label>
-            <input
-              type="text"
-              value={form.city}
-              onChange={(e) => update("city", e.target.value)}
-              placeholder="Addis Ababa"
-              className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-3 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-1">
-              Country
-            </label>
-            <input
-              type="text"
-              value={form.country}
-              onChange={(e) => update("country", e.target.value)}
-              placeholder="Ethiopia"
               className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-3 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
             />
           </div>
@@ -298,24 +316,24 @@ export default function UserProfileEditPage() {
               Website
             </label>
             <input
-              type="url"
+              type="text"
               value={form.website}
-              onChange={(e) => update("website", e.target.value)}
+              onChange={(e) => setForm((prev) => ({ ...prev, website: e.target.value }))}
               placeholder="https://..."
               className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-3 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
             />
           </div>
 
-          <div className="sm:col-span-2">
+          <div>
             <label className="block text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-1">
-              Short Bio
+              Education
             </label>
-            <textarea
-              rows={3}
-              value={form.shortBio}
-              onChange={(e) => update("shortBio", e.target.value)}
-              placeholder="Brief professional intro..."
-              className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-3 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 resize-none"
+            <input
+              type="text"
+              value={form.education}
+              onChange={(e) => setForm((prev) => ({ ...prev, education: e.target.value }))}
+              placeholder="Degree or certification..."
+              className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-3 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
             />
           </div>
 
@@ -326,8 +344,10 @@ export default function UserProfileEditPage() {
             <textarea
               rows={3}
               value={form.professionalExperience}
-              onChange={(e) => update("professionalExperience", e.target.value)}
-              placeholder="Career background and key roles..."
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, professionalExperience: e.target.value }))
+              }
+              placeholder="Work history, roles, or background..."
               className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-3 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 resize-none"
             />
           </div>
@@ -338,17 +358,9 @@ export default function UserProfileEditPage() {
             </label>
             <textarea
               rows={4}
-              value={form.achievements.join("\n")}
-              onChange={(e) =>
-                update(
-                  "achievements",
-                  e.target.value
-                    .split("\n")
-                    .map((item) => item.trim())
-                    .filter(Boolean),
-                )
-              }
-              placeholder="Leadership Award 2024&#10;Founded Christian Youth Fellowship"
+              value={form.achievement}
+              onChange={(e) => setForm((prev) => ({ ...prev, achievement: e.target.value }))}
+              placeholder="Key accomplishments or milestones..."
               className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-3 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
             />
           </div>

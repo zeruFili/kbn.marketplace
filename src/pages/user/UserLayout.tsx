@@ -47,8 +47,8 @@ export default function UserLayout() {
           />
           <div className="min-w-0">
             <p className="font-semibold truncate text-white">{user?.name}</p>
-            <p className="text-xs text-[#94A3B8] truncate capitalize">
-              {user?.role} account
+            <p className="text-xs text-[#94A3B8] truncate">
+              {user?.email}
             </p>
           </div>
         </div>

@@ -12,12 +12,16 @@ export interface UserProfileResponse {
   fullName?: string
   full_name?: string
   email?: string
-  role: string
+  role?: string
   phone?: string | null
   status?: string
   profileImage?: string | null
   profile_image?: string | null
   website?: string | null
+  education?: string | null
+  achievement?: string | null
+  professional_experience?: string | null
+  professionalExperience?: string | null
 }
 
 export async function fetchUserById(
@@ -71,26 +75,28 @@ export function mapUserToProfileData(u: UserProfileResponse): UserProfileData {
   const rawImage = u.profileImage || u.profile_image
   const profilePhoto = rawImage
     ? resolveAssetUrl(rawImage)
-    : "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=400&fit=crop&auto=format"
+    : ""
   const digitalSlug = u.id || name.toLowerCase().replace(/[^a-z0-9]+/g, "-")
-  const roleName = u.role
-    ? u.role.charAt(0).toUpperCase() + u.role.slice(1)
-    : "Member"
+
+  let parsedAchievements: string[] = []
+  if (u.achievement) {
+    parsedAchievements = u.achievement
+      .split("\n")
+      .map((item) => item.trim())
+      .filter(Boolean)
+  }
 
   return {
     fullName: name,
     phone: u.phone || "",
-    professionalTitle: roleName === "Admin" ? "Network Director" : roleName,
+    professionalTitle: "",
     profilePhoto,
-    shortBio: `${name} is an active member and leader within the Kingdom Builders Network community.`,
-    professionalExperience: "Active contributor to Kingdom Builders Network initiatives and collaborative business development.",
-    education: "Higher Education & Leadership Training",
-    achievements: [
-      "Kingdom Builders Network Member",
-      "Community Ecosystem Partner",
-    ],
-    city: "Addis Ababa",
-    country: "Ethiopia",
+    shortBio: "",
+    professionalExperience: u.professional_experience || u.professionalExperience || "",
+    education: u.education || "",
+    achievements: parsedAchievements,
+    city: "",
+    country: "",
     website: u.website || "",
     socialMedia: "",
     digitalSlug,

@@ -53,6 +53,61 @@ export interface PaymentValidityData {
   lastPaymentDate?: string
 }
 
+export interface PaymentUserSummary {
+  id: string
+  full_name?: string
+  name?: string
+  email?: string
+  phone?: string | null
+  profileImage?: string | null
+  avatar?: string | null
+  role?: string
+  status?: string
+  is_active?: boolean
+}
+
+export interface PaymentItem {
+  id: string
+  user_id: string
+  amount: string
+  status: "accepted" | "pending" | "rejected" | string
+  provider?: string | null
+  reference?: string | null
+  date?: string | null
+  time?: string | null
+  url?: string | null
+  image?: string | null
+  expirationDate?: string | null
+  expiration_date?: string | null
+  isExpired?: boolean
+  is_expired?: boolean
+  isValid?: boolean
+  is_valid?: boolean
+  created_at: string
+  updated_at?: string
+  user?: PaymentUserSummary | null
+}
+
+export interface PaymentListResponse {
+  success: boolean
+  data: PaymentItem[]
+  meta?: {
+    total: number
+    page: number
+    limit: number
+    totalPages: number
+  }
+}
+
+export interface AdminPaymentQueryParams {
+  month?: number
+  year?: number
+  status?: string
+  userName?: string
+  page?: number
+  limit?: number
+}
+
 /**
  * Fetch current user payment validity and latest payment status via GET /api/v1/payments/status
  */
@@ -136,3 +191,55 @@ export async function verifyPaymentReceipt(file: File): Promise<VerifyReceiptRes
     }
   }
 }
+
+/**
+ * Fetch payments for admin with optional month, year, status, and userName filters via GET /api/v1/payments
+ */
+export async function fetchAdminPayments(
+  params?: AdminPaymentQueryParams
+): Promise<PaymentListResponse> {
+  const queryParams: Record<string, string | number | undefined> = {}
+  if (params?.month !== undefined) queryParams.month = params.month
+  if (params?.year !== undefined) queryParams.year = params.year
+  if (params?.status && params.status !== "all") queryParams.status = params.status
+  if (params?.userName) queryParams.userName = params.userName
+  if (params?.page !== undefined) queryParams.page = params.page
+  if (params?.limit !== undefined) queryParams.limit = params.limit
+
+  const res = await baseApi.get<PaymentItem[]>("/payments", { params: queryParams })
+  return {
+    success: res.success,
+    data: Array.isArray(res.data) ? res.data : [],
+    meta: (res as any).meta,
+  }
+}
+
+/**
+ * Fetch single payment details by ID via GET /api/v1/payments/:id
+ */
+export async function fetchPaymentById(id: string): Promise<PaymentItem | null> {
+  try {
+    const res = await baseApi.get<PaymentItem>(`/payments/${id}`)
+    if (res.success && res.data) {
+      return res.data
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Update payment status (admin) via PATCH /api/v1/payments/:id
+ */
+export async function updateAdminPaymentStatus(
+  id: string,
+  status: "accepted" | "pending" | "rejected"
+): Promise<PaymentItem | null> {
+  const res = await baseApi.patch<PaymentItem>(`/payments/${id}`, { status })
+  if (res.success && res.data) {
+    return res.data
+  }
+  return null
+}
+

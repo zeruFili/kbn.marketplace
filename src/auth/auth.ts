@@ -30,6 +30,7 @@ export interface User {
   business?: string
   companyId?: string
   phone?: string
+  website?: string
 }
 
 export const getStoredToken = getAuthToken
@@ -128,6 +129,8 @@ export async function getMe(): Promise<User | null> {
         profileImage: resolvedProfileImage,
         role: (safeUser.role as UserRole) || "user",
         status: (String(safeUser.status || "pending").toLowerCase() as UserStatus),
+        phone: (safeUser.phone as string) || undefined,
+        website: (safeUser.website as string) || undefined,
       }
 
       saveSession(user)
@@ -172,6 +175,8 @@ export async function login(email: string, password: string): Promise<User> {
         profileImage: resolvedProfileImage,
         role: (safeUser.role as UserRole) || "user",
         status: (String(safeUser.status || "pending").toLowerCase() as UserStatus),
+        phone: (safeUser.phone as string) || undefined,
+        website: (safeUser.website as string) || undefined,
       }
 
       saveSession(user)
