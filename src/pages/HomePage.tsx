@@ -7,14 +7,15 @@ import {
   type Company,
 } from "../api/companyApi"
 import {
-  fetchEvents,
-  mapEventToUserEventData,
-} from "../api/eventsApi"
+  fetchUsersApi,
+  mapUserToProfileData,
+} from "../api/userApi"
+import UserAvatar from "../components/common/UserAvatar"
 import {
   fetchBlogs,
   mapBlogToUserArticleData,
 } from "../api/blogsApi"
-import type { UserEventData, UserArticleData } from "../data/userDataStore"
+import type { UserProfileData, UserArticleData } from "../data/userDataStore"
 
 const knbLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
 
@@ -130,23 +131,51 @@ function SectionEmpty({
   )
 }
 
+function truncateToWords(
+  text: string | string[] | undefined | null,
+  count = 5,
+): string {
+  if (!text) return ""
+  const str = Array.isArray(text) ? text.join(" ") : String(text)
+  const trimmed = str.trim()
+  if (!trimmed) return ""
+  const words = trimmed.split(/\s+/)
+  if (words.length <= count) return words.join(" ")
+  return words.slice(0, count).join(" ") + "..."
+}
+
 export default function HomePage() {
   const navigate = useNavigate()
+
+  // Dynamic people / members state
+  const [people, setPeople] = useState<UserProfileData[]>([])
+  const [loadingPeople, setLoadingPeople] = useState(true)
+  const [peopleError, setPeopleError] = useState<string | null>(null)
 
   // Dynamic companies state
   const [companies, setCompanies] = useState<Company[]>([])
   const [loadingCompanies, setLoadingCompanies] = useState(true)
   const [companiesError, setCompaniesError] = useState<string | null>(null)
 
-  // Dynamic events state
-  const [events, setEvents] = useState<UserEventData[]>([])
-  const [loadingEvents, setLoadingEvents] = useState(true)
-  const [eventsError, setEventsError] = useState<string | null>(null)
-
   // Dynamic blogs state
   const [blogs, setBlogs] = useState<UserArticleData[]>([])
   const [loadingBlogs, setLoadingBlogs] = useState(true)
   const [blogsError, setBlogsError] = useState<string | null>(null)
+
+  const loadPeopleData = useCallback(async () => {
+    setLoadingPeople(true)
+    setPeopleError(null)
+    try {
+      const apiUsers = await fetchUsersApi({ limit: 12 })
+      setPeople((apiUsers || []).map(mapUserToProfileData))
+    } catch (err: unknown) {
+      setPeopleError(
+        err instanceof Error ? err.message : "Unable to load community members."
+      )
+    } finally {
+      setLoadingPeople(false)
+    }
+  }, [])
 
   const loadCompaniesData = useCallback(async () => {
     setLoadingCompanies(true)
@@ -158,26 +187,10 @@ export default function HomePage() {
       setCompaniesError(
         err instanceof Error
           ? err.message
-          : "Unable to load community members."
+          : "Unable to load companies."
       )
     } finally {
       setLoadingCompanies(false)
-    }
-  }, [])
-
-  const loadEventsData = useCallback(async () => {
-    setLoadingEvents(true)
-    setEventsError(null)
-    try {
-      const apiEvents = await fetchEvents()
-      const mapped = apiEvents.map(mapEventToUserEventData)
-      setEvents(mapped)
-    } catch (err: unknown) {
-      setEventsError(
-        err instanceof Error ? err.message : "Unable to load events."
-      )
-    } finally {
-      setLoadingEvents(false)
     }
   }, [])
 
@@ -198,15 +211,16 @@ export default function HomePage() {
   }, [])
 
   useEffect(() => {
+    loadPeopleData()
     loadCompaniesData()
-    loadEventsData()
     loadBlogsData()
-  }, [loadCompaniesData, loadEventsData, loadBlogsData])
+  }, [loadPeopleData, loadCompaniesData, loadBlogsData])
 
-  // Featured or top companies from database
-  const featured = companies.filter((c) => c.featured)
-  const displayCompanies = featured.length > 0 ? featured.slice(0, 6) : companies.slice(0, 6)
-  const displayEvents = events.slice(0, 6)
+  // Featured members (people) and companies from database (strictly maximum 6 each)
+  const displayPeople = people.slice(0, 6)
+  const featuredCompanies = companies.filter((c) => c.featured)
+  const nonFeaturedCompanies = companies.filter((c) => !c.featured)
+  const displayCompanies = [...featuredCompanies, ...nonFeaturedCompanies].slice(0, 6)
   const displayBlogs = blogs.slice(0, 3)
 
   return (
@@ -214,7 +228,7 @@ export default function HomePage() {
       <Navbar showRegisterButton={false} />
 
       {/* Featured Members */}
-      <section className="py-16 sm:py-20 md:py-28 bg-[var(--surface)] animate-fade-in-up">
+      <section className="py-8 sm:py-10 md:py-14 bg-[var(--surface)] animate-fade-in-up">
         <div className="max-w-7xl mx-auto px-4 md:px-8">
           <SectionHeading
             overline="Our Community"
@@ -222,30 +236,94 @@ export default function HomePage() {
             subtitle="Meet some of the incredible Ethiopian Christian business owners and professionals in our network."
           />
 
-          {loadingCompanies ? (
+          {loadingPeople ? (
             <LoadingSkeleton count={3} />
-          ) : companiesError ? (
-            <SectionError message={companiesError} onRetry={loadCompaniesData} />
-          ) : displayCompanies.length === 0 ? (
+          ) : peopleError ? (
+            <SectionError message={peopleError} onRetry={loadPeopleData} />
+          ) : displayPeople.length === 0 ? (
             <SectionEmpty
               title="No Members Listed Yet"
-              description="Be the first to list your Christian-owned business or organization in our community directory."
+              description="Be the first to list your profile or connect with professionals across our community."
+              actionLabel="Browse People"
+              onAction={() => navigate("/people")}
             />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 animate-stagger">
-              {displayCompanies.map((company) => (
-                <CompanyCard
-                  key={company.id}
-                  company={company}
-                  onClick={() => navigate(`/companies/${company.id}`)}
-                />
-              ))}
+              {displayPeople.map((person, idx) => {
+                const experience = truncateToWords(
+                  person.professionalExperience,
+                  5
+                )
+                const achievements = truncateToWords(
+                  person.achievements,
+                  5
+                )
+
+                return (
+                  <div
+                    key={person.id || person.digitalSlug || idx}
+                    onClick={() => {
+                      const targetId =
+                        person.id ||
+                        person.digitalSlug ||
+                        person.fullName.toLowerCase().replace(/[^a-z0-9]+/g, "-")
+                      navigate(`/people/${targetId}`)
+                    }}
+                    className="card-hover bg-[var(--surface-alt)] rounded-2xl border border-[var(--border-light)] p-6 cursor-pointer flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-center gap-4 mb-4">
+                        <UserAvatar
+                          src={person.profilePhoto}
+                          name={person.fullName}
+                          size="lg"
+                          className="w-16 h-16 rounded-2xl shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <h3 className="font-serif text-xl text-[var(--text-primary)] truncate">
+                            {person.fullName}
+                          </h3>
+                          {person.professionalTitle && (
+                            <p className="text-sm text-[var(--accent-dark)] truncate">
+                              {person.professionalTitle}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {experience && (
+                        <p className="text-sm font-medium text-[var(--accent-dark)] mb-2 leading-relaxed">
+                          {experience}
+                        </p>
+                      )}
+                      {achievements && (
+                        <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+                          {achievements}
+                        </p>
+                      )}
+                      {!experience && !achievements && person.shortBio && (
+                        <p className="text-sm text-[var(--text-secondary)] leading-relaxed line-clamp-3 mb-4">
+                          {person.shortBio}
+                        </p>
+                      )}
+                    </div>
+
+                    {(person.city || person.country) && (
+                      <div className="flex items-center text-xs text-[var(--text-tertiary)] pt-3 border-t border-[var(--border-light)]/60 mt-auto">
+                        <span className="truncate">
+                          {[person.city, person.country].filter(Boolean).join(", ")}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
 
           <div className="flex flex-wrap items-center justify-center gap-3 mt-10">
             <button
-              onClick={() => navigate("/companies")}
+              onClick={() => navigate("/people")}
               className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand)] border border-[var(--brand)] px-6 py-3 rounded-xl hover:bg-[var(--brand)] hover:text-white transition-colors cursor-pointer"
             >
               View All Members
@@ -267,75 +345,45 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Events */}
-      <section id="events" className="py-16 sm:py-20 md:py-28 animate-fade-in-up">
+      {/* Featured Businesses */}
+      <section id="companies" className="py-8 sm:py-10 md:py-14 animate-fade-in-up">
         <div className="max-w-7xl mx-auto px-4 md:px-8">
           <SectionHeading
             overline="Get Involved"
-            title="Upcoming Events"
-            subtitle="Grow in faith, build relationships, and sharpen your skills at our upcoming gatherings."
+            title="Featured Businesses"
+            subtitle="Grow in faith, build relationships, and discover purpose-driven enterprises in our network."
           />
 
-          {loadingEvents ? (
+          {loadingCompanies ? (
             <LoadingSkeleton count={3} />
-          ) : eventsError ? (
-            <SectionError message={eventsError} onRetry={loadEventsData} />
-          ) : displayEvents.length === 0 ? (
+          ) : companiesError ? (
+            <SectionError message={companiesError} onRetry={loadCompaniesData} />
+          ) : displayCompanies.length === 0 ? (
             <SectionEmpty
-              title="No Upcoming Events Scheduled"
-              description="New networking gatherings, leadership workshops, and prayer breakfasts are announced regularly."
-              actionLabel="Browse Events"
-              onAction={() => navigate("/events")}
+              title="No Businesses Listed Yet"
+              description="Be the first to list your Christian-owned business or organization in our community directory."
+              actionLabel="Browse Companies"
+              onAction={() => navigate("/companies")}
             />
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {displayEvents.map((ev, i) => (
-                <div
-                  key={ev.id || ev.title}
-                  onClick={() => navigate(`/events/${ev.id}`)}
-                  className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden group cursor-pointer"
-                  style={{ animationDelay: `${i * 80}ms` }}
-                >
-                  <div className="relative h-44 overflow-hidden">
-                    <img
-                      src={ev.eventImage}
-                      alt={ev.title}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                    />
-                    <div className="absolute top-3 left-3 bg-white/90 dark:bg-[var(--surface-raised)]/90 backdrop-blur-sm rounded-lg px-3 py-1.5 text-xs font-bold text-[var(--brand)]">
-                      {ev.startDate}
-                    </div>
-                  </div>
-                  <div className="p-5">
-                    <div className="flex items-center gap-2 text-xs text-[var(--text-tertiary)] mb-2">
-                      <span className="font-semibold text-[var(--accent-dark)] uppercase tracking-wide">
-                        {ev.eventType}
-                      </span>
-                      <span>·</span>
-                      <span className="truncate">{ev.location}</span>
-                    </div>
-                    <h3 className="font-semibold text-[var(--text-primary)] mb-2 leading-tight">
-                      {ev.title}
-                    </h3>
-                    <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-4 line-clamp-2">
-                      {ev.description}
-                    </p>
-                    <div className="text-xs font-semibold text-[var(--accent-dark)] hover:text-[var(--brand)] transition-colors flex items-center gap-1">
-                      View Details &rarr;
-                    </div>
-                  </div>
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 animate-stagger">
+              {displayCompanies.map((company) => (
+                <CompanyCard
+                  key={company.id}
+                  company={company}
+                  onClick={() => navigate(`/companies/${company.id}`)}
+                />
               ))}
             </div>
           )}
 
-          {displayEvents.length > 0 && (
+          {displayCompanies.length > 0 && (
             <div className="text-center mt-10">
               <button
-                onClick={() => navigate("/events")}
+                onClick={() => navigate("/companies")}
                 className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand)] border border-[var(--border-default)] bg-[var(--surface)] px-6 py-2.5 rounded-xl hover:border-[var(--brand)] transition-colors cursor-pointer"
               >
-                Browse All Events &rarr;
+                Browse All Businesses &rarr;
               </button>
             </div>
           )}
@@ -343,7 +391,7 @@ export default function HomePage() {
       </section>
 
       {/* Latest from KBN Journal / Blogs */}
-      <section className="py-16 sm:py-20 md:py-28 bg-[var(--surface)] animate-fade-in-up">
+      <section className="py-8 sm:py-10 md:py-14 bg-[var(--surface)] animate-fade-in-up">
         <div className="max-w-7xl mx-auto px-4 md:px-8">
           <SectionHeading
             overline="Stories & Insights"
