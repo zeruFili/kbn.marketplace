@@ -269,14 +269,6 @@ export default function AdminContent({ kind }: { kind: ContentKind }) {
                     </svg>
                     {"eventType" in item ? item.startDate : item.publishedDate}
                   </span>
-                  {"author" in item && (
-                    <span className="inline-flex items-center gap-1 truncate max-w-[50%]">
-                      <svg className="w-3.5 h-3.5 text-[var(--accent-dark)] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M16 21v-2a4 4 0 00-8 0v2m4-11a4 4 0 100-8 4 4 0 000 8z" />
-                      </svg>
-                      <span className="truncate">{item.author}</span>
-                    </span>
-                  )}
                   {"eventType" in item && (
                     <span className="inline-flex items-center gap-1.5 truncate max-w-[50%]">
                       <svg className="w-3.5 h-3.5 text-[var(--accent-dark)] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -87,6 +87,7 @@ export function mapUserToProfileData(u: UserProfileResponse): UserProfileData {
   }
 
   return {
+    id: u.id,
     fullName: name,
     phone: u.phone || "",
     professionalTitle: "",
@@ -100,6 +101,7 @@ export function mapUserToProfileData(u: UserProfileResponse): UserProfileData {
     website: u.website || "",
     socialMedia: "",
     digitalSlug,
+    email: u.email || "",
   }
 }
 

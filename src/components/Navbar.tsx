@@ -22,6 +22,7 @@ export default function Navbar({
   onPublicPage,
   onDashboard,
   onCreateBusiness,
+  showRegisterButton,
 }: {
   onLogin?: () => void
   onSignUp?: () => void
@@ -29,6 +30,7 @@ export default function Navbar({
   onPublicPage?: (page: PublicPage) => void
   onDashboard?: () => void
   onCreateBusiness?: () => void
+  showRegisterButton?: boolean
 } = {}) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
@@ -38,6 +40,9 @@ export default function Navbar({
 
   const currentStatus = user ? (user.status || "pending").toLowerCase() : null
   const isActiveUser = currentStatus === "active"
+  const isLandingPage = location.pathname === "/"
+  const canShowRegisterBusiness =
+    showRegisterButton !== undefined ? showRegisterButton : !isLandingPage
 
   const handleHome = () => {
     if (onHome) onHome()
@@ -150,7 +155,7 @@ export default function Navbar({
         )}
 
         <div className="flex items-center gap-2">
-          {isActiveUser && (
+          {canShowRegisterBusiness && isActiveUser && (
             <button
               onClick={handleCreateBusiness}
               className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-3 py-2 rounded-xl shadow-sm transition-all cursor-pointer"
@@ -362,15 +367,17 @@ export default function Navbar({
                   </button>
                 )
               })}
-              <button
-                onClick={() => {
-                  handleCreateBusiness()
-                  setMenuOpen(false)
-                }}
-                className="block w-full text-left text-sm font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-3 py-2.5 rounded-xl hover:bg-amber-100 transition-colors cursor-pointer"
-              >
-                + Register Business
-              </button>
+              {canShowRegisterBusiness && (
+                <button
+                  onClick={() => {
+                    handleCreateBusiness()
+                    setMenuOpen(false)
+                  }}
+                  className="block w-full text-left text-sm font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-3 py-2.5 rounded-xl hover:bg-amber-100 transition-colors cursor-pointer"
+                >
+                  + Register Business
+                </button>
+              )}
             </>
           )}
 

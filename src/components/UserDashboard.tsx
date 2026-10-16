@@ -1248,7 +1248,6 @@ function EditField({
                 {form.excerpt}
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <DetailField label="Author" value={form.author} />
                 <DetailField
                   label="Published date"
                   value={form.publishedDate}
@@ -1823,7 +1822,6 @@ function ArticleDetail({
                 {form.excerpt}
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <DetailField label="Author" value={form.author} />
                 <DetailField
                   label="Published date"
                   value={form.publishedDate}
@@ -2587,9 +2585,7 @@ function ArticleCard({
           {item.excerpt}
         </p>
         <div className="flex items-center justify-between gap-3 text-xs text-[var(--text-tertiary)] mt-5 pt-4 border-t border-[var(--border-light)]">
-          <span>
-            {item.author} · {item.publishedDate}
-          </span>
+          <span>{item.publishedDate}</span>
           <span>{item.visibility}</span>
         </div>
       </div>

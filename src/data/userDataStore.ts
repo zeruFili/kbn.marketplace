@@ -2,6 +2,7 @@ import { type Category } from "./companies"
 import { type User } from "../auth/auth"
 
 export interface UserProfileData {
+  id?: string
   fullName: string
   phone: string
   professionalTitle: string
@@ -15,6 +16,7 @@ export interface UserProfileData {
   website: string
   socialMedia: string
   digitalSlug: string
+  email?: string
 }
 
 export interface UserBusinessData {

@@ -83,6 +83,19 @@ type PublicSelection =
     }
   | { type: "event"; item: UserEventData; returnToProfile?: UserProfileData }
 
+function truncateToWords(
+  text: string | string[] | undefined | null,
+  count = 5,
+): string {
+  if (!text) return ""
+  const str = Array.isArray(text) ? text.join(" ") : String(text)
+  const trimmed = str.trim()
+  if (!trimmed) return ""
+  const words = trimmed.split(/\s+/)
+  if (words.length <= count) return words.join(" ")
+  return words.slice(0, count).join(" ").replace(/[.,;:]+$/, "") + "..."
+}
+
 function PublicContentPage({
   page,
   onBack,
@@ -206,7 +219,7 @@ function PublicContentPage({
   const filteredPeople = people.filter(
     (person) =>
       (!query ||
-        `${person.fullName} ${person.professionalTitle} ${person.shortBio} ${person.city}`
+        `${person.fullName} ${person.professionalTitle} ${person.shortBio} ${person.professionalExperience} ${Array.isArray(person.achievements) ? person.achievements.join(" ") : person.achievements || ""} ${person.city}`
           .toLowerCase()
           .includes(query)) &&
       (category === "All" || person.professionalTitle === category),
@@ -240,7 +253,7 @@ function PublicContentPage({
       ? "Search people by name, title, or city..."
       : page === "events"
         ? "Search events by title, type, or location..."
-        : `Search ${page} by title, topic, or author...`
+        : `Search ${page} by title or topic...`
 
   return (
     <main className="min-h-screen bg-[var(--surface-alt)]">
@@ -327,41 +340,71 @@ function PublicContentPage({
             </p>
             {page === "people" && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 animate-stagger">
-                {filteredPeople.map((profile) => (
-                  <div
-                    key={profile.digitalSlug}
-                    onClick={() =>
-                      onSelectContent({ type: "person", item: profile })
-                    }
-                    className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6 cursor-pointer"
-                  >
-                    <div className="flex items-center gap-4 mb-5">
-                      <UserAvatar
-                        src={profile.profilePhoto}
-                        name={profile.fullName}
-                        size="lg"
-                        className="w-16 h-16 rounded-2xl"
-                      />
+                {filteredPeople.map((profile, idx) => {
+                  const experience = truncateToWords(
+                    profile.professionalExperience,
+                    5,
+                  )
+                  const achievements = truncateToWords(
+                    profile.achievements,
+                    5,
+                  )
+
+                  return (
+                    <div
+                      key={profile.id || profile.digitalSlug || idx}
+                      onClick={() =>
+                        onSelectContent({ type: "person", item: profile })
+                      }
+                      className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6 cursor-pointer flex flex-col justify-between"
+                    >
                       <div>
-                        <h2 className="font-serif text-xl text-[var(--text-primary)]">
-                          {profile.fullName}
-                        </h2>
-                        <p className="text-sm text-[var(--accent-dark)]">
-                          {profile.professionalTitle}
-                        </p>
+                        <div className="flex items-center gap-4 mb-4">
+                          <UserAvatar
+                            src={profile.profilePhoto}
+                            name={profile.fullName}
+                            size="lg"
+                            className="w-16 h-16 rounded-2xl shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <h2 className="font-serif text-xl text-[var(--text-primary)] truncate">
+                              {profile.fullName}
+                            </h2>
+                            {profile.professionalTitle && (
+                              <p className="text-sm text-[var(--accent-dark)] truncate">
+                                {profile.professionalTitle}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {experience && (
+                          <p className="text-sm font-medium text-[var(--accent-dark)] mb-2 leading-relaxed">
+                            {experience}
+                          </p>
+                        )}
+                        {achievements && (
+                          <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
+                            {achievements}
+                          </p>
+                        )}
+                        {!experience && !achievements && profile.shortBio && (
+                          <p className="text-sm text-[var(--text-secondary)] leading-relaxed line-clamp-3 mb-4">
+                            {profile.shortBio}
+                          </p>
+                        )}
                       </div>
+
+                      {(profile.city || profile.country) && (
+                        <div className="flex items-center text-xs text-[var(--text-tertiary)] pt-3 border-t border-[var(--border-light)]/60 mt-auto">
+                          <span className="truncate">
+                            {[profile.city, profile.country].filter(Boolean).join(", ")}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                    <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-5 line-clamp-3">
-                      {profile.shortBio}
-                    </p>
-                    <div className="flex items-center justify-between text-xs text-[var(--text-tertiary)]">
-                      <span>
-                        {profile.city}, {profile.country}
-                      </span>
-                      <span>{profile.digitalSlug}</span>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
 
@@ -393,9 +436,8 @@ function PublicContentPage({
                       <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-5 line-clamp-3">
                         {item.excerpt}
                       </p>
-                      <div className="flex items-center justify-between text-xs text-[var(--text-tertiary)]">
+                      <div className="flex items-center text-xs text-[var(--text-tertiary)]">
                         <span>{item.publishedDate}</span>
-                        <span>{item.author}</span>
                       </div>
                     </div>
                   </article>
@@ -552,7 +594,65 @@ function PublicContentDetail({
   )
 }
 
+function PublicProfileDetailCard({
+  label,
+  value,
+  href,
+  icon,
+}: {
+  label: string
+  value?: string
+  href?: string
+  icon: React.ReactNode
+}) {
+  return (
+    <div className="bg-white rounded-2xl border border-[var(--border-light)] p-5 flex items-center gap-4 shadow-sm hover:border-[var(--border-default)] transition-all group">
+      <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 bg-[var(--accent-light)] text-[var(--accent-dark)] border border-[var(--accent)]/15 shadow-xs transition-transform duration-200 group-hover:scale-105">
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          aria-hidden="true"
+        >
+          {icon}
+        </svg>
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-tertiary)] mb-1">
+          {label}
+        </p>
+        {href && value ? (
+          <a
+            href={href}
+            target={href.startsWith("http") ? "_blank" : undefined}
+            rel={href.startsWith("http") ? "noopener noreferrer" : undefined}
+            className="text-sm font-semibold text-[var(--text-primary)] hover:text-[var(--brand)] transition-colors break-words leading-snug line-clamp-2"
+          >
+            {value}
+          </a>
+        ) : (
+          <p className="text-sm font-semibold text-[var(--text-primary)] break-words leading-snug">
+            {value || "Not provided"}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function PublicPersonDetailLegacy({ item }: { item: UserProfileData }) {
+  const achievementList = Array.isArray(item.achievements)
+    ? item.achievements.filter(Boolean)
+    : typeof item.achievements === "string"
+      ? (item.achievements as string)
+          .split("\n")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : []
+
+  const location = [item.city, item.country].filter(Boolean).join(", ")
+
   return (
     <div className="max-w-6xl mx-auto px-4 md:px-8 py-10 md:py-16">
       <div className="grid lg:grid-cols-[300px_1fr] gap-8 items-start">
@@ -570,86 +670,199 @@ function PublicPersonDetailLegacy({ item }: { item: UserProfileData }) {
             size="xl"
             className="w-32 h-32 rounded-2xl ring-4 ring-white/20 mb-6"
           />
-          <p className="text-sm text-[var(--accent)] font-semibold mb-2">
-            {item.professionalTitle}
-          </p>
-          <h2 className="font-serif text-3xl mb-4">{item.fullName}</h2>
-          <div className="flex items-center gap-2 text-sm text-white/70">
-            <PublicIcon
-              path="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z"
-              className="w-4 h-4"
-            />
-            {item.city}, {item.country}
-          </div>
-          <div className="mt-7 pt-5 border-t border-white/10 space-y-3">
-            <a
-              href={`https://${item.website}`}
-              className="flex items-center gap-2 text-sm text-white/85 hover:text-[var(--accent)]"
-            >
-              <PublicIcon
-                path="M12 21a9 9 0 100-18 9 9 0 000 18zm0 0c2.21-2.49 3.5-5.53 3.5-9S14.21 5.49 12 3m0 18c-2.21-2.49-3.5-5.53-3.5-9S9.79 5.49 12 3m-9 9h18"
-                className="w-4 h-4"
-              />
-              {item.website}
-            </a>
-            <p className="flex items-center gap-2 text-sm text-white/70">
-              <PublicIcon
-                path="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z"
-                className="w-4 h-4"
-              />
-              {item.socialMedia}
+          {item.professionalTitle && (
+            <p className="text-sm text-[var(--accent)] font-semibold mb-2">
+              {item.professionalTitle}
             </p>
+          )}
+          <h2 className="font-serif text-3xl mb-4">{item.fullName}</h2>
+          {location && (
+            <div className="flex items-center gap-2 text-sm text-white/70 mb-2">
+              <PublicIcon
+                path="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0zM15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                className="w-4 h-4"
+              />
+              {location}
+            </div>
+          )}
+          <div className="mt-7 pt-5 border-t border-white/10 space-y-3">
+            {item.email && (
+              <a
+                href={`mailto:${item.email}`}
+                className="flex items-center gap-2 text-sm text-white/85 hover:text-[var(--accent)] truncate"
+              >
+                <PublicIcon
+                  path="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                  className="w-4 h-4 shrink-0"
+                />
+                <span className="truncate">{item.email}</span>
+              </a>
+            )}
+            {item.phone && (
+              <a
+                href={`tel:${item.phone}`}
+                className="flex items-center gap-2 text-sm text-white/85 hover:text-[var(--accent)] truncate"
+              >
+                <PublicIcon
+                  path="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                  className="w-4 h-4 shrink-0"
+                />
+                <span className="truncate">{item.phone}</span>
+              </a>
+            )}
+            {item.website && (
+              <a
+                href={
+                  item.website.startsWith("http")
+                    ? item.website
+                    : `https://${item.website}`
+                }
+                target="_blank"
+                rel="noreferrer noopener"
+                className="flex items-center gap-2 text-sm text-white/85 hover:text-[var(--accent)] truncate"
+              >
+                <PublicIcon
+                  path="M12 21a9 9 0 100-18 9 9 0 000 18zm0 0c2.21-2.49 3.5-5.53 3.5-9S14.21 5.49 12 3m0 18c-2.21-2.49-3.5-5.53-3.5-9S9.79 5.49 12 3m-9 9h18"
+                  className="w-4 h-4 shrink-0"
+                />
+                <span className="truncate">{item.website}</span>
+              </a>
+            )}
+            {item.socialMedia && (
+              <p className="flex items-center gap-2 text-sm text-white/70 truncate">
+                <PublicIcon
+                  path="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z"
+                  className="w-4 h-4 shrink-0"
+                />
+                <span className="truncate">{item.socialMedia}</span>
+              </p>
+            )}
           </div>
         </aside>
+
         <section className="space-y-6">
-          <div className="relative overflow-hidden bg-white rounded-[2rem] border border-[var(--border-light)] p-7 md:p-10 shadow-[0_12px_30px_rgba(15,29,58,0.05)]">
-            <div className="absolute -right-8 -top-8 w-28 h-28 rounded-full bg-[var(--accent-light)]" />
-            <div className="relative">
-              <div className="flex items-center gap-3 text-[var(--accent-dark)] mb-4">
-                <PublicIcon path="M8 10h.01M12 10h.01M16 10h.01M9 16h6m5-4a8 8 0 01-8 8H5l-2 2 1-5a8 8 0 1116-5z" />
-                <p className="text-xs font-bold uppercase tracking-[0.16em]">
-                  A word from {item.fullName.split(" ")[0]}
-                </p>
-              </div>
-              <p className="font-serif text-2xl md:text-3xl text-[var(--text-primary)] leading-relaxed">
-                {item.shortBio}
-              </p>
-            </div>
-          </div>
-          <div className="grid sm:grid-cols-2 gap-5">
-            <PublicDetailField
-              label="Professional experience"
-              value={item.professionalExperience}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <PublicProfileDetailCard
+              label="EMAIL"
+              value={item.email}
+              href={item.email ? `mailto:${item.email}` : undefined}
+              icon={
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.8}
+                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                />
+              }
             />
-            <PublicDetailField label="Education" value={item.education} />
-            <PublicDetailField label="Phone number" value={item.phone} />
-            <PublicDetailField label="Digital slug" value={item.digitalSlug} />
-          </div>
-          <div className="bg-white rounded-[2rem] border border-[var(--border-light)] p-7 md:p-8">
-            <div className="flex items-center gap-3 mb-5">
-              <span className="grid place-items-center w-9 h-9 rounded-xl bg-[var(--accent-light)] text-[var(--accent-dark)]">
-                <PublicIcon path="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </span>
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-[var(--accent-dark)]">
-                  Milestones
-                </p>
-                <p className="text-sm text-[var(--text-tertiary)]">
-                  A few highlights from the journey
-                </p>
+
+            <PublicProfileDetailCard
+              label="PHONE NUMBER"
+              value={item.phone}
+              href={item.phone ? `tel:${item.phone}` : undefined}
+              icon={
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.8}
+                  d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                />
+              }
+            />
+
+            <PublicProfileDetailCard
+              label="WEBSITE"
+              value={item.website}
+              href={
+                item.website
+                  ? item.website.startsWith("http")
+                    ? item.website
+                    : `https://${item.website}`
+                  : undefined
+              }
+              icon={
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.8}
+                  d="M12 21a9 9 0 100-18 9 9 0 000 18zm0 0c2.21-2.49 3.5-5.53 3.5-9S14.21 5.49 12 3m0 18c-2.21-2.49-3.5-5.53-3.5-9S9.79 5.49 12 3m-9 9h18"
+                />
+              }
+            />
+
+            <PublicProfileDetailCard
+              label="EDUCATION"
+              value={item.education}
+              icon={
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.8}
+                  d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"
+                />
+              }
+            />
+
+            <div className="sm:col-span-2">
+              <PublicProfileDetailCard
+                label="PROFESSIONAL EXPERIENCE"
+                value={item.professionalExperience}
+                icon={
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.8}
+                    d="M20 7h-4V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2H4a2 2 0 00-2 2v9a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2zm-10-2h4v2h-4V5z"
+                  />
+                }
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <div className="bg-white rounded-2xl border border-[var(--border-light)] p-5 shadow-sm hover:border-[var(--border-default)] transition-all">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 bg-[var(--accent-light)] text-[var(--accent-dark)] border border-[var(--accent)]/15">
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="7"
+                        strokeWidth={1.8}
+                        stroke="currentColor"
+                        fill="none"
+                      />
+                    </svg>
+                  </div>
+                  <p className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-tertiary)]">
+                    ACHIEVEMENTS
+                  </p>
+                </div>
+                {achievementList.length > 0 ? (
+                  <ul className="space-y-2 pl-2">
+                    {achievementList.map((ach, idx) => (
+                      <li
+                        key={idx}
+                        className="flex items-start gap-2.5 text-sm text-[var(--text-primary)]"
+                      >
+                        <span className="text-[var(--accent-dark)] font-bold mt-0.5">
+                          ✦
+                        </span>
+                        <span>{ach}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm font-semibold text-[var(--text-primary)]">
+                    Not provided
+                  </p>
+                )}
               </div>
             </div>
-            <ul className="grid sm:grid-cols-2 gap-3">
-              {item.achievements.map((achievement) => (
-                <li
-                  key={achievement}
-                  className="flex gap-3 items-start rounded-xl bg-[var(--surface-alt)] p-4 text-sm text-[var(--text-secondary)]"
-                >
-                  <span className="text-[var(--accent-dark)] mt-0.5">✦</span>
-                  {achievement}
-                </li>
-              ))}
-            </ul>
           </div>
         </section>
       </div>
@@ -964,13 +1177,6 @@ function PublicPostDetail({
                   : "border-[var(--border-light)] text-[var(--text-tertiary)]"
               }`}
             >
-              <span className="inline-flex items-center gap-2">
-                <PublicIcon
-                  path="M15 19a4 4 0 00-8 0m4-8a3 3 0 110-6 3 3 0 010 6zm6 8a3 3 0 00-3-3"
-                  className="w-4 h-4"
-                />
-                By {item.author}
-              </span>
               <span className="inline-flex items-center gap-2">
                 <PublicIcon
                   path="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z"

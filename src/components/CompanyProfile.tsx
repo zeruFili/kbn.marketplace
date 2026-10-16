@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../auth/AuthContext"
 import { type Company, type Category } from "../data/companies"
@@ -166,46 +166,6 @@ function CompanyCard({
         </div>
       </div>
     </article>
-  )
-}
-
-function FAQItem({ q, a }: { q: string a: string }) {
-  const [open, setOpen] = useState(false)
-  return (
-    <div className="border border-[var(--border-light)] rounded-2xl overflow-hidden transition-colors hover:border-[var(--border-default)]">
-      <button
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-6 py-4 text-left"
-      >
-        <span className="font-semibold text-[var(--text-primary)] text-sm pr-4">
-          {q}
-        </span>
-        <svg
-          className={`w-5 h-5 text-[var(--text-tertiary)] flex-shrink-0 transition-transform duration-300 ${
-            open ? "rotate-180" : ""
-          }`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M19 9l-7 7-7-7"
-          />
-        </svg>
-      </button>
-      <div
-        className={`px-6 overflow-hidden transition-all duration-300 ${
-          open ? "pb-4 max-h-48" : "max-h-0"
-        }`}
-      >
-        <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-          {a}
-        </p>
-      </div>
-    </div>
   )
 }
 
@@ -464,29 +424,6 @@ export default function CompanyProfile({
               </section>
             )}
 
-            <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6 md:p-8 animate-fade-in-up">
-              <h2 className="font-serif text-2xl text-[var(--text-primary)] mb-5">
-                Frequently Asked Questions
-              </h2>
-              <div className="space-y-3">
-                <FAQItem
-                  q={`How can I book an appointment with ${company.name}?`}
-                  a="You can reach us via phone, email, or our website. We typically respond within 2 hours during business days."
-                />
-                <FAQItem
-                  q="What is the cancellation policy?"
-                  a="Cancellations are free up to 24 hours before the scheduled appointment. Late cancellations may be subject to a small fee."
-                />
-                <FAQItem
-                  q="Do you offer any guarantees or warranties?"
-                  a="Yes, all our services come with a satisfaction guarantee. Specific warranty terms vary by service — please contact us for details."
-                />
-                <FAQItem
-                  q={`What areas does ${company.name} serve?`}
-                  a={`We primarily serve ${company.address.split(",")[1]?.trim() || company.address} and surrounding areas. Contact us to confirm availability in your location.`}
-                />
-              </div>
-            </section>
           </div>
 
           <div className="space-y-6">
@@ -620,30 +557,6 @@ export default function CompanyProfile({
               </div>
             </div>
 
-            <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6 animate-fade-in-up">
-              <h3 className="font-semibold text-[var(--text-primary)] mb-4">
-                Business Hours
-              </h3>
-              <div className="space-y-2">
-                {["Monday - Friday", "Saturday", "Sunday"].map((day, i) => (
-                  <div
-                    key={day}
-                    className="flex items-center justify-between text-sm"
-                  >
-                    <span className="text-[var(--text-secondary)]">{day}</span>
-                    <span
-                      className={`font-medium ${
-                        i < 2
-                          ? "text-[var(--text-primary)]"
-                          : "text-[var(--text-tertiary)]"
-                      }`}
-                    >
-                      {i < 2 ? "8:00 AM - 6:00 PM" : "Closed"}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
       </div>

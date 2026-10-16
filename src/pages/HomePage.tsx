@@ -211,7 +211,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-[var(--surface-alt)]">
-      <Navbar />
+      <Navbar showRegisterButton={false} />
 
       {/* Featured Members */}
       <section className="py-16 sm:py-20 md:py-28 bg-[var(--surface)] animate-fade-in-up">
@@ -230,8 +230,6 @@ export default function HomePage() {
             <SectionEmpty
               title="No Members Listed Yet"
               description="Be the first to list your Christian-owned business or organization in our community directory."
-              actionLabel="Register Your Business"
-              onAction={() => navigate("/companies/new")}
             />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 animate-stagger">
@@ -264,25 +262,6 @@ export default function HomePage() {
                   d="M13 7l5 5m0 0l-5 5m5-5H6"
                 />
               </svg>
-            </button>
-            <button
-              onClick={() => navigate("/companies/new")}
-              className="inline-flex items-center gap-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 px-6 py-3 rounded-xl transition-colors shadow-lg shadow-amber-600/20 cursor-pointer"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              Register Your Business
             </button>
           </div>
         </div>
@@ -410,7 +389,6 @@ export default function HomePage() {
                     </div>
                   </div>
                   <div className="px-5 pb-5 pt-2 flex items-center justify-between text-xs text-[var(--text-tertiary)] border-t border-[var(--border-light)] mt-2">
-                    <span>By {blog.author}</span>
                     <span>{blog.publishedDate}</span>
                   </div>
                 </article>

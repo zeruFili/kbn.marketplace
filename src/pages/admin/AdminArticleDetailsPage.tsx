@@ -187,18 +187,6 @@ export default function AdminArticleDetailsPage() {
             <h1 className="font-serif text-2xl sm:text-3xl font-bold leading-tight drop-shadow-sm">
               {article.title}
             </h1>
-            {article.author && (
-              <p className="text-xs sm:text-sm text-white/85 mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-                <span className="inline-flex items-center gap-1.5">
-                  <svg className="w-4 h-4 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                  By {article.author.full_name}
-                </span>
-                <span className="text-white/40">·</span>
-                <span className="text-white/70">{article.author.email}</span>
-              </p>
-            )}
           </div>
         </div>
 
@@ -229,18 +217,6 @@ export default function AdminArticleDetailsPage() {
                 <div className="min-w-0">
                   <p className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider font-semibold mb-0.5">Topic</p>
                   <p className="text-sm font-semibold text-[var(--text-primary)]">{article.topic || "General"}</p>
-                </div>
-              </div>
-
-              <div className="bg-[var(--surface-alt)] p-4 rounded-xl border border-[var(--border-light)] flex items-start gap-3.5 hover:border-[var(--border-default)] transition-all group">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 shadow-xs transition-transform duration-200 group-hover:scale-105 bg-[var(--accent-light)] text-[var(--accent-dark)] border border-[var(--accent)]/20">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider font-semibold mb-0.5">Author</p>
-                  <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{article.author?.full_name || "Admin"}</p>
                 </div>
               </div>
 
