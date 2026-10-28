@@ -1361,7 +1361,8 @@ function PublicPageWrapper({ page }: { page: PublicPage }) {
 }
 
 export default function App() {
-  const basename = import.meta.env.BASE_URL.replace(/\/$/, "") || "/"
+  const rawBase = import.meta.env.BASE_URL.replace(/\/$/, "")
+  const basename = rawBase && rawBase !== "/" ? rawBase : undefined
   return (
     <BrowserRouter basename={basename}>
       <Routes>

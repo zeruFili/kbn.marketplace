@@ -15,7 +15,7 @@ export const API_BASE_URL: string =
   import.meta.env.VITE_API_URL ||
   (typeof window !== "undefined" && window.location.port === "3001"
     ? "/api/v1"
-    : "http://localhost:3001/api/v1")
+    : `${typeof window !== "undefined" && window.location.protocol === "https:" ? "https:" : "http:"}//back.kbnep.com/api/v1`)
 
 // Alias for backward compatibility
 export const API_BASE = API_BASE_URL

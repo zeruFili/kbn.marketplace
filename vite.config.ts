@@ -5,7 +5,7 @@ import path from "node:path"
 
 export default defineConfig(() => {
   return {
-    base: "/kbn.marketplace/",
+    base: process.env.VITE_BASE_PATH || "/",
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
