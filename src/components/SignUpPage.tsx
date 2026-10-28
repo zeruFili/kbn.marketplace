@@ -18,6 +18,7 @@ export default function SignUpPage({
 
   // Form State
   const [step, setStep] = useState<"form" | "otp">("form")
+  const [otpMethod, setOtpMethod] = useState<"sms" | "email">("sms")
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
@@ -94,15 +95,26 @@ export default function SignUpPage({
       setError("Please enter a valid email address.")
       return
     }
-    if (!phone.trim()) {
-      setError("Please enter your phone number.")
-      return
-    }
-    const cleanPhone = phone.trim().replace(/[\s\-]/g, "")
-    const phoneRegex = /^(\+?[1-9]\d{7,14}|0[79]\d{8})$/
-    if (!phoneRegex.test(cleanPhone)) {
-      setError("Please enter a valid phone number (e.g., 0911002233 or +251911002233).")
-      return
+    if (otpMethod === "sms") {
+      if (!phone.trim()) {
+        setError("Please enter your phone number to receive your OTP via SMS.")
+        return
+      }
+      const cleanPhone = phone.trim().replace(/[\s\-]/g, "")
+      const phoneRegex = /^(\+?[1-9]\d{7,14}|0[79]\d{8})$/
+      if (!phoneRegex.test(cleanPhone)) {
+        setError("Please enter a valid phone number (e.g., 0911002233 or +251911002233).")
+        return
+      }
+    } else {
+      if (phone.trim()) {
+        const cleanPhone = phone.trim().replace(/[\s\-]/g, "")
+        const phoneRegex = /^(\+?[1-9]\d{7,14}|0[79]\d{8})$/
+        if (!phoneRegex.test(cleanPhone)) {
+          setError("Please enter a valid phone number format or leave it blank.")
+          return
+        }
+      }
     }
     if (!password) {
       setError("Please enter a password.")
@@ -148,15 +160,20 @@ export default function SignUpPage({
       const res = await signUp({
         name: name.trim(),
         email: email.trim(),
-        phone: phone.trim(),
+        phone: phone.trim() || undefined,
         password,
         business: business.trim() || undefined,
         profileImage: imageFile,
+        otpMethod,
       })
 
       // Backend returns requiresOtp: true
       if (res.requiresOtp) {
-        setIdentifier(res.identifier || phone.trim())
+        const targetId = res.identifier || (otpMethod === "email" ? email.trim() : phone.trim())
+        setIdentifier(targetId)
+        if (res.otpMethod) {
+          setOtpMethod(res.otpMethod)
+        }
         setStep("otp")
         setCountdown(60)
         setOtp(["", "", "", "", "", ""])
@@ -194,11 +211,12 @@ export default function SignUpPage({
       const res = await signUp({
         name: name.trim(),
         email: email.trim(),
-        phone: phone.trim(),
+        phone: phone.trim() || undefined,
         password,
         business: business.trim() || undefined,
         profileImage: imageFile,
         otp: code,
+        otpMethod,
       })
 
       if (res.user) {
@@ -220,9 +238,14 @@ export default function SignUpPage({
     setOtpError("")
     setResendSuccess("")
 
+    const target = identifier || (otpMethod === "email" ? email.trim() : phone.trim())
     try {
-      const res = await resendRegistrationOtp(phone.trim())
-      setResendSuccess(res.message || "A new verification code was sent to your phone.")
+      const res = await resendRegistrationOtp(target, otpMethod)
+      setResendSuccess(
+        res.message || (otpMethod === "email"
+          ? "A new verification code was sent to your email."
+          : "A new verification code was sent to your phone via SMS.")
+      )
       setCountdown(60)
     } catch (err: unknown) {
       setOtpError(err instanceof Error ? err.message : "Failed to resend verification code.")
@@ -308,25 +331,41 @@ export default function SignUpPage({
           /* Step 2: Prompt for OTP on Frontend */
           <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-5 sm:p-8 shadow-sm">
             <div className="w-12 h-12 rounded-2xl bg-[var(--brand)]/10 text-[var(--brand)] flex items-center justify-center mx-auto mb-4">
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
-                />
-              </svg>
+              {otpMethod === "email" ? (
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                  />
+                </svg>
+              ) : (
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
+                  />
+                </svg>
+              )}
             </div>
 
             <h1 className="font-serif text-2xl text-[var(--text-primary)] text-center mb-1">
-              Verify your phone
+              {otpMethod === "email" ? "Verify your email" : "Verify your phone"}
             </h1>
             <p className="text-sm text-[var(--text-tertiary)] text-center mb-6">
-              Enter the 6-digit verification code sent via SMS to{" "}
+              Enter the 6-digit verification code sent {otpMethod === "email" ? "via email to" : "via SMS to"}{" "}
               <strong className="text-[var(--text-primary)] font-semibold">
-                {identifier || phone}
+                {identifier || (otpMethod === "email" ? email : phone)}
               </strong>
             </p>
+            {otpMethod === "email" && (
+              <div className="text-xs text-center text-[var(--text-tertiary)] -mt-3 mb-5 bg-[var(--surface-alt)] p-2.5 rounded-xl border border-[var(--border-default)]">
+                📧 Please check your Google (Gmail) inbox and spam folder.
+              </div>
+            )}
 
             {resendSuccess && (
               <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-3 mb-6 animate-scale-in">
@@ -439,7 +478,9 @@ export default function SignUpPage({
                 onClick={() => setStep("form")}
                 className="w-full text-center text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
               >
-                Incorrect phone number? Edit registration details
+                {otpMethod === "email"
+                  ? "Incorrect email or want to change method? Edit details"
+                  : "Incorrect phone number or want to change method? Edit details"}
               </button>
             </form>
           </div>
@@ -542,6 +583,62 @@ export default function SignUpPage({
                 />
               </div>
 
+              {/* Verification Method Selection */}
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                  Receive Verification Code Via <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setOtpMethod("sms")}
+                    className={`flex items-start gap-2.5 p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                      otpMethod === "sms"
+                        ? "border-[var(--brand)] bg-[var(--brand)]/10 ring-1 ring-[var(--brand)] shadow-xs"
+                        : "border-[var(--border-default)] bg-[var(--surface-alt)] hover:border-[var(--border-hover)]"
+                    }`}
+                  >
+                    <div className={`p-1.5 rounded-lg flex-shrink-0 ${otpMethod === "sms" ? "bg-[var(--brand)] text-white" : "bg-[var(--surface)] text-[var(--text-tertiary)]"}`}>
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <span className={`block text-xs font-bold ${otpMethod === "sms" ? "text-[var(--brand)]" : "text-[var(--text-primary)]"}`}>
+                        SMS OTP
+                      </span>
+                      <span className="text-[11px] text-[var(--text-tertiary)] leading-tight block">
+                        Via phone text
+                      </span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setOtpMethod("email")}
+                    className={`flex items-start gap-2.5 p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                      otpMethod === "email"
+                        ? "border-[var(--brand)] bg-[var(--brand)]/10 ring-1 ring-[var(--brand)] shadow-xs"
+                        : "border-[var(--border-default)] bg-[var(--surface-alt)] hover:border-[var(--border-hover)]"
+                    }`}
+                  >
+                    <div className={`p-1.5 rounded-lg flex-shrink-0 ${otpMethod === "email" ? "bg-[var(--brand)] text-white" : "bg-[var(--surface)] text-[var(--text-tertiary)]"}`}>
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <span className={`block text-xs font-bold ${otpMethod === "email" ? "text-[var(--brand)]" : "text-[var(--text-primary)]"}`}>
+                        Email OTP
+                      </span>
+                      <span className="text-[11px] text-[var(--text-tertiary)] leading-tight block">
+                        Via Google / Gmail
+                      </span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
                   Email Address <span className="text-red-500">*</span>
@@ -550,15 +647,20 @@ export default function SignUpPage({
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
+                  placeholder="you@gmail.com"
                   autoComplete="email"
                   className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-4 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]/50 transition-all"
                 />
+                {otpMethod === "email" && (
+                  <p className="text-xs text-[var(--brand)] mt-1 font-medium flex items-center gap-1">
+                    <span>✓</span> Verification code will be sent to this email address.
+                  </p>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-                  Phone Number <span className="text-red-500">*</span>
+                  Phone Number {otpMethod === "sms" ? <span className="text-red-500">*</span> : <span className="text-xs text-[var(--text-tertiary)] font-normal">(optional)</span>}
                 </label>
                 <input
                   type="tel"
@@ -569,7 +671,9 @@ export default function SignUpPage({
                   className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-4 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]/50 transition-all"
                 />
                 <p className="text-xs text-[var(--text-tertiary)] mt-1">
-                  We'll send a 6-digit SMS verification code to this phone number.
+                  {otpMethod === "sms"
+                    ? "We'll send a 6-digit SMS verification code to this phone number."
+                    : "Your contact phone number (optional when verifying via email)."}
                 </p>
               </div>
 

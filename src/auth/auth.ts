@@ -205,11 +205,13 @@ export interface SignUpData {
   role?: UserRole
   profileImage?: File | string | null
   otp?: string
+  otpMethod?: "sms" | "email"
 }
 
 export interface SignUpResult {
   requiresOtp?: boolean
   identifier?: string
+  otpMethod?: "sms" | "email"
   expiresAt?: string
   message?: string
   user?: User
@@ -229,6 +231,7 @@ export async function signUp(data: SignUpData): Promise<SignUpResult> {
       phone: data.phone,
       profileImage: data.profileImage,
       otp: data.otp,
+      otpMethod: data.otpMethod,
     })
 
     if (!res.success) {
@@ -242,11 +245,16 @@ export async function signUp(data: SignUpData): Promise<SignUpResult> {
     // Step 1: If backend requires OTP verification before user creation
     if (res.requiresOtp || (res.data && (res.data as any).requiresOtp)) {
       const dataObj = (res.data || {}) as any
+      const method = (dataObj.otpMethod || (res as any).otpMethod || data.otpMethod || (data.phone ? "sms" : "email")) as "sms" | "email"
+      const defaultMessage = method === "email"
+        ? "Verification code sent to your email."
+        : "Verification code sent to your phone via SMS."
       return {
         requiresOtp: true,
-        identifier: dataObj.identifier || (res as any).identifier || data.phone || "",
+        identifier: dataObj.identifier || (res as any).identifier || (method === "email" ? data.email : (data.phone || "")),
+        otpMethod: method,
         expiresAt: dataObj.expiresAt || (res as any).expiresAt || "",
-        message: res.message || "Verification code sent to your phone via SMS.",
+        message: res.message || defaultMessage,
       }
     }
 
@@ -300,16 +308,19 @@ export async function signUp(data: SignUpData): Promise<SignUpResult> {
 }
 
 export async function resendRegistrationOtp(
-  identifier: string
+  identifier: string,
+  otpMethod?: "sms" | "email"
 ): Promise<{ success: boolean; message: string; identifier?: string; expiresAt?: string }> {
   try {
     const res = await sendOtpApi({
       identifier: identifier.trim(),
       purpose: "REGISTER",
+      otpMethod,
     })
+    const isEmail = otpMethod === "email" || identifier.includes("@")
     return {
       success: true,
-      message: res.message || "Verification code sent to your phone via SMS.",
+      message: res.message || (isEmail ? "A new verification code was sent to your email." : "A new verification code was sent to your phone via SMS."),
       identifier: res.data?.identifier,
       expiresAt: res.data?.expiresAt,
     }

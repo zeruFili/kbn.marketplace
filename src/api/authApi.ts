@@ -41,16 +41,19 @@ export interface RegisterPayload {
   website?: string
   profileImage?: File | string | null
   otp?: string
+  otpMethod?: "sms" | "email"
 }
 
 export interface SendOtpPayload {
   identifier: string
   purpose: "REGISTER" | "RESET_PASSWORD"
+  otpMethod?: "sms" | "email"
 }
 
 export interface SendOtpResponseData {
   identifier: string
   expiresAt: string
+  otpMethod?: "sms" | "email"
 }
 
 /**
@@ -74,6 +77,7 @@ export async function sendOtpApi(
   return baseApi.post<SendOtpResponseData>("/auth/otp/send", {
     identifier: payload.identifier.trim(),
     purpose: payload.purpose,
+    ...(payload.otpMethod ? { otpMethod: payload.otpMethod } : {}),
   })
 }
 
@@ -97,6 +101,7 @@ export async function registerApi(
     if (payload.phone?.trim()) formData.append("phone", payload.phone.trim())
     if (payload.website?.trim()) formData.append("website", payload.website.trim())
     if (payload.otp?.trim()) formData.append("otp", payload.otp.trim())
+    if (payload.otpMethod) formData.append("otpMethod", payload.otpMethod)
     formData.append("profileImage", payload.profileImage)
     return baseApi.post<any>("/auth/register", formData)
   }
@@ -111,6 +116,7 @@ export async function registerApi(
     website: payload.website?.trim() || undefined,
     profileImage: payload.profileImage || undefined,
     otp: payload.otp?.trim() || undefined,
+    otpMethod: payload.otpMethod || undefined,
   })
 }
 
