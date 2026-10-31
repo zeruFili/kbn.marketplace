@@ -265,7 +265,10 @@ export default function SignUpPage({
       } else if (userStatus === "suspended") {
         navigate("/account-status", { replace: true })
       } else {
-        navigate("/", { replace: true })
+        const role = user?.role?.toLowerCase()
+        if (role === "admin") navigate("/admin/overview", { replace: true })
+        else if (role === "company") navigate("/dashboard/company", { replace: true })
+        else navigate("/", { replace: true })
       }
     }
   }
@@ -802,14 +805,7 @@ export default function SignUpPage({
             <GoogleSignInButton
               text="signup_with"
               onSuccess={(user) => {
-                if (onSuccess) {
-                  onSuccess()
-                } else {
-                  const role = user.role?.toLowerCase()
-                  if (role === "admin") navigate("/admin/overview", { replace: true })
-                  else if (role === "company") navigate("/dashboard/company", { replace: true })
-                  else navigate("/", { replace: true })
-                }
+                handlePostRegistrationSuccess(user)
               }}
             />
 
