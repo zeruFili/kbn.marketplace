@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../auth/AuthContext"
 import { resendRegistrationOtp } from "../auth/auth"
+import GoogleSignInButton from "./common/GoogleSignInButton"
 const knbLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
 
 export default function SignUpPage({
@@ -786,6 +787,31 @@ export default function SignUpPage({
                 )}
               </button>
             </form>
+
+            <div className="relative my-5">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-[var(--border-default)]"></div>
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white px-2 text-[var(--text-tertiary)]">
+                  Or sign up with
+                </span>
+              </div>
+            </div>
+
+            <GoogleSignInButton
+              text="signup_with"
+              onSuccess={(user) => {
+                if (onSuccess) {
+                  onSuccess()
+                } else {
+                  const role = user.role?.toLowerCase()
+                  if (role === "admin") navigate("/admin/overview", { replace: true })
+                  else if (role === "company") navigate("/dashboard/company", { replace: true })
+                  else navigate("/", { replace: true })
+                }
+              }}
+            />
 
             <p className="text-xs text-[var(--text-tertiary)] text-center mt-5">
               By signing up, you agree to our Terms of Service and Privacy Policy.

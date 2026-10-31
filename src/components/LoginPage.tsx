@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { useAuth } from "../auth/AuthContext"
 import { type UserRole } from "../auth/auth"
+import GoogleSignInButton from "./common/GoogleSignInButton"
 const knbLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
 
 
@@ -277,6 +278,50 @@ export default function LoginPage({
               </button>
             </div>
           </form>
+
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-[var(--border-default)]"></div>
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-2 text-[var(--text-tertiary)]">
+                Or continue with
+              </span>
+            </div>
+          </div>
+
+          <GoogleSignInButton
+            text="signin_with"
+            onSuccess={(loggedUser) => {
+              const userStatus = (loggedUser.status || "pending").toLowerCase()
+              if (userStatus === "suspended") {
+                navigate("/account-status", { replace: true })
+                return
+              }
+              if (userStatus === "pending" || userStatus === "inactive") {
+                navigate("/payment", { replace: true })
+                return
+              }
+              if (onSuccess) {
+                onSuccess(loggedUser.role)
+              } else {
+                const fromPath = (location.state as { from?: { pathname?: string } })?.from?.pathname
+                if (
+                  fromPath &&
+                  fromPath !== "/login" &&
+                  fromPath !== "/payment" &&
+                  fromPath !== "/account-status"
+                ) {
+                  navigate(fromPath, { replace: true })
+                } else {
+                  const role = loggedUser.role?.toLowerCase()
+                  if (role === "admin") navigate("/admin/overview", { replace: true })
+                  else if (role === "company") navigate("/dashboard/company", { replace: true })
+                  else navigate("/", { replace: true })
+                }
+              }
+            }}
+          />
 
           <p className="text-sm text-center text-[var(--text-tertiary)] mt-6">
             Don't have an account?{" "}

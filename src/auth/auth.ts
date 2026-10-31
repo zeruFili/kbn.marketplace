@@ -5,7 +5,14 @@ import {
   ApiError,
   resolveAssetUrl,
 } from "../api/baseApi"
-import { loginApi, registerApi, getMeApi, sendOtpApi } from "../api/authApi"
+import {
+  loginApi,
+  registerApi,
+  getMeApi,
+  sendOtpApi,
+  googleAuthApi,
+  linkGoogleAccountApi,
+} from "../api/authApi"
 
 export type UserRole = "admin" | "user" | "company" | "church" | "ministry"
 export type UserStatus = "active" | "pending" | "inactive" | "suspended"
@@ -187,6 +194,138 @@ export async function login(email: string, password: string): Promise<User> {
   } catch (err: unknown) {
     if (err instanceof ApiError) {
       let message = err.message || "Invalid email or password."
+      if (Array.isArray(err.errors) && err.errors.length > 0) {
+        message = err.errors.join(". ")
+      }
+      throw new Error(message)
+    }
+    throw err
+  }
+}
+
+export class AccountConflictError extends Error {
+  code: string
+  constructor(message: string, code = "ACCOUNT_EXISTS_LINK_REQUIRED") {
+    super(message)
+    this.name = "AccountConflictError"
+    this.code = code
+  }
+}
+
+/**
+ * Authenticate with Google ID Token via backend /auth/google
+ */
+export async function googleLogin(idToken: string): Promise<User> {
+  try {
+    const res = await googleAuthApi({ idToken })
+
+    if (res.success && res.data) {
+      const apiData = res.data
+      const safeUser = (apiData.user || apiData) as any
+      const token = apiData.accessToken || (res as any).accessToken
+
+      if (token) {
+        saveToken(token)
+      }
+
+      const rawImg = (safeUser.profileImage || safeUser.profile_image) as
+        | string
+        | null
+        | undefined
+      const resolvedProfileImage = rawImg ? resolveAssetUrl(rawImg) : null
+
+      const user: User = {
+        id: safeUser.id,
+        email: safeUser.email || "",
+        name:
+          (safeUser.full_name as string) ||
+          (safeUser.fullName as string) ||
+          (safeUser.name as string) ||
+          safeUser.email?.split("@")[0] ||
+          "Google User",
+        avatar: resolvedProfileImage || "",
+        profileImage: resolvedProfileImage,
+        role: (safeUser.role as UserRole) || "user",
+        status: (String(safeUser.status || "active").toLowerCase() as UserStatus),
+        phone: (safeUser.phone as string) || undefined,
+        website: (safeUser.website as string) || undefined,
+      }
+
+      saveSession(user)
+      return user
+    }
+
+    throw new Error(res.message || "Google authentication failed.")
+  } catch (err: unknown) {
+    if (err instanceof ApiError) {
+      if (
+        err.status === 409 ||
+        (err as any).code === "ACCOUNT_EXISTS_LINK_REQUIRED" ||
+        err.message?.includes("already exists")
+      ) {
+        throw new AccountConflictError(
+          err.message ||
+            "An account with this email already exists. To link your Google account, please verify your existing account password.",
+          "ACCOUNT_EXISTS_LINK_REQUIRED"
+        )
+      }
+      let message = err.message || "Google authentication failed."
+      if (Array.isArray(err.errors) && err.errors.length > 0) {
+        message = err.errors.join(". ")
+      }
+      throw new Error(message)
+    }
+    throw err
+  }
+}
+
+/**
+ * Securely link Google account with password via backend /auth/google/link
+ */
+export async function linkGoogleAccount(idToken: string, password: string): Promise<User> {
+  try {
+    const res = await linkGoogleAccountApi({ idToken, password })
+
+    if (res.success && res.data) {
+      const apiData = res.data
+      const safeUser = (apiData.user || apiData) as any
+      const token = apiData.accessToken || (res as any).accessToken
+
+      if (token) {
+        saveToken(token)
+      }
+
+      const rawImg = (safeUser.profileImage || safeUser.profile_image) as
+        | string
+        | null
+        | undefined
+      const resolvedProfileImage = rawImg ? resolveAssetUrl(rawImg) : null
+
+      const user: User = {
+        id: safeUser.id,
+        email: safeUser.email || "",
+        name:
+          (safeUser.full_name as string) ||
+          (safeUser.fullName as string) ||
+          (safeUser.name as string) ||
+          safeUser.email?.split("@")[0] ||
+          "User",
+        avatar: resolvedProfileImage || "",
+        profileImage: resolvedProfileImage,
+        role: (safeUser.role as UserRole) || "user",
+        status: (String(safeUser.status || "active").toLowerCase() as UserStatus),
+        phone: (safeUser.phone as string) || undefined,
+        website: (safeUser.website as string) || undefined,
+      }
+
+      saveSession(user)
+      return user
+    }
+
+    throw new Error(res.message || "Account linking failed.")
+  } catch (err: unknown) {
+    if (err instanceof ApiError) {
+      let message = err.message || "Account linking failed."
       if (Array.isArray(err.errors) && err.errors.length > 0) {
         message = err.errors.join(". ")
       }

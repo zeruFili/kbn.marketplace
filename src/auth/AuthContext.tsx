@@ -9,6 +9,8 @@ export interface AuthState {
   user: User | null
   loading: boolean
   login: (email: string, password: string) => Promise<User>
+  googleLogin: (idToken: string) => Promise<User>
+  linkGoogleAccount: (idToken: string, password: string) => Promise<User>
   signUp: (data: SignUpData) => Promise<SignUpResult>
   updateUser: (updates: Partial<User>) => void
   logout: () => Promise<void>

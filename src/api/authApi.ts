@@ -169,3 +169,35 @@ export async function resetPasswordWithOtpApi(
     confirmPassword: payload.confirmPassword,
   })
 }
+
+export interface GoogleAuthPayload {
+  idToken: string
+}
+
+export interface GoogleLinkPayload {
+  idToken: string
+  password: string
+}
+
+/**
+ * Authenticate with Google ID Token via /auth/google
+ */
+export async function googleAuthApi(
+  payload: GoogleAuthPayload
+): Promise<ApiResponse<AuthResultData>> {
+  return baseApi.post<AuthResultData>("/auth/google", {
+    idToken: payload.idToken,
+  })
+}
+
+/**
+ * Securely link Google account using existing account password via /auth/google/link
+ */
+export async function linkGoogleAccountApi(
+  payload: GoogleLinkPayload
+): Promise<ApiResponse<AuthResultData>> {
+  return baseApi.post<AuthResultData>("/auth/google/link", {
+    idToken: payload.idToken,
+    password: payload.password,
+  })
+}

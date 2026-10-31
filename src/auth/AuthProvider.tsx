@@ -9,6 +9,8 @@ import {
   getStoredSession,
   getMe,
   login as doLogin,
+  googleLogin as doGoogleLogin,
+  linkGoogleAccount as doLinkGoogleAccount,
   signUp as doSignUp,
   logout as doLogout,
   updateCurrentUserSession,
@@ -68,6 +70,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   )
 
+  const googleLogin = useCallback(
+    async (idToken: string): Promise<User> => {
+      const u = await doGoogleLogin(idToken)
+      setUser(u)
+      return u
+    },
+    [],
+  )
+
+  const linkGoogleAccount = useCallback(
+    async (idToken: string, password: string): Promise<User> => {
+      const u = await doLinkGoogleAccount(idToken, password)
+      setUser(u)
+      return u
+    },
+    [],
+  )
+
   const signUp = useCallback(
     async (data: SignUpData): Promise<SignUpResult> => {
       const res = await doSignUp(data)
@@ -92,7 +112,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signUp, updateUser, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        googleLogin,
+        linkGoogleAccount,
+        signUp,
+        updateUser,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )
