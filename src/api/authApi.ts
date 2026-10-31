@@ -201,3 +201,23 @@ export async function linkGoogleAccountApi(
     password: payload.password,
   })
 }
+
+export interface SetPasswordPayload {
+  currentPassword?: string
+  password: string
+  confirmPassword: string
+}
+
+export interface SetPasswordResponseData {
+  message: string
+  hasPassword: boolean
+}
+
+/**
+ * Set or change password for authenticated user via /auth/set-password
+ */
+export async function setPasswordApi(
+  payload: SetPasswordPayload
+): Promise<ApiResponse<SetPasswordResponseData>> {
+  return baseApi.post<SetPasswordResponseData>("/auth/set-password", payload)
+}

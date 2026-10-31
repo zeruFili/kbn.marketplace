@@ -15,7 +15,7 @@ interface ProfileFormState {
 }
 
 export default function UserProfileEditPage() {
-  const { user, updateUser: updateAuthUser } = useAuth()
+  const { user, updateUser: updateAuthUser, setPassword } = useAuth()
   const navigate = useNavigate()
 
   const [loading, setLoading] = useState(true)
@@ -35,6 +35,17 @@ export default function UserProfileEditPage() {
   const [error, setError] = useState("")
   const [saving, setSaving] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Password & Security State
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [showCurrentPass, setShowCurrentPass] = useState(false)
+  const [showNewPass, setShowNewPass] = useState(false)
+  const [showConfirmPass, setShowConfirmPass] = useState(false)
+  const [passwordLoading, setPasswordLoading] = useState(false)
+  const [passwordError, setPasswordError] = useState("")
+  const [passwordSuccess, setPasswordSuccess] = useState("")
 
   useEffect(() => {
     if (!user?.id) return
@@ -186,6 +197,46 @@ export default function UserProfileEditPage() {
       setError(err?.message || "Failed to save profile changes. Please try again.")
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleSetPassword(e: React.FormEvent) {
+    e.preventDefault()
+    setPasswordError("")
+    setPasswordSuccess("")
+
+    if (!newPassword) {
+      setPasswordError("Please enter a new password.")
+      return
+    }
+    if (newPassword.length < 8) {
+      setPasswordError("Password must be at least 8 characters long.")
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError("Passwords do not match.")
+      return
+    }
+    if (user?.hasPassword && !currentPassword) {
+      setPasswordError("Current password is required.")
+      return
+    }
+
+    try {
+      setPasswordLoading(true)
+      const res = await setPassword({
+        currentPassword: user?.hasPassword ? currentPassword : undefined,
+        password: newPassword,
+        confirmPassword,
+      })
+      setPasswordSuccess(res.message || "Password saved successfully!")
+      setCurrentPassword("")
+      setNewPassword("")
+      setConfirmPassword("")
+    } catch (err: any) {
+      setPasswordError(err?.message || "Failed to save password.")
+    } finally {
+      setPasswordLoading(false)
     }
   }
 
@@ -383,6 +434,121 @@ export default function UserProfileEditPage() {
           </button>
         </div>
       </form>
+
+      {/* Security & Password Section */}
+      <div className="border-t border-[var(--border-light)] p-6 sm:p-8 bg-[var(--surface)]">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-[var(--brand)]/10 text-[var(--brand)] flex items-center justify-center">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+          <div>
+            <h2 className="font-serif text-lg text-[var(--text-primary)]">
+              {user.hasPassword ? "Change Password" : "Set Account Password"}
+            </h2>
+            <p className="text-xs text-[var(--text-tertiary)]">
+              {user.hasPassword
+                ? "Update your local password for email & password login."
+                : "Add a password to your account so you can log in using either Google or your email and password."}
+            </p>
+          </div>
+        </div>
+
+        {passwordSuccess && (
+          <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 rounded-xl p-3 text-xs mb-4">
+            {passwordSuccess}
+          </div>
+        )}
+
+        {passwordError && (
+          <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-xl p-3 text-xs mb-4">
+            {passwordError}
+          </div>
+        )}
+
+        <form onSubmit={handleSetPassword} className="space-y-4 max-w-md">
+          {user.hasPassword && (
+            <div>
+              <label className="block text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-1">
+                Current Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showCurrentPass ? "text" : "password"}
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2 px-3 pr-12 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPass(!showCurrentPass)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+                >
+                  {showCurrentPass ? "Hide" : "Show"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-1">
+              New Password
+            </label>
+            <div className="relative">
+              <input
+                type={showNewPass ? "text" : "password"}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="At least 8 characters (upper, lower, digit)"
+                className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2 px-3 pr-12 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPass(!showNewPass)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+              >
+                {showNewPass ? "Hide" : "Show"}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-1">
+              Confirm New Password
+            </label>
+            <div className="relative">
+              <input
+                type={showConfirmPass ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Re-enter new password"
+                className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2 px-3 pr-12 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPass(!showConfirmPass)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+              >
+                {showConfirmPass ? "Hide" : "Show"}
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={passwordLoading}
+            className="px-5 py-2 rounded-xl text-xs font-semibold text-white bg-[var(--brand)] hover:bg-[var(--brand-light)] transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
+          >
+            {passwordLoading
+              ? "Saving..."
+              : user.hasPassword
+              ? "Change Password"
+              : "Set Password"}
+          </button>
+        </form>
+      </div>
     </section>
   )
 }

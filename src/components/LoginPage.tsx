@@ -137,21 +137,40 @@ export default function LoginPage({
           </p>
 
           {error && (
-            <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 mb-6 animate-scale-in">
-              <svg
-                className="w-5 h-5 text-red-500 flex-shrink-0"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 mb-6 animate-scale-in">
+              <div className="flex items-start gap-2.5">
+                <svg
+                  className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <div className="flex-1">
+                  <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+                  {error.includes("does not have a local password") && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => navigate("/forgot-password", { state: { email: email.trim() } })}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-[var(--brand)] text-white hover:bg-[var(--brand-light)] transition-colors shadow-xs cursor-pointer"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        Set / Create Password Now
+                      </button>
+                      <span className="text-xs text-[var(--text-tertiary)]">or use Google Sign-In below</span>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
@@ -268,13 +287,20 @@ export default function LoginPage({
               )}
             </button>
 
-            <div className="text-center pt-1">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-1 text-center sm:text-left">
               <button
                 type="button"
                 onClick={handleForgotPassword}
                 className="text-xs text-[var(--text-tertiary)] hover:text-[var(--brand)] transition-colors cursor-pointer"
               >
                 Forgot your password?
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/forgot-password", { state: { email: email.trim() } })}
+                className="text-xs text-[var(--brand)] font-medium hover:underline transition-colors cursor-pointer"
+              >
+                Set password for Google account
               </button>
             </div>
           </form>

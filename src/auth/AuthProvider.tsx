@@ -11,12 +11,14 @@ import {
   login as doLogin,
   googleLogin as doGoogleLogin,
   linkGoogleAccount as doLinkGoogleAccount,
+  setPassword as doSetPassword,
   signUp as doSignUp,
   logout as doLogout,
   updateCurrentUserSession,
   type SignUpData,
   type SignUpResult,
 } from "./auth"
+import type { SetPasswordPayload } from "../api/authApi"
 import { AuthContext } from "./AuthContext"
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -88,6 +90,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   )
 
+  const setPassword = useCallback(
+    async (payload: SetPasswordPayload): Promise<{ message: string; hasPassword: boolean }> => {
+      const res = await doSetPassword(payload)
+      setUser((prev) => (prev ? { ...prev, hasPassword: true } : null))
+      return res
+    },
+    [],
+  )
+
   const signUp = useCallback(
     async (data: SignUpData): Promise<SignUpResult> => {
       const res = await doSignUp(data)
@@ -119,6 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         googleLogin,
         linkGoogleAccount,
+        setPassword,
         signUp,
         updateUser,
         logout,

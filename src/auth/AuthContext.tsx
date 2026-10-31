@@ -4,6 +4,7 @@ import type {
   SignUpData,
   SignUpResult,
 } from "./auth"
+import type { SetPasswordPayload } from "../api/authApi"
 
 export interface AuthState {
   user: User | null
@@ -11,6 +12,7 @@ export interface AuthState {
   login: (email: string, password: string) => Promise<User>
   googleLogin: (idToken: string) => Promise<User>
   linkGoogleAccount: (idToken: string, password: string) => Promise<User>
+  setPassword: (payload: SetPasswordPayload) => Promise<{ message: string; hasPassword: boolean }>
   signUp: (data: SignUpData) => Promise<SignUpResult>
   updateUser: (updates: Partial<User>) => void
   logout: () => Promise<void>

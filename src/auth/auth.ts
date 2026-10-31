@@ -12,6 +12,8 @@ import {
   sendOtpApi,
   googleAuthApi,
   linkGoogleAccountApi,
+  setPasswordApi,
+  type SetPasswordPayload,
 } from "../api/authApi"
 
 export type UserRole = "admin" | "user" | "company" | "church" | "ministry"
@@ -34,6 +36,7 @@ export interface User {
   profileImage?: string | null
   role: UserRole
   status: UserStatus
+  hasPassword?: boolean
   business?: string
   companyId?: string
   phone?: string
@@ -136,6 +139,7 @@ export async function getMe(): Promise<User | null> {
         profileImage: resolvedProfileImage,
         role: (safeUser.role as UserRole) || "user",
         status: (String(safeUser.status || "pending").toLowerCase() as UserStatus),
+        hasPassword: (safeUser as any).hasPassword,
         phone: (safeUser.phone as string) || undefined,
         website: (safeUser.website as string) || undefined,
       }
@@ -182,6 +186,7 @@ export async function login(email: string, password: string): Promise<User> {
         profileImage: resolvedProfileImage,
         role: (safeUser.role as UserRole) || "user",
         status: (String(safeUser.status || "pending").toLowerCase() as UserStatus),
+        hasPassword: (safeUser as any).hasPassword,
         phone: (safeUser.phone as string) || undefined,
         website: (safeUser.website as string) || undefined,
       }
@@ -481,6 +486,31 @@ export function updateCurrentUserSession(updates: Partial<User>): User | null {
   const updated: User = { ...current, ...updates }
   saveSession(updated)
   return updated
+}
+
+/**
+ * Sets or changes password for the currently authenticated user.
+ */
+export async function setPassword(
+  payload: SetPasswordPayload
+): Promise<{ message: string; hasPassword: boolean }> {
+  try {
+    const res = await setPasswordApi(payload)
+    if (res.success && res.data) {
+      updateCurrentUserSession({ hasPassword: true })
+      return res.data
+    }
+    throw new Error(res.message || "Failed to set password.")
+  } catch (err: unknown) {
+    if (err instanceof ApiError) {
+      let message = err.message || "Failed to set password."
+      if (Array.isArray(err.errors) && err.errors.length > 0) {
+        message = err.errors.join(". ")
+      }
+      throw new Error(message)
+    }
+    throw err
+  }
 }
 
 export async function logout(): Promise<void> {
