@@ -467,20 +467,11 @@ export default function CreateBusinessPage({
                         ) : (
                           <>
                             <option value="">Select a business category...</option>
-                            {categories.map((cat) => {
-                              const emojiPrefix =
-                                cat.icon &&
-                                !cat.icon.startsWith("/") &&
-                                !cat.icon.startsWith("http")
-                                  ? `${cat.icon} `
-                                  : ""
-                              return (
-                                <option key={cat.id} value={cat.id}>
-                                  {emojiPrefix}
-                                  {cat.name}
-                                </option>
-                              )
-                            })}
+                            {categories.map((cat) => (
+                              <option key={cat.id} value={cat.id}>
+                                {cat.name}
+                              </option>
+                            ))}
                           </>
                         )}
                       </select>
