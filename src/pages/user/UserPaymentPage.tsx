@@ -6,6 +6,7 @@ import {
   fetchUserPayments,
   type PaymentValidityData,
   type PaymentItem,
+  getMembershipCategoryLabel,
 } from "../../api/paymentApi"
 
 export default function UserPaymentPage() {
@@ -62,6 +63,24 @@ export default function UserPaymentPage() {
     if (payments.length > 0) return payments[0]
     return null
   }, [validity, payments])
+
+  // Resolve active membership package category
+  const userMembershipCategory = useMemo(() => {
+    return (
+      latestPayment?.membershipCategory ||
+      latestPayment?.membership_category ||
+      (latestPayment as any)?.membershipCategoryLabel ||
+      user?.membershipCategory ||
+      user?.membership_category ||
+      null
+    )
+  }, [latestPayment, user])
+
+  const membershipCategoryLabel = useMemo(() => {
+    return userMembershipCategory
+      ? getMembershipCategoryLabel(userMembershipCategory)
+      : null
+  }, [userMembershipCategory])
 
   // Resolve expiration date string or object
   const rawExpirationDate =
@@ -143,6 +162,12 @@ export default function UserPaymentPage() {
       {/* Next Payment Due Banner */}
       <div className="bg-[var(--brand)] rounded-2xl p-6 md:p-8 text-white overflow-hidden relative shadow-md">
         <div className="relative z-10 max-w-2xl">
+          {membershipCategoryLabel && (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white/15 text-[var(--accent)] border border-white/10 mb-3 backdrop-blur-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />
+              <span>{membershipCategoryLabel}</span>
+            </div>
+          )}
           <p className="text-sm text-white/65 mb-2">Next payment due</p>
           <div className="flex items-end gap-3 mb-3">
             <span className="font-serif text-5xl md:text-6xl leading-none font-bold">
@@ -253,7 +278,19 @@ export default function UserPaymentPage() {
             </span>
           )}
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-[var(--surface-alt)] rounded-xl border border-[var(--border-light)] p-4">
+            <p className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)] mb-1">
+              Membership package
+            </p>
+            <p className="text-sm font-semibold text-[var(--text-primary)] truncate" title={membershipCategoryLabel || "Standard"}>
+              {loading
+                ? "—"
+                : !hasPaymentRecord
+                ? "None"
+                : membershipCategoryLabel || "Standard"}
+            </p>
+          </div>
           <div className="bg-[var(--surface-alt)] rounded-xl border border-[var(--border-light)] p-4">
             <p className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)] mb-1">
               Billing period
@@ -367,6 +404,13 @@ export default function UserPaymentPage() {
                 ? "Pending"
                 : "Rejected"
 
+              const pmCategoryLabel = getMembershipCategoryLabel(
+                pm.membershipCategory ||
+                pm.membership_category ||
+                (pm as any).membershipCategoryLabel ||
+                (pm as any).membership_category_label
+              )
+
               return (
                 <div
                   key={pm.id || idx}
@@ -424,9 +468,16 @@ export default function UserPaymentPage() {
                       )}
                     </span>
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
-                        {formatMonth(validPmDate)}
-                      </p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                          {formatMonth(validPmDate)}
+                        </p>
+                        {pmCategoryLabel && (
+                          <span className="inline-flex items-center text-[10px] font-medium px-2 py-0.5 rounded-full bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/30">
+                            {pmCategoryLabel}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-[var(--text-tertiary)] mt-0.5 truncate">
                         {pm.provider ? `${pm.provider.toUpperCase()} • ` : ""}
                         {pm.amount ? `ETB ${Number(pm.amount).toLocaleString()} • ` : ""}

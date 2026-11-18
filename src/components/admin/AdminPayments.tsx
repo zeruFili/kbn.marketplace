@@ -4,6 +4,7 @@ import { resolveAssetUrl } from "../../api/baseApi"
 import {
   fetchAdminPayments,
   updateAdminPaymentStatus,
+  getMembershipCategoryLabel,
   type PaymentItem,
 } from "../../api/paymentApi"
 
@@ -756,6 +757,22 @@ function PaymentDetail({
               ) : (
                 "—"
               )
+            }
+          />
+          <InfoItem
+            label="Membership Category"
+            value={
+              payment.membershipCategoryLabel ||
+              getMembershipCategoryLabel(payment.membershipCategory || payment.membership_category) ||
+              "—"
+            }
+          />
+          <InfoItem
+            label="Expected Package Amount"
+            value={
+              payment.expectedAmount || payment.expected_amount
+                ? `${payment.expectedAmount || payment.expected_amount} ETB`
+                : "—"
             }
           />
           <InfoItem

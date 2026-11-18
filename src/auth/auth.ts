@@ -41,6 +41,8 @@ export interface User {
   companyId?: string
   phone?: string
   website?: string
+  membershipCategory?: string | null
+  membership_category?: string | null
 }
 
 export const getStoredToken = getAuthToken
@@ -142,6 +144,14 @@ export async function getMe(): Promise<User | null> {
         hasPassword: (safeUser as any).hasPassword,
         phone: (safeUser.phone as string) || undefined,
         website: (safeUser.website as string) || undefined,
+        membershipCategory:
+          (safeUser.membership_category as string) ||
+          (safeUser.membershipCategory as string) ||
+          null,
+        membership_category:
+          (safeUser.membership_category as string) ||
+          (safeUser.membershipCategory as string) ||
+          null,
       }
 
       saveSession(user)
@@ -189,6 +199,14 @@ export async function login(email: string, password: string): Promise<User> {
         hasPassword: (safeUser as any).hasPassword,
         phone: (safeUser.phone as string) || undefined,
         website: (safeUser.website as string) || undefined,
+        membershipCategory:
+          (safeUser.membership_category as string) ||
+          (safeUser.membershipCategory as string) ||
+          null,
+        membership_category:
+          (safeUser.membership_category as string) ||
+          (safeUser.membershipCategory as string) ||
+          null,
       }
 
       saveSession(user)
@@ -254,6 +272,14 @@ export async function googleLogin(idToken: string): Promise<User> {
         status: (String(safeUser.status || "active").toLowerCase() as UserStatus),
         phone: (safeUser.phone as string) || undefined,
         website: (safeUser.website as string) || undefined,
+        membershipCategory:
+          (safeUser.membership_category as string) ||
+          (safeUser.membershipCategory as string) ||
+          null,
+        membership_category:
+          (safeUser.membership_category as string) ||
+          (safeUser.membershipCategory as string) ||
+          null,
       }
 
       saveSession(user)
@@ -321,6 +347,14 @@ export async function linkGoogleAccount(idToken: string, password: string): Prom
         status: (String(safeUser.status || "active").toLowerCase() as UserStatus),
         phone: (safeUser.phone as string) || undefined,
         website: (safeUser.website as string) || undefined,
+        membershipCategory:
+          (safeUser.membership_category as string) ||
+          (safeUser.membershipCategory as string) ||
+          null,
+        membership_category:
+          (safeUser.membership_category as string) ||
+          (safeUser.membershipCategory as string) ||
+          null,
       }
 
       saveSession(user)
@@ -430,6 +464,14 @@ export async function signUp(data: SignUpData): Promise<SignUpResult> {
       status: (String(safeUser.status || "pending").toLowerCase() as UserStatus),
       business: data.business?.trim() || undefined,
       phone: safeUser.phone || data.phone?.trim() || undefined,
+      membershipCategory:
+        (safeUser.membership_category as string) ||
+        (safeUser.membershipCategory as string) ||
+        null,
+      membership_category:
+        (safeUser.membership_category as string) ||
+        (safeUser.membershipCategory as string) ||
+        null,
     }
 
     saveSession(user)

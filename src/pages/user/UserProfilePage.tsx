@@ -13,6 +13,35 @@ interface LiveProfileForm {
   profilePhoto: string
 }
 
+function hasValidProfileInfo(value?: string | null): boolean {
+  if (!value) return false
+  const trimmed = value.trim()
+  if (!trimmed) return false
+  const lower = trimmed.toLowerCase()
+  return !(
+    lower === "none" ||
+    lower === "none." ||
+    lower === "not provided" ||
+    lower === "not provided." ||
+    lower === "not specified" ||
+    lower === "not specified." ||
+    lower === "n/a" ||
+    lower === "na" ||
+    lower === "null" ||
+    lower === "undefined" ||
+    lower === "no education information provided" ||
+    lower === "no education information provided." ||
+    lower === "add your education." ||
+    lower === "add your education" ||
+    lower === "no achievements" ||
+    lower === "no achievement" ||
+    lower === "no achievements recorded" ||
+    lower === "no achievements recorded." ||
+    lower === "no professional experience details recorded." ||
+    lower === "no professional experience recorded"
+  )
+}
+
 export default function UserProfilePage() {
   const { user, updateUser: updateAuthUser, setPassword } = useAuth()
 
@@ -274,8 +303,23 @@ export default function UserProfilePage() {
     ? form.achievement
         .split("\n")
         .map((a) => a.trim())
-        .filter(Boolean)
+        .filter((a) => hasValidProfileInfo(a))
     : []
+
+  const hasEmail = hasValidProfileInfo(user.email)
+  const hasPhone = hasValidProfileInfo(form.phone)
+  const hasWebsite = hasValidProfileInfo(form.website)
+  const hasEducation = hasValidProfileInfo(form.education)
+  const hasExperience = hasValidProfileInfo(form.professionalExperience)
+  const hasAchievements = achievementList.length > 0
+
+  const hasAnyDetails =
+    hasEmail ||
+    hasPhone ||
+    hasWebsite ||
+    hasEducation ||
+    hasExperience ||
+    hasAchievements
 
   if (loading) {
     return (
@@ -344,111 +388,125 @@ export default function UserProfilePage() {
             </button>
           </div>
 
-          {/* 2-Column Detail Cards Grid displaying only existing database columns */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
-            <ProfileDetail
-              label="EMAIL"
-              value={user.email}
-              href={`mailto:${user.email}`}
-              icon={
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.8}
-                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+          {/* 2-Column Detail Cards Grid displaying only sections with user-provided information */}
+          {hasAnyDetails ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+              {hasEmail && (
+                <ProfileDetail
+                  label="EMAIL"
+                  value={user.email}
+                  href={`mailto:${user.email}`}
+                  icon={
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.8}
+                      d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                    />
+                  }
                 />
-              }
-            />
+              )}
 
-            <ProfileDetail
-              label="PHONE NUMBER"
-              value={form.phone}
-              href={form.phone ? `tel:${form.phone}` : undefined}
-              icon={
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.8}
-                  d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+              {hasPhone && (
+                <ProfileDetail
+                  label="PHONE NUMBER"
+                  value={form.phone}
+                  href={`tel:${form.phone}`}
+                  icon={
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.8}
+                      d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                    />
+                  }
                 />
-              }
-            />
+              )}
 
-            <ProfileDetail
-              label="WEBSITE"
-              value={form.website}
-              href={
-                form.website
-                  ? form.website.startsWith("http")
-                    ? form.website
-                    : `https://${form.website}`
-                  : undefined
-              }
-              icon={
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.8}
-                  d="M12 21a9 9 0 100-18 9 9 0 000 18zm0 0c2.21-2.49 3.5-5.53 3.5-9S14.21 5.49 12 3m0 18c-2.21-2.49-3.5-5.53-3.5-9S9.79 5.49 12 3m-9 9h18"
+              {hasWebsite && (
+                <ProfileDetail
+                  label="WEBSITE"
+                  value={form.website}
+                  href={
+                    form.website.startsWith("http")
+                      ? form.website
+                      : `https://${form.website}`
+                  }
+                  icon={
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.8}
+                      d="M12 21a9 9 0 100-18 9 9 0 000 18zm0 0c2.21-2.49 3.5-5.53 3.5-9S14.21 5.49 12 3m0 18c-2.21-2.49-3.5-5.53-3.5-9S9.79 5.49 12 3m-9 9h18"
+                    />
+                  }
                 />
-              }
-            />
+              )}
 
-            <ProfileDetail
-              label="EDUCATION"
-              value={form.education}
-              icon={
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.8}
-                  d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"
+              {hasEducation && (
+                <ProfileDetail
+                  label="EDUCATION"
+                  value={form.education}
+                  icon={
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.8}
+                      d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"
+                    />
+                  }
                 />
-              }
-            />
+              )}
 
-            <div className="md:col-span-2">
-              <ProfileDetail
-                label="PROFESSIONAL EXPERIENCE"
-                value={form.professionalExperience}
-                icon={
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.8}
-                    d="M20 7h-4V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2H4a2 2 0 00-2 2v9a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2zm-10-2h4v2h-4V5z"
+              {hasExperience && (
+                <div className="md:col-span-2">
+                  <ProfileDetail
+                    label="PROFESSIONAL EXPERIENCE"
+                    value={form.professionalExperience}
+                    icon={
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.8}
+                        d="M20 7h-4V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2H4a2 2 0 00-2 2v9a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2zm-10-2h4v2h-4V5z"
+                      />
+                    }
                   />
-                }
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-5 shadow-[0_2px_12px_rgba(15,29,58,0.03)] hover:border-[var(--border-default)] transition-all">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 bg-[var(--accent-light)] text-[var(--accent-dark)] border border-[var(--accent)]/15">
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <circle cx="12" cy="12" r="7" strokeWidth={1.8} stroke="currentColor" fill="none" />
-                    </svg>
-                  </div>
-                  <p className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-tertiary)]">
-                    ACHIEVEMENTS
-                  </p>
                 </div>
-                {achievementList.length > 0 ? (
-                  <ul className="space-y-2 pl-2">
-                    {achievementList.map((item, idx) => (
-                      <li key={idx} className="flex items-start gap-2.5 text-sm text-[var(--text-primary)]">
-                        <span className="text-[var(--accent-dark)] font-bold mt-0.5">✦</span>
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm font-semibold text-[var(--text-primary)]">Not provided</p>
-                )}
-              </div>
+              )}
+
+              {hasAchievements && (
+                <div className="md:col-span-2">
+                  <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-5 shadow-[0_2px_12px_rgba(15,29,58,0.03)] hover:border-[var(--border-default)] transition-all">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 bg-[var(--accent-light)] text-[var(--accent-dark)] border border-[var(--accent)]/15">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <circle cx="12" cy="12" r="7" strokeWidth={1.8} stroke="currentColor" fill="none" />
+                        </svg>
+                      </div>
+                      <p className="text-[10px] uppercase tracking-[0.14em] font-semibold text-[var(--text-tertiary)]">
+                        ACHIEVEMENTS
+                      </p>
+                    </div>
+                    <ul className="space-y-2 pl-2">
+                      {achievementList.map((item, idx) => (
+                        <li key={idx} className="flex items-start gap-2.5 text-sm text-[var(--text-primary)]">
+                          <span className="text-[var(--accent-dark)] font-bold mt-0.5">✦</span>
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
+          ) : (
+            <div className="bg-[var(--surface-alt)] rounded-2xl border border-[var(--border-light)] p-8 text-center">
+              <p className="text-sm text-[var(--text-tertiary)]">
+                You haven't added additional profile details yet. Click Edit to complete your profile.
+              </p>
+            </div>
+          )}
 
           {/* Account Security & Password Card */}
           <div className="mt-5 p-5 sm:p-6 bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] shadow-[0_2px_12px_rgba(15,29,58,0.03)] hover:border-[var(--border-default)] transition-all">
@@ -840,7 +898,7 @@ function ProfileDetail({
           </a>
         ) : (
           <p className="text-sm font-semibold text-[var(--text-primary)] break-words leading-snug">
-            {value || "Not provided"}
+            {value}
           </p>
         )}
       </div>

@@ -4,7 +4,11 @@ import { useAuth } from "../auth/AuthContext"
 import {
   verifyPaymentReceipt,
   fetchPaymentValidity,
+  fetchMembershipCategories,
+  getMembershipCategoryLabel,
+  DEFAULT_MEMBERSHIP_CATEGORIES,
   type VerifiedPayment,
+  type MembershipCategoryOption,
 } from "../api/paymentApi"
 import { getMe } from "../auth/auth"
 import Navbar from "../components/Navbar"
@@ -32,6 +36,10 @@ export default function PaymentReceiverPage() {
   const { user, logout, updateUser } = useAuth()
   const navigate = useNavigate()
 
+  // Membership package selection state
+  const [categories, setCategories] = useState<MembershipCategoryOption[]>(DEFAULT_MEMBERSHIP_CATEGORIES)
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
+
   const [file, setFile] = useState<File | null>(null)
   const [filePreview, setFilePreview] = useState<string | null>(null)
   const [dragActive, setDragActive] = useState(false)
@@ -47,6 +55,17 @@ export default function PaymentReceiverPage() {
   const [clientError, setClientError] = useState<string | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const selectedCategory = categories.find((c) => c.id === selectedCategoryId) || null
+
+  // Fetch dynamic categories on mount
+  useEffect(() => {
+    fetchMembershipCategories().then((cats) => {
+      if (cats && cats.length > 0) {
+        setCategories(cats)
+      }
+    })
+  }, [])
 
   // Redirect if already active
   useEffect(() => {
@@ -173,6 +192,11 @@ export default function PaymentReceiverPage() {
 
   const handleSubmitVerification = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!selectedCategory) {
+      setClientError("Please select a membership package in Step 1 first before submitting your payment receipt.")
+      return
+    }
+
     if (!file) {
       setClientError("Please choose or drag-and-drop a payment receipt first.")
       return
@@ -183,7 +207,16 @@ export default function PaymentReceiverPage() {
     setStatusCheckFeedback(null)
 
     try {
-      const response = await verifyPaymentReceipt(file)
+      const response = await verifyPaymentReceipt(file, {
+        membershipCategory: selectedCategory.id,
+        paymentAmount: selectedCategory.amount,
+      })
+
+      if (!response.success && response.message && !response.duplicate && !response.data) {
+        // Explicit validation error (e.g. 400 Bad Request)
+        setClientError(response.message)
+        return
+      }
 
       // 1. After successful submission: Display under verification message
       // 2. Prevent duplicate submissions: Lock and hide form
@@ -195,6 +228,13 @@ export default function PaymentReceiverPage() {
 
       if (response.data) {
         setSubmittedPayment(response.data)
+      } else {
+        setSubmittedPayment({
+          amount: selectedCategory.amount,
+          membershipCategory: selectedCategory.id,
+          membershipCategoryLabel: selectedCategory.name,
+          status: "pending",
+        })
       }
 
       // Check if user account was immediately activated in backend
@@ -353,7 +393,7 @@ export default function PaymentReceiverPage() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Beneficiary Name */}
                 <div className="bg-[var(--surface-alt)] rounded-2xl border border-[var(--border-light)] p-4 flex items-center justify-between gap-3">
                   <div className="min-w-0">
@@ -395,6 +435,44 @@ export default function PaymentReceiverPage() {
                   >
                     {copiedField === "account" ? "✓ Copied" : "Copy Number"}
                   </button>
+                </div>
+
+                {/* Required Transfer Amount */}
+                <div
+                  className={`rounded-2xl border p-4 flex items-center justify-between gap-3 transition-all ${
+                    selectedCategory
+                      ? "bg-amber-50/70 border-[var(--accent)] shadow-xs"
+                      : "bg-[var(--surface-alt)] border-[var(--border-light)]"
+                  }`}
+                >
+                  <div className="min-w-0">
+                    <p className="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)] font-semibold">
+                      Required Transfer Amount
+                    </p>
+                    {selectedCategory ? (
+                      <div className="mt-0.5">
+                        <p className="text-lg font-serif font-black text-[var(--brand)]">
+                          ETB {selectedCategory.amount.toLocaleString()}
+                        </p>
+                        <p className="text-[11px] text-[var(--accent-dark)] font-medium truncate">
+                          {selectedCategory.name}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-[var(--text-tertiary)] italic mt-1">
+                        Select a category below
+                      </p>
+                    )}
+                  </div>
+                  {selectedCategory && (
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(String(selectedCategory.amount), "amount")}
+                      className="flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-[var(--border-default)] hover:bg-[var(--brand)] hover:text-white transition-colors cursor-pointer shadow-xs"
+                    >
+                      {copiedField === "amount" ? "✓ Copied" : "Copy Amount"}
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -451,12 +529,46 @@ export default function PaymentReceiverPage() {
               </div>
 
               {/* Status Feedback banner */}
-              {statusCheckFeedback && (
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 flex items-center gap-2 animate-fade-in">
-                  <span>ℹ️</span>
-                  <span>{statusCheckFeedback}</span>
+              {/* Submission Summary Details */}
+              <div className="bg-[var(--surface-alt)] rounded-2xl border border-[var(--border-light)] p-5">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)] mb-3">
+                  Submission Summary
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)] font-semibold">
+                      Membership Package
+                    </p>
+                    <p className="text-sm font-bold text-[var(--text-primary)] mt-0.5">
+                      {submittedPayment?.membershipCategoryLabel ||
+                        getMembershipCategoryLabel(submittedPayment?.membershipCategory) ||
+                        selectedCategory?.name ||
+                        "Standard Membership"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)] font-semibold">
+                      Payment Amount
+                    </p>
+                    <p className="text-sm font-bold text-[var(--brand)] mt-0.5">
+                      {submittedPayment?.amount && Number(submittedPayment.amount) > 0
+                        ? `ETB ${Number(submittedPayment.amount).toLocaleString()}`
+                        : selectedCategory
+                        ? selectedCategory.formattedPrice
+                        : "Under Review"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)] font-semibold">
+                      Status
+                    </p>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-900 border border-amber-200 mt-0.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                      Under Verification
+                    </span>
+                  </div>
                 </div>
-              )}
+              </div>
 
            
 
@@ -474,172 +586,334 @@ export default function PaymentReceiverPage() {
               </div>
             </div>
           ) : (
-            /* Upload Form Section (Shown ONLY when no payment is pending verification) */
-            <div className="bg-white rounded-3xl border border-[var(--border-light)] p-6 sm:p-8 shadow-sm space-y-6">
-              <div className="border-b border-[var(--border-light)] pb-4">
-                <h2 className="font-serif text-2xl text-[var(--text-primary)]">
-                  Upload & Verify Payment Receipt
-                </h2>
-                <p className="text-xs text-[var(--text-secondary)] mt-1">
-                  Attach your transfer confirmation screenshot or document to run automated bank verification against the receiver account.
-                </p>
+            <div className="space-y-8">
+              {/* Step 1: Membership Category Selection Section */}
+              <div className="bg-white rounded-3xl border border-[var(--border-light)] p-6 sm:p-8 shadow-sm space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--border-light)] pb-4">
+                  <div>
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-[var(--brand)]/10 text-[var(--brand)] mb-2">
+                      Step 1 of 2
+                    </div>
+                    <h2 className="font-serif text-2xl text-[var(--text-primary)]">
+                      Membership Category Selection
+                    </h2>
+                    <p className="text-xs text-[var(--text-secondary)] mt-1 max-w-2xl">
+                      Select the membership package you want to pay for. Only one category can be selected at a time, and its corresponding amount will be used for payment verification.
+                    </p>
+                  </div>
+
+                  {selectedCategory && (
+                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold self-start sm:self-auto">
+                      <span>✓ Selected:</span>
+                      <span className="font-bold">{selectedCategory.formattedPrice}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* 4 Selection Cards */}
+                <div
+                  role="radiogroup"
+                  aria-label="Membership Category Selection"
+                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+                >
+                  {categories.map((cat) => {
+                    const isSelected = selectedCategoryId === cat.id
+                    return (
+                      <div
+                        key={cat.id}
+                        role="radio"
+                        aria-checked={isSelected}
+                        tabIndex={0}
+                        onClick={() => {
+                          setSelectedCategoryId(cat.id)
+                          setClientError(null)
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === " " || e.key === "Enter") {
+                            e.preventDefault()
+                            setSelectedCategoryId(cat.id)
+                            setClientError(null)
+                          }
+                        }}
+                        className={`relative rounded-2xl p-5 flex flex-col justify-between text-left cursor-pointer transition-all ${
+                          isSelected
+                            ? "border-2 border-[var(--accent)] bg-amber-50/40 shadow-md ring-2 ring-[var(--accent)]/30 -translate-y-0.5"
+                            : "border border-[var(--border-light)] bg-white hover:border-[var(--brand)]/40 hover:shadow-sm"
+                        }`}
+                      >
+                        {/* Top Badges & Custom Radio Indicator */}
+                        <div>
+                          <div className="flex items-center justify-between gap-2 mb-3">
+                            <span
+                              className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                cat.tier === 1
+                                  ? "bg-slate-100 text-slate-700"
+                                  : cat.tier === 2
+                                  ? "bg-amber-100 text-amber-900 border border-amber-200"
+                                  : cat.tier === 3
+                                  ? "bg-blue-50 text-[var(--brand)] border border-blue-100"
+                                  : "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                              }`}
+                            >
+                              Tier {cat.tier}
+                            </span>
+
+                            {cat.popular && (
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-[var(--accent)] text-white shadow-2xs">
+                                Popular
+                              </span>
+                            )}
+
+                            {/* Radio Circle */}
+                            <div
+                              className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
+                                isSelected
+                                  ? "border-[var(--accent)] bg-[var(--accent)] text-white"
+                                  : "border-slate-300 bg-white"
+                              }`}
+                            >
+                              {isSelected && (
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Title */}
+                          <h3 className="font-serif text-base font-bold text-[var(--text-primary)] leading-snug">
+                            {cat.name}
+                          </h3>
+
+                          {/* Description */}
+                          <p className="text-xs text-[var(--text-secondary)] mt-2 leading-relaxed line-clamp-3">
+                            {cat.description}
+                          </p>
+                        </div>
+
+                        {/* Price Section */}
+                        <div className="pt-5 mt-4 border-t border-[var(--border-light)]/60 flex items-baseline justify-between">
+                          <div>
+                            <p className="text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-bold">
+                              Price (ETB)
+                            </p>
+                            <p className="text-2xl font-serif font-black text-[var(--brand)]">
+                              ETB {cat.amount.toLocaleString()}
+                            </p>
+                          </div>
+                          <span
+                            className={`text-xs font-semibold px-2.5 py-1 rounded-xl transition-colors ${
+                              isSelected
+                                ? "bg-[var(--accent)] text-white"
+                                : "bg-[var(--surface-alt)] text-[var(--text-secondary)]"
+                            }`}
+                          >
+                            {isSelected ? "Selected" : "Select"}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
 
-              {/* Error Message Banner */}
-              {clientError && (
-                <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-3 animate-fade-in">
-                  <span className="text-lg leading-none">⚠️</span>
-                  <div className="flex-1">
-                    <p className="font-semibold text-xs uppercase tracking-wide">Submission Issue</p>
-                    <p className="text-xs mt-0.5">{clientError}</p>
+              {/* Step 2: Upload Form Section */}
+              <div className="bg-white rounded-3xl border border-[var(--border-light)] p-6 sm:p-8 shadow-sm space-y-6">
+                <div className="border-b border-[var(--border-light)] pb-4">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-[var(--brand)]/10 text-[var(--brand)] mb-2">
+                    Step 2 of 2
                   </div>
-                </div>
-              )}
-
-              {/* Upload Area & Form */}
-              <form onSubmit={handleSubmitVerification} className="space-y-5">
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  accept="image/png,image/jpeg,image/jpg,image/webp,application/pdf"
-                  className="hidden"
-                  disabled={loading}
-                />
-
-                {/* Dropzone Container */}
-                <div
-                  onDragEnter={handleDrag}
-                  onDragOver={handleDrag}
-                  onDragLeave={handleDrag}
-                  onDrop={handleDrop}
-                  onClick={() => {
-                    if (!file && !loading) {
-                      fileInputRef.current?.click()
-                    }
-                  }}
-                  className={`relative border-2 border-dashed rounded-3xl p-6 sm:p-8 text-center transition-all ${
-                    dragActive
-                      ? "border-[var(--brand)] bg-[var(--brand)]/5 scale-[1.01]"
-                      : file
-                      ? "border-emerald-300 bg-emerald-50/20"
-                      : "border-[var(--border-default)] hover:border-[var(--brand)] bg-[var(--surface-alt)]/50 cursor-pointer"
-                  }`}
-                >
-                  {/* 1. Loading State */}
-                  {loading ? (
-                    <div className="py-8 space-y-4">
-                      <div className="w-12 h-12 border-3 border-[var(--brand)]/20 border-t-[var(--brand)] rounded-full animate-spin mx-auto" />
-                      <div>
-                        <p className="text-sm font-semibold text-[var(--text-primary)]">
-                          Submitting & Verifying Receipt...
-                        </p>
-                        <p className="text-xs text-[var(--text-tertiary)] mt-1 max-w-sm mx-auto">
-                          Please wait while we securely process and verify your payment receipt.
-                        </p>
-                      </div>
-                    </div>
-                  ) : file ? (
-                    /* 2. File Selected State */
-                    <div className="space-y-4">
-                      {filePreview ? (
-                        <div className="relative inline-block">
-                          <img
-                            src={filePreview}
-                            alt="Receipt Preview"
-                            className="max-h-56 mx-auto rounded-2xl object-contain shadow-sm border border-[var(--border-light)] bg-white p-1"
-                          />
-                        </div>
-                      ) : (
-                        <div className="w-16 h-16 rounded-2xl bg-[var(--brand)]/10 text-[var(--brand)] flex items-center justify-center mx-auto text-2xl font-bold">
-                          📄
-                        </div>
-                      )}
-
-                      <div>
-                        <p className="text-sm font-semibold text-[var(--text-primary)] truncate max-w-md mx-auto">
-                          {file.name}
-                        </p>
-                        <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
-                          {(file.size / (1024 * 1024)).toFixed(2)} MB • {file.type || "Document"}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center justify-center gap-3 pt-1">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            fileInputRef.current?.click()
-                          }}
-                          className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-white border border-[var(--border-default)] hover:bg-[var(--surface-alt)] text-[var(--text-secondary)] transition-colors cursor-pointer"
-                        >
-                          Change Receipt
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleClearFile()
-                          }}
-                          className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-600 transition-colors cursor-pointer"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    /* 3. Empty State */
-                    <div className="py-6 space-y-3">
-                      <div className="w-14 h-14 rounded-2xl bg-[var(--brand)]/10 text-[var(--brand)] flex items-center justify-center mx-auto text-2xl">
-                        🧾
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-[var(--text-primary)]">
-                          Drop your payment receipt here, or <span className="text-[var(--brand)] underline underline-offset-2">browse files</span>
-                        </p>
-                        <p className="text-xs text-[var(--text-tertiary)] mt-1">
-                          Accepts PNG, JPG, JPEG, WEBP, or PDF (up to 10MB)
-                        </p>
-                      </div>
-                      <div className="inline-flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] bg-white px-3 py-1 rounded-full border border-[var(--border-light)] shadow-2xs">
-                        <span>🔒</span> Secure & Encrypted Upload
-                      </div>
-                    </div>
-                  )}
+                  <h2 className="font-serif text-2xl text-[var(--text-primary)]">
+                    Upload & Verify Payment Receipt
+                  </h2>
+                  <p className="text-xs text-[var(--text-secondary)] mt-1">
+                    {selectedCategory
+                      ? `Attach your transfer confirmation receipt for ${selectedCategory.name} (${selectedCategory.formattedPrice}).`
+                      : "Please select a membership category in Step 1 above to enable receipt upload."}
+                  </p>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                  <button
-                    type="submit"
-                    disabled={loading || !file}
-                    className="flex-1 py-3.5 px-6 rounded-2xl font-semibold text-sm text-white bg-[var(--brand)] hover:bg-[var(--brand-light)] transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm flex items-center justify-center gap-2"
+                {/* Error Message Banner */}
+                {clientError && (
+                  <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-3 animate-fade-in">
+                    <span className="text-lg leading-none">⚠️</span>
+                    <div className="flex-1">
+                      <p className="font-semibold text-xs uppercase tracking-wide">Submission Issue</p>
+                      <p className="text-xs mt-0.5">{clientError}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Upload Area & Form */}
+                <form onSubmit={handleSubmitVerification} className="space-y-5">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    accept="image/png,image/jpeg,image/jpg,image/webp,application/pdf"
+                    className="hidden"
+                    disabled={loading || !selectedCategory}
+                  />
+
+                  {/* Dropzone Container */}
+                  <div
+                    onDragEnter={selectedCategory ? handleDrag : undefined}
+                    onDragOver={selectedCategory ? handleDrag : undefined}
+                    onDragLeave={selectedCategory ? handleDrag : undefined}
+                    onDrop={selectedCategory ? handleDrop : undefined}
+                    onClick={() => {
+                      if (!selectedCategory) {
+                        setClientError("Please select a membership package in Step 1 first before uploading your payment receipt.")
+                        return
+                      }
+                      if (!file && !loading) {
+                        fileInputRef.current?.click()
+                      }
+                    }}
+                    className={`relative border-2 border-dashed rounded-3xl p-6 sm:p-8 text-center transition-all ${
+                      !selectedCategory
+                        ? "border-[var(--border-light)] bg-slate-50/70 cursor-not-allowed opacity-80"
+                        : dragActive
+                        ? "border-[var(--brand)] bg-[var(--brand)]/5 scale-[1.01]"
+                        : file
+                        ? "border-emerald-300 bg-emerald-50/20"
+                        : "border-[var(--border-default)] hover:border-[var(--brand)] bg-[var(--surface-alt)]/50 cursor-pointer"
+                    }`}
                   >
+                    {/* 1. Loading State */}
                     {loading ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        <span>Submitting Receipt...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>Submit Receipt for Verification</span>
-                        <span aria-hidden="true">→</span>
-                      </>
-                    )}
-                  </button>
+                      <div className="py-8 space-y-4">
+                        <div className="w-12 h-12 border-3 border-[var(--brand)]/20 border-t-[var(--brand)] rounded-full animate-spin mx-auto" />
+                        <div>
+                          <p className="text-sm font-semibold text-[var(--text-primary)]">
+                            Submitting & Verifying Receipt...
+                          </p>
+                          <p className="text-xs text-[var(--text-tertiary)] mt-1 max-w-sm mx-auto">
+                            Please wait while we securely process and verify your payment receipt.
+                          </p>
+                        </div>
+                      </div>
+                    ) : !selectedCategory ? (
+                      /* Category Not Selected Guidance */
+                      <div className="py-6 space-y-3">
+                        <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center mx-auto text-2xl font-bold">
+                          1️⃣
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-[var(--text-primary)]">
+                            Select a Membership Category First
+                          </p>
+                          <p className="text-xs text-[var(--text-tertiary)] mt-1 max-w-md mx-auto">
+                            Choose one of the 4 membership packages in Step 1 above to unlock receipt upload and proceed with verification.
+                          </p>
+                        </div>
+                      </div>
+                    ) : file ? (
+                      /* 2. File Selected State */
+                      <div className="space-y-4">
+                        {filePreview ? (
+                          <div className="relative inline-block">
+                            <img
+                              src={filePreview}
+                              alt="Receipt Preview"
+                              className="max-h-56 mx-auto rounded-2xl object-contain shadow-sm border border-[var(--border-light)] bg-white p-1"
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-16 h-16 rounded-2xl bg-[var(--brand)]/10 text-[var(--brand)] flex items-center justify-center mx-auto text-2xl font-bold">
+                            📄
+                          </div>
+                        )}
 
-                  {file && !loading && (
+                        <div>
+                          <p className="text-sm font-semibold text-[var(--text-primary)] truncate max-w-md mx-auto">
+                            {file.name}
+                          </p>
+                          <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
+                            {(file.size / (1024 * 1024)).toFixed(2)} MB • {file.type || "Document"}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center justify-center gap-3 pt-1">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              fileInputRef.current?.click()
+                            }}
+                            className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-white border border-[var(--border-default)] hover:bg-[var(--surface-alt)] text-[var(--text-secondary)] transition-colors cursor-pointer"
+                          >
+                            Change Receipt
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleClearFile()
+                            }}
+                            className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-600 transition-colors cursor-pointer"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* 3. Empty State */
+                      <div className="py-6 space-y-3">
+                        <div className="w-14 h-14 rounded-2xl bg-[var(--brand)]/10 text-[var(--brand)] flex items-center justify-center mx-auto text-2xl">
+                          🧾
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-[var(--text-primary)]">
+                            Drop your payment receipt here, or <span className="text-[var(--brand)] underline underline-offset-2">browse files</span>
+                          </p>
+                          <p className="text-xs text-[var(--text-tertiary)] mt-1">
+                            Accepts PNG, JPG, JPEG, WEBP, or PDF (up to 10MB) • For {selectedCategory.formattedPrice}
+                          </p>
+                        </div>
+                        <div className="inline-flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] bg-white px-3 py-1 rounded-full border border-[var(--border-light)] shadow-2xs">
+                          <span>🔒</span> Secure & Encrypted Upload
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-col sm:flex-row gap-3 pt-2">
                     <button
-                      type="button"
-                      onClick={handleClearFile}
-                      className="py-3.5 px-5 rounded-2xl font-semibold text-sm text-[var(--text-secondary)] bg-white border border-[var(--border-default)] hover:bg-[var(--surface-alt)] transition-colors cursor-pointer"
+                      type="submit"
+                      disabled={loading || !file || !selectedCategory}
+                      className="flex-1 py-3.5 px-6 rounded-2xl font-semibold text-sm text-white bg-[var(--brand)] hover:bg-[var(--brand-light)] transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm flex items-center justify-center gap-2"
                     >
-                      Cancel
+                      {loading ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          <span>Submitting Receipt...</span>
+                        </>
+                      ) : !selectedCategory ? (
+                        <span>Select a Membership Category to Continue</span>
+                      ) : !file ? (
+                        <span>Attach Receipt to Verify ({selectedCategory.formattedPrice})</span>
+                      ) : (
+                        <>
+                          <span>Submit Receipt & Verify ({selectedCategory.formattedPrice})</span>
+                          <span aria-hidden="true">→</span>
+                        </>
+                      )}
                     </button>
-                  )}
-                </div>
-              </form>
+
+                    {file && !loading && (
+                      <button
+                        type="button"
+                        onClick={handleClearFile}
+                        className="py-3.5 px-5 rounded-2xl font-semibold text-sm text-[var(--text-secondary)] bg-white border border-[var(--border-default)] hover:bg-[var(--surface-alt)] transition-colors cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </form>
+              </div>
             </div>
           )}
         </div>

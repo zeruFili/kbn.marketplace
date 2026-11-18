@@ -7,6 +7,68 @@
 
 import { baseApi, ApiError } from "./baseApi"
 
+export interface MembershipCategoryOption {
+  id: string
+  name: string
+  amount: number
+  currency: "ETB"
+  formattedPrice: string
+  tier: number
+  description: string
+  popular?: boolean
+}
+
+export const DEFAULT_MEMBERSHIP_CATEGORIES: MembershipCategoryOption[] = [
+  {
+    id: "beginner_professionals_business_owners",
+    name: "Beginner Professionals & Business Owners",
+    amount: 250,
+    currency: "ETB",
+    formattedPrice: "ETB 250",
+    tier: 1,
+    description: "Ideal for emerging professionals, startups, and small business owners starting their kingdom journey.",
+  },
+  {
+    id: "developing_professionals_business_owners",
+    name: "Developing Professionals & Business Owners",
+    amount: 500,
+    currency: "ETB",
+    formattedPrice: "ETB 500",
+    tier: 2,
+    popular: true,
+    description: "For growing professionals and established businesses scaling operations and networking.",
+  },
+  {
+    id: "established_professionals_business_owners",
+    name: "Established Professionals & Business Owners",
+    amount: 750,
+    currency: "ETB",
+    formattedPrice: "ETB 750",
+    tier: 3,
+    description: "For seasoned leaders, enterprise builders, and high-impact industry leaders.",
+  },
+  {
+    id: "investors_strategic_partners",
+    name: "Investors & Strategic Partners",
+    amount: 1000,
+    currency: "ETB",
+    formattedPrice: "ETB 1,000",
+    tier: 4,
+    description: "Exclusive tier for capital allocators, board leaders, and catalytic ecosystem partners.",
+  },
+]
+
+export function getMembershipCategoryLabel(categoryIdOrKey?: string | null): string {
+  if (!categoryIdOrKey) return ""
+  const normalized = categoryIdOrKey.toLowerCase().replace(/[^a-z0-9]/g, "")
+  const found = DEFAULT_MEMBERSHIP_CATEGORIES.find(
+    (c) =>
+      c.id.toLowerCase().replace(/[^a-z0-9]/g, "") === normalized ||
+      c.name.toLowerCase().replace(/[^a-z0-9]/g, "") === normalized
+  )
+  return found ? found.name : categoryIdOrKey
+}
+
 export interface VerifiedPayment {
   id?: string
   user_id?: string
@@ -18,6 +80,12 @@ export interface VerifiedPayment {
   time?: string
   url?: string | null
   image?: string | null
+  membershipCategory?: string | null
+  membership_category?: string | null
+  membershipCategoryLabel?: string | null
+  membership_category_label?: string | null
+  expectedAmount?: string | number | null
+  expected_amount?: string | number | null
   expirationDate?: string | Date | null
   expiration_date?: string | Date | null
   created_at?: string | Date
@@ -77,6 +145,12 @@ export interface PaymentItem {
   time?: string | null
   url?: string | null
   image?: string | null
+  membershipCategory?: string | null
+  membership_category?: string | null
+  membershipCategoryLabel?: string | null
+  membership_category_label?: string | null
+  expectedAmount?: string | null
+  expected_amount?: string | null
   expirationDate?: string | null
   expiration_date?: string | null
   isExpired?: boolean
@@ -188,15 +262,53 @@ export async function fetchUserPayments(userId?: string): Promise<PaymentItem[]>
   }
 }
 
+export interface VerifyPaymentOptions {
+  membershipCategory?: string
+  paymentAmount?: number
+  expectedAmount?: number
+}
+
+/**
+ * Fetch available membership categories via GET /api/v1/payments/membership-categories
+ * Falls back to DEFAULT_MEMBERSHIP_CATEGORIES
+ */
+export async function fetchMembershipCategories(): Promise<MembershipCategoryOption[]> {
+  try {
+    const res = await baseApi.get<MembershipCategoryOption[]>("/payments/membership-categories")
+    if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+      return res.data
+    }
+    return DEFAULT_MEMBERSHIP_CATEGORIES
+  } catch {
+    return DEFAULT_MEMBERSHIP_CATEGORIES
+  }
+}
+
 /**
  * Upload and verify a payment receipt image or PDF via POST /api/v1/payments/verify
  *
  * @param file Receipt file (PNG, JPG, JPEG, PDF up to 10MB)
+ * @param options Selected membership package & amount details
  * @returns Standardized verification response with extracted bank details or error reason
  */
-export async function verifyPaymentReceipt(file: File): Promise<VerifyReceiptResponse> {
+export async function verifyPaymentReceipt(
+  file: File,
+  options?: VerifyPaymentOptions
+): Promise<VerifyReceiptResponse> {
   const formData = new FormData()
   formData.append("attachmentFiles", file)
+
+  if (options?.membershipCategory) {
+    formData.append("membershipCategory", options.membershipCategory)
+    formData.append("membership_category", options.membershipCategory)
+  }
+
+  const amt = options?.paymentAmount ?? options?.expectedAmount
+  if (amt !== undefined && amt !== null) {
+    formData.append("amount", String(amt))
+    formData.append("paymentAmount", String(amt))
+    formData.append("expectedAmount", String(amt))
+  }
 
   try {
     const res = await baseApi.post<VerifiedPayment>("/payments/verify", formData)
@@ -236,8 +348,18 @@ export async function verifyPaymentReceipt(file: File): Promise<VerifyReceiptRes
         }
       }
 
-      // Backend returned an error (e.g. 500, 400).
-      // Per requirements: display the "Your payment is under verification" message when the backend returns an error.
+      // If client validation error (400 Bad Request, e.g. missing category or amount mismatch), surface message
+      if (err.status === 400) {
+        const validationMsg = (errorData?.message as string) || err.message || "Please select a membership package before proceeding."
+        return {
+          success: false,
+          duplicate: false,
+          message: validationMsg,
+          reason: validationMsg,
+        }
+      }
+
+      // Backend returned another error (e.g. 500).
       return {
         success: false,
         duplicate: false,
