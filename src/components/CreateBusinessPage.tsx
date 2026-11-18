@@ -38,17 +38,6 @@ const STEP_FIELDS: Record<1 | 2 | 3, BusinessField[]> = {
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
 
-const ALLOWED_LICENSE_MIME_TYPES = new Set([
-  "application/pdf",
-  "image/png",
-  "image/jpeg",
-  "image/jpg",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-])
-
-const ALLOWED_LICENSE_EXT_REGEX = /\.(pdf|png|jpe?g|docx?)$/i
-
 function isValidHttpUrl(raw: string): boolean {
   try {
     const parsed = new URL(raw)
@@ -156,12 +145,6 @@ function validateSingleField(field: BusinessField, value: string | File | null):
       const file = value instanceof File ? value : null
       if (!file) {
         return "Please select and upload your business license or registration document."
-      }
-      if (
-        !ALLOWED_LICENSE_MIME_TYPES.has(file.type) &&
-        !ALLOWED_LICENSE_EXT_REGEX.test(file.name)
-      ) {
-        return "Please upload a valid PDF, DOCX, JPG, or PNG document."
       }
       if (file.size > MAX_FILE_SIZE_BYTES) {
         return "Business license file must be 10MB or smaller."
@@ -1556,7 +1539,6 @@ export default function CreateBusinessPage({
                 <input
                   ref={licenseInputRef}
                   type="file"
-                  accept="application/pdf,image/png,image/jpeg,image/jpg,.doc,.docx"
                   className="hidden"
                   onChange={(e) => {
                     const file = e.target.files?.[0]
@@ -1590,7 +1572,11 @@ export default function CreateBusinessPage({
                         {licenseFile.name}
                       </p>
                       <p className="text-xs text-[var(--text-tertiary)]">
-                        {(licenseFile.size / 1024).toFixed(1)} KB · {licenseFile.type || "Document"}
+                        {(licenseFile.size / 1024).toFixed(1)} KB ·{" "}
+                        {licenseFile.type ||
+                          (licenseFile.name.includes(".")
+                            ? licenseFile.name.split(".").pop()?.toUpperCase()
+                            : "File")}
                       </p>
                     </div>
                     <button
@@ -1618,7 +1604,7 @@ export default function CreateBusinessPage({
                       Upload Government-Issued Business License
                     </p>
                     <p className="text-xs text-[var(--text-tertiary)] mb-4">
-                      PDF, DOCX, JPG, or PNG up to 10MB
+                      All file types supported up to 10MB
                     </p>
                     <span className="inline-block bg-[var(--brand)] text-white text-xs font-semibold px-4 py-2 rounded-xl">
                       Browse Files

@@ -624,14 +624,23 @@ export default function AdminCompanyDetailsPage() {
                           {company.business_license}
                         </p>
                       </div>
-                      <a
-                        href={licenseUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl bg-[var(--brand)] text-white hover:bg-[var(--brand-light)] transition-colors"
-                      >
-                        View Document ↗
-                      </a>
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={licenseUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl bg-[var(--brand)] text-white hover:bg-[var(--brand-light)] transition-colors"
+                        >
+                          View Document ↗
+                        </a>
+                        <a
+                          href={licenseUrl}
+                          download
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl border border-[var(--border-default)] bg-[var(--surface)] text-[var(--text-primary)] hover:border-[var(--brand)] transition-colors"
+                        >
+                          Download
+                        </a>
+                      </div>
                     </div>
                   </div>
                 ) : (
