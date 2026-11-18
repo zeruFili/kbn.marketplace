@@ -5,6 +5,19 @@ import { resendRegistrationOtp } from "../auth/auth"
 import GoogleSignInButton from "./common/GoogleSignInButton"
 const knbLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
 
+type SignUpField = "profileImage" | "name" | "email" | "phone" | "password" | "confirm"
+
+const FIELD_ORDER: SignUpField[] = [
+  "profileImage",
+  "name",
+  "email",
+  "phone",
+  "password",
+  "confirm",
+]
+
+const MULTI_ERROR_SUMMARY = "Please correct the highlighted fields below."
+
 export default function SignUpPage({
   onBack,
   onSwitch,
@@ -33,7 +46,11 @@ export default function SignUpPage({
 
   // Status and Error State
   const [error, setError] = useState("")
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<SignUpField, string>>>({})
   const [loading, setLoading] = useState(false)
+  const errorBannerRef = useRef<HTMLDivElement>(null)
+  const fieldWrapperRefs = useRef<Partial<Record<SignUpField, HTMLDivElement | null>>>({})
+  const fieldInputRefs = useRef<Partial<Record<SignUpField, HTMLInputElement | null>>>({})
 
   // OTP State (Step 2 & 3)
   const [otp, setOtp] = useState<string[]>(["", "", "", "", "", ""])
@@ -44,6 +61,49 @@ export default function SignUpPage({
   const [otpError, setOtpError] = useState("")
   const [otpLoading, setOtpLoading] = useState(false)
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([])
+
+  const clearFieldError = (...fields: SignUpField[]) => {
+    if (!fields.some((f) => Boolean(fieldErrors[f]))) return
+    const clearedMessages = new Set(fields.map((f) => fieldErrors[f]).filter(Boolean))
+    const next = { ...fieldErrors }
+    for (const f of fields) {
+      delete next[f]
+    }
+    setFieldErrors(next)
+    if (
+      Object.keys(next).length === 0 &&
+      (clearedMessages.has(error) || error === MULTI_ERROR_SUMMARY)
+    ) {
+      setError("")
+    }
+  }
+
+  const scrollToField = (field: SignUpField) => {
+    requestAnimationFrame(() => {
+      const wrapper = fieldWrapperRefs.current[field]
+      const input = fieldInputRefs.current[field]
+      const target = wrapper || input
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "center" })
+      }
+      if (input && field !== "profileImage") {
+        input.focus({ preventScroll: true })
+      }
+    })
+  }
+
+  const scrollToErrorBanner = () => {
+    requestAnimationFrame(() => {
+      errorBannerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
+    })
+  }
+
+  const getInputClassName = (field: SignUpField, extraClasses = "") =>
+    `w-full rounded-xl py-2.5 px-4 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:ring-2 transition-all border ${
+      fieldErrors[field]
+        ? "bg-red-50/50 dark:bg-red-950/20 border-red-500 focus:ring-red-500/25 focus:border-red-500"
+        : "bg-[var(--surface-alt)] border-[var(--border-default)] focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]/50"
+    }${extraClasses ? ` ${extraClasses}` : ""}`
 
   useEffect(() => {
     if (!imageFile) {
@@ -82,78 +142,68 @@ export default function SignUpPage({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError("")
+    setFieldErrors({})
 
-    if (!name.trim()) {
-      setError("Please enter your full name.")
-      return
-    }
-    if (!email.trim()) {
-      setError("Please enter your email address.")
-      return
-    }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email.trim())) {
-      setError("Please enter a valid email address.")
-      return
-    }
-    if (otpMethod === "sms") {
-      if (!phone.trim()) {
-        setError("Please enter your phone number to receive your OTP via SMS.")
-        return
-      }
-      const cleanPhone = phone.trim().replace(/[\s\-]/g, "")
-      const phoneRegex = /^(\+?[1-9]\d{7,14}|0[79]\d{8})$/
-      if (!phoneRegex.test(cleanPhone)) {
-        setError("Please enter a valid phone number (e.g., 0911002233 or +251911002233).")
-        return
-      }
-    } else {
-      if (phone.trim()) {
-        const cleanPhone = phone.trim().replace(/[\s\-]/g, "")
-        const phoneRegex = /^(\+?[1-9]\d{7,14}|0[79]\d{8})$/
-        if (!phoneRegex.test(cleanPhone)) {
-          setError("Please enter a valid phone number format or leave it blank.")
-          return
-        }
-      }
-    }
-    if (!password) {
-      setError("Please enter a password.")
-      return
-    }
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters long.")
-      return
-    }
-    if (!/[A-Z]/.test(password)) {
-      setError("Password must contain at least one uppercase letter.")
-      return
-    }
-    if (!/[a-z]/.test(password)) {
-      setError("Password must contain at least one lowercase letter.")
-      return
-    }
-    if (!/\d/.test(password)) {
-      setError("Password must contain at least one number.")
-      return
-    }
-    if (!/[^\da-zA-Z]/.test(password)) {
-      setError("Password must contain at least one special character (!@#$%^&* etc.).")
-      return
-    }
-    if (password !== confirm) {
-      setError("Passwords do not match.")
-      return
-    }
+    const nextErrors: Partial<Record<SignUpField, string>> = {}
+
     if (imageFile) {
       if (imageFile.size > 5 * 1024 * 1024) {
-        setError("Profile image must be less than 5MB.")
-        return
+        nextErrors.profileImage = "Profile image must be less than 5MB."
+      } else if (!imageFile.type.startsWith("image/")) {
+        nextErrors.profileImage = "Please select a valid image file."
       }
-      if (!imageFile.type.startsWith("image/")) {
-        setError("Please select a valid image file.")
-        return
+    }
+
+    if (!name.trim()) {
+      nextErrors.name = "Please enter your full name."
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!email.trim()) {
+      nextErrors.email = "Please enter your email address."
+    } else if (!emailRegex.test(email.trim())) {
+      nextErrors.email = "Please enter a valid email address."
+    }
+
+    const cleanPhone = phone.trim().replace(/[\s\-]/g, "")
+    const phoneRegex = /^(\+?[1-9]\d{7,14}|0[79]\d{8})$/
+    if (otpMethod === "sms") {
+      if (!phone.trim()) {
+        nextErrors.phone = "Please enter your phone number to receive your OTP via SMS."
+      } else if (!phoneRegex.test(cleanPhone)) {
+        nextErrors.phone = "Please enter a valid phone number (e.g., 0911002233 or +251911002233)."
       }
+    } else if (phone.trim() && !phoneRegex.test(cleanPhone)) {
+      nextErrors.phone = "Please enter a valid phone number format or leave it blank."
+    }
+
+    if (!password) {
+      nextErrors.password = "Please enter a password."
+    } else if (password.length < 8) {
+      nextErrors.password = "Password must be at least 8 characters long."
+    } else if (!/[A-Z]/.test(password)) {
+      nextErrors.password = "Password must contain at least one uppercase letter."
+    } else if (!/[a-z]/.test(password)) {
+      nextErrors.password = "Password must contain at least one lowercase letter."
+    } else if (!/\d/.test(password)) {
+      nextErrors.password = "Password must contain at least one number."
+    } else if (!/[^\da-zA-Z]/.test(password)) {
+      nextErrors.password = "Password must contain at least one special character (!@#$%^&* etc.)."
+    }
+
+    if (!confirm) {
+      nextErrors.confirm = "Please confirm your password."
+    } else if (password !== confirm) {
+      nextErrors.confirm = "Passwords do not match."
+    }
+
+    const firstErrorField = FIELD_ORDER.find((field) => Boolean(nextErrors[field]))
+    if (firstErrorField) {
+      setFieldErrors(nextErrors)
+      const errorCount = Object.keys(nextErrors).length
+      setError(errorCount === 1 ? nextErrors[firstErrorField]! : MULTI_ERROR_SUMMARY)
+      scrollToField(firstErrorField)
+      return
     }
 
     setLoading(true)
@@ -191,7 +241,28 @@ export default function SignUpPage({
         handlePostRegistrationSuccess(res.user)
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Sign up failed.")
+      const message = err instanceof Error ? err.message : "Sign up failed."
+      setError(message)
+
+      const serverFieldErrors: Partial<Record<SignUpField, string>> = {}
+      const lower = message.toLowerCase()
+      if (lower.includes("email")) serverFieldErrors.email = message
+      if (lower.includes("phone")) serverFieldErrors.phone = message
+      if (lower.includes("password")) serverFieldErrors.password = message
+      if (lower.includes("full_name") || lower.includes("full name")) {
+        serverFieldErrors.name = message
+      }
+      if (lower.includes("profile image") || lower.includes("profileimage")) {
+        serverFieldErrors.profileImage = message
+      }
+
+      const firstServerErrorField = FIELD_ORDER.find((field) => Boolean(serverFieldErrors[field]))
+      if (firstServerErrorField) {
+        setFieldErrors(serverFieldErrors)
+        scrollToField(firstServerErrorField)
+      } else {
+        scrollToErrorBanner()
+      }
     } finally {
       setLoading(false)
     }
@@ -204,6 +275,12 @@ export default function SignUpPage({
     const code = otp.join("").trim()
     if (code.length !== 6) {
       setOtpError("Please enter all 6 digits of the verification code.")
+      const firstEmptyIdx = otp.findIndex((d) => !d)
+      const targetInput = otpInputRefs.current[firstEmptyIdx >= 0 ? firstEmptyIdx : 0]
+      requestAnimationFrame(() => {
+        targetInput?.scrollIntoView({ behavior: "smooth", block: "center" })
+        targetInput?.focus({ preventScroll: true })
+      })
       return
     }
 
@@ -227,6 +304,11 @@ export default function SignUpPage({
       }
     } catch (err: unknown) {
       setOtpError(err instanceof Error ? err.message : "Verification failed.")
+      requestAnimationFrame(() => {
+        const firstOtpInput = otpInputRefs.current[0]
+        firstOtpInput?.scrollIntoView({ behavior: "smooth", block: "center" })
+        firstOtpInput?.focus({ preventScroll: true })
+      })
     } finally {
       setOtpLoading(false)
     }
@@ -275,6 +357,7 @@ export default function SignUpPage({
 
   // OTP Input handlers
   const handleOtpChange = (index: number, value: string) => {
+    if (otpError) setOtpError("")
     const cleaned = value.replace(/\D/g, "")
     if (!cleaned) {
       const newOtp = [...otp]
@@ -301,6 +384,7 @@ export default function SignUpPage({
 
   const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault()
+    if (otpError) setOtpError("")
     const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6)
     if (!pasted) return
     const newOtp = [...otp]
@@ -411,7 +495,7 @@ export default function SignUpPage({
               </div>
             )}
 
-            <form onSubmit={handleVerifyAndRegister} className="space-y-6">
+            <form onSubmit={handleVerifyAndRegister} noValidate className="space-y-6">
               {/* 6 Digit OTP Input Boxes */}
               <div className="flex items-center justify-center gap-2 sm:gap-3" onPaste={handleOtpPaste}>
                 {otp.map((digit, idx) => (
@@ -426,9 +510,14 @@ export default function SignUpPage({
                     pattern="[0-9]*"
                     maxLength={1}
                     value={digit}
+                    aria-invalid={Boolean(otpError)}
                     onChange={(e) => handleOtpChange(idx, e.target.value)}
                     onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                    className="w-12 h-14 sm:w-13 sm:h-16 text-center text-xl sm:text-2xl font-bold bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/30 focus:border-[var(--brand)] transition-all shadow-xs"
+                    className={`w-12 h-14 sm:w-13 sm:h-16 text-center text-xl sm:text-2xl font-bold rounded-xl text-[var(--text-primary)] outline-none focus:ring-2 transition-all shadow-xs border ${
+                      otpError
+                        ? "bg-red-50/50 dark:bg-red-950/20 border-red-500 focus:ring-red-500/30 focus:border-red-500"
+                        : "bg-[var(--surface-alt)] border-[var(--border-default)] focus:ring-[var(--brand)]/30 focus:border-[var(--brand)]"
+                    }`}
                   />
                 ))}
               </div>
@@ -499,7 +588,11 @@ export default function SignUpPage({
             </p>
 
             {error && (
-              <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 mb-6 animate-scale-in">
+              <div
+                ref={errorBannerRef}
+                role="alert"
+                className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 mb-6 animate-scale-in"
+              >
                 <svg
                   className="w-5 h-5 text-red-500 flex-shrink-0"
                   fill="none"
@@ -517,74 +610,120 @@ export default function SignUpPage({
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="flex items-center gap-4 p-3 bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl">
-                <div className="relative w-14 h-14 rounded-xl bg-[var(--surface)] border border-[var(--border-light)] flex items-center justify-center overflow-hidden flex-shrink-0 shadow-xs">
-                  {imagePreview ? (
-                    <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                  ) : (
-                    <svg className="w-7 h-7 text-[var(--text-tertiary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
-                    Profile Photo <span className="text-[var(--text-tertiary)] font-normal">(optional)</span>
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="text-xs font-medium text-[var(--brand)] bg-[var(--brand)]/10 hover:bg-[var(--brand)]/20 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
-                    >
-                      {imageFile ? "Change" : "Upload Photo"}
-                    </button>
-                    {imageFile && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setImageFile(null)
-                          if (fileInputRef.current) fileInputRef.current.value = ""
-                        }}
-                        className="text-xs text-red-500 hover:text-red-600 px-2 py-1.5 transition-colors cursor-pointer"
-                      >
-                        Remove
-                      </button>
+            <form onSubmit={handleSubmit} noValidate className="space-y-4">
+              <div
+                ref={(el) => {
+                  fieldWrapperRefs.current.profileImage = el
+                }}
+              >
+                <div
+                  className={`flex items-center gap-4 p-3 rounded-xl border transition-all ${
+                    fieldErrors.profileImage
+                      ? "bg-red-50/50 dark:bg-red-950/20 border-red-500"
+                      : "bg-[var(--surface-alt)] border-[var(--border-default)]"
+                  }`}
+                >
+                  <div className="relative w-14 h-14 rounded-xl bg-[var(--surface)] border border-[var(--border-light)] flex items-center justify-center overflow-hidden flex-shrink-0 shadow-xs">
+                    {imagePreview ? (
+                      <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <svg className="w-7 h-7 text-[var(--text-tertiary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
                     )}
                   </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,image/svg+xml"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0]
-                      if (file) {
-                        if (file.size > 5 * 1024 * 1024) {
-                          setError("Profile image must be less than 5MB.")
-                          return
+                  <div className="flex-1 min-w-0">
+                    <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
+                      Profile Photo <span className="text-[var(--text-tertiary)] font-normal">(optional)</span>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="text-xs font-medium text-[var(--brand)] bg-[var(--brand)]/10 hover:bg-[var(--brand)]/20 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                      >
+                        {imageFile ? "Change" : "Upload Photo"}
+                      </button>
+                      {imageFile && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setImageFile(null)
+                            clearFieldError("profileImage")
+                            if (fileInputRef.current) fileInputRef.current.value = ""
+                          }}
+                          className="text-xs text-red-500 hover:text-red-600 px-2 py-1.5 transition-colors cursor-pointer"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,image/svg+xml"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          if (file.size > 5 * 1024 * 1024) {
+                            const msg = "Profile image must be less than 5MB."
+                            setFieldErrors((prev) => ({ ...prev, profileImage: msg }))
+                            setError(msg)
+                            scrollToField("profileImage")
+                            return
+                          }
+                          if (!file.type.startsWith("image/")) {
+                            const msg = "Please select a valid image file."
+                            setFieldErrors((prev) => ({ ...prev, profileImage: msg }))
+                            setError(msg)
+                            scrollToField("profileImage")
+                            return
+                          }
+                          clearFieldError("profileImage")
+                          setError("")
+                          setImageFile(file)
                         }
-                        setError("")
-                        setImageFile(file)
-                      }
-                    }}
-                  />
+                      }}
+                    />
+                  </div>
                 </div>
+                {fieldErrors.profileImage && (
+                  <p id="profileImage-error" role="alert" className="text-xs text-red-600 dark:text-red-400 mt-1.5 font-medium">
+                    {fieldErrors.profileImage}
+                  </p>
+                )}
               </div>
 
-              <div>
+              <div
+                ref={(el) => {
+                  fieldWrapperRefs.current.name = el
+                }}
+              >
                 <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
                   Full Name <span className="text-red-500">*</span>
                 </label>
                 <input
+                  ref={(el) => {
+                    fieldInputRefs.current.name = el
+                  }}
                   type="text"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    setName(e.target.value)
+                    clearFieldError("name")
+                  }}
                   placeholder="John Doe"
                   autoComplete="name"
-                  className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-4 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]/50 transition-all"
+                  aria-invalid={Boolean(fieldErrors.name)}
+                  aria-describedby={fieldErrors.name ? "name-error" : undefined}
+                  className={getInputClassName("name")}
                 />
+                {fieldErrors.name && (
+                  <p id="name-error" role="alert" className="text-xs text-red-600 dark:text-red-400 mt-1.5 font-medium">
+                    {fieldErrors.name}
+                  </p>
+                )}
               </div>
 
               {/* Verification Method Selection */}
@@ -619,7 +758,12 @@ export default function SignUpPage({
 
                   <button
                     type="button"
-                    onClick={() => setOtpMethod("email")}
+                    onClick={() => {
+                      setOtpMethod("email")
+                      if (!phone.trim()) {
+                        clearFieldError("phone")
+                      }
+                    }}
                     className={`flex items-start gap-2.5 p-3 rounded-xl border text-left transition-all cursor-pointer ${
                       otpMethod === "email"
                         ? "border-[var(--brand)] bg-[var(--brand)]/10 ring-1 ring-[var(--brand)] shadow-xs"
@@ -643,18 +787,35 @@ export default function SignUpPage({
                 </div>
               </div>
 
-              <div>
+              <div
+                ref={(el) => {
+                  fieldWrapperRefs.current.email = el
+                }}
+              >
                 <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
                   Email Address <span className="text-red-500">*</span>
                 </label>
                 <input
+                  ref={(el) => {
+                    fieldInputRefs.current.email = el
+                  }}
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    clearFieldError("email")
+                  }}
                   placeholder="you@gmail.com"
                   autoComplete="email"
-                  className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-4 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]/50 transition-all"
+                  aria-invalid={Boolean(fieldErrors.email)}
+                  aria-describedby={fieldErrors.email ? "email-error" : undefined}
+                  className={getInputClassName("email")}
                 />
+                {fieldErrors.email && (
+                  <p id="email-error" role="alert" className="text-xs text-red-600 dark:text-red-400 mt-1.5 font-medium">
+                    {fieldErrors.email}
+                  </p>
+                )}
                 {otpMethod === "email" && (
                   <p className="text-xs text-[var(--brand)] mt-1 font-medium flex items-center gap-1">
                     <span>✓</span> Verification code will be sent to this email address.
@@ -662,18 +823,35 @@ export default function SignUpPage({
                 )}
               </div>
 
-              <div>
+              <div
+                ref={(el) => {
+                  fieldWrapperRefs.current.phone = el
+                }}
+              >
                 <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
                   Phone Number {otpMethod === "sms" ? <span className="text-red-500">*</span> : <span className="text-xs text-[var(--text-tertiary)] font-normal">(optional)</span>}
                 </label>
                 <input
+                  ref={(el) => {
+                    fieldInputRefs.current.phone = el
+                  }}
                   type="tel"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => {
+                    setPhone(e.target.value)
+                    clearFieldError("phone")
+                  }}
                   placeholder="0911002233"
                   autoComplete="tel"
-                  className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-4 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]/50 transition-all"
+                  aria-invalid={Boolean(fieldErrors.phone)}
+                  aria-describedby={fieldErrors.phone ? "phone-error" : undefined}
+                  className={getInputClassName("phone")}
                 />
+                {fieldErrors.phone && (
+                  <p id="phone-error" role="alert" className="text-xs text-red-600 dark:text-red-400 mt-1.5 font-medium">
+                    {fieldErrors.phone}
+                  </p>
+                )}
                 <p className="text-xs text-[var(--text-tertiary)] mt-1">
                   {otpMethod === "sms"
                     ? "We'll send a 6-digit SMS verification code to this phone number."
@@ -681,20 +859,35 @@ export default function SignUpPage({
                 </p>
               </div>
 
-              
-
-              <div>
+              <div
+                ref={(el) => {
+                  fieldWrapperRefs.current.password = el
+                }}
+              >
                 <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
                   Password <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <input
+                    ref={(el) => {
+                      fieldInputRefs.current.password = el
+                    }}
                     type={showPassword ? "text" : "password"}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      const nextPassword = e.target.value
+                      setPassword(nextPassword)
+                      if (confirm && nextPassword === confirm) {
+                        clearFieldError("password", "confirm")
+                      } else {
+                        clearFieldError("password")
+                      }
+                    }}
                     placeholder="At least 8 chars (upper, lower, digit, symbol)"
                     autoComplete="new-password"
-                    className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-4 pr-12 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]/50 transition-all"
+                    aria-invalid={Boolean(fieldErrors.password)}
+                    aria-describedby={fieldErrors.password ? "password-error" : undefined}
+                    className={getInputClassName("password", "pr-12")}
                   />
                   <button
                     type="button"
@@ -738,23 +931,45 @@ export default function SignUpPage({
                     )}
                   </button>
                 </div>
+                {fieldErrors.password && (
+                  <p id="password-error" role="alert" className="text-xs text-red-600 dark:text-red-400 mt-1.5 font-medium">
+                    {fieldErrors.password}
+                  </p>
+                )}
                 <p className="text-xs text-[var(--text-tertiary)] mt-1.5">
                   Must include 8+ characters, uppercase, lowercase, number, and special symbol.
                 </p>
               </div>
 
-              <div>
+              <div
+                ref={(el) => {
+                  fieldWrapperRefs.current.confirm = el
+                }}
+              >
                 <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
                   Confirm Password <span className="text-red-500">*</span>
                 </label>
                 <input
+                  ref={(el) => {
+                    fieldInputRefs.current.confirm = el
+                  }}
                   type={showPassword ? "text" : "password"}
                   value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
+                  onChange={(e) => {
+                    setConfirm(e.target.value)
+                    clearFieldError("confirm")
+                  }}
                   placeholder="Re-enter your password"
                   autoComplete="new-password"
-                  className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 px-4 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 focus:border-[var(--brand)]/50 transition-all"
+                  aria-invalid={Boolean(fieldErrors.confirm)}
+                  aria-describedby={fieldErrors.confirm ? "confirm-error" : undefined}
+                  className={getInputClassName("confirm")}
                 />
+                {fieldErrors.confirm && (
+                  <p id="confirm-error" role="alert" className="text-xs text-red-600 dark:text-red-400 mt-1.5 font-medium">
+                    {fieldErrors.confirm}
+                  </p>
+                )}
               </div>
 
               <button
