@@ -15,6 +15,7 @@ const knbLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
 const OFFICIAL_RECEIVER = {
   accountName: "KINGDOM BUILDERS MINISTRY",
   accountNumber: "0012521619011",
+  bankName: "Dashen Bank",
   supportedBanks: [
     { name: "Awash Bank", type: "IPS Transfer / Mobile", badge: "Awash" },
     { name: "Bank of Abyssinia", type: "BoA Mobile / Transfer", badge: "BoA" },
@@ -316,7 +317,7 @@ export default function PaymentReceiverPage() {
                   Payment Receiver & Verification
                 </h1>
                 <p className="text-sm text-[var(--text-secondary)] mt-1 max-w-2xl">
-                  Transfer your membership or service fee to the official receiver details below, then upload your transaction receipt for verification via <code className="bg-slate-100 text-[11px] px-1.5 py-0.5 rounded font-mono">api/v1/payments/verify</code>.
+                  Transfer your membership or service fee to the official receiver details below, then upload your transaction receipt for verification.
                 </p>
               </div>
 
@@ -376,11 +377,16 @@ export default function PaymentReceiverPage() {
                 <div className="bg-[var(--surface-alt)] rounded-2xl border border-[var(--border-light)] p-4 flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)] font-semibold">
-                      Receiver Account Number (IPS / Core)
+                      Receiver Account Number ({OFFICIAL_RECEIVER.bankName})
                     </p>
-                    <p className="text-base font-mono font-bold text-[var(--text-primary)] tracking-wider mt-0.5">
-                      {OFFICIAL_RECEIVER.accountNumber}
-                    </p>
+                    <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                      <p className="text-base font-mono font-bold text-[var(--text-primary)] tracking-wider">
+                        {OFFICIAL_RECEIVER.accountNumber}
+                      </p>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[var(--brand)]/10 text-[var(--brand)] border border-[var(--brand)]/15">
+                        {OFFICIAL_RECEIVER.bankName}
+                      </span>
+                    </div>
                   </div>
                   <button
                     type="button"
@@ -529,7 +535,7 @@ export default function PaymentReceiverPage() {
                           Submitting & Verifying Receipt...
                         </p>
                         <p className="text-xs text-[var(--text-tertiary)] mt-1 max-w-sm mx-auto">
-                          Processing receipt image via <code className="font-mono text-[10px]">api/v1/payments/verify</code>.
+                          Please wait while we securely process and verify your payment receipt.
                         </p>
                       </div>
                     </div>
@@ -597,7 +603,7 @@ export default function PaymentReceiverPage() {
                         </p>
                       </div>
                       <div className="inline-flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] bg-white px-3 py-1 rounded-full border border-[var(--border-light)] shadow-2xs">
-                        <span>🔒</span> Authenticated via Bearer Token
+                        <span>🔒</span> Secure & Encrypted Upload
                       </div>
                     </div>
                   )}
@@ -613,7 +619,7 @@ export default function PaymentReceiverPage() {
                     {loading ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        <span>Submitting to api/v1/payments/verify...</span>
+                        <span>Submitting Receipt...</span>
                       </>
                     ) : (
                       <>
