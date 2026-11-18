@@ -6,6 +6,7 @@ import {
   adminSubscribe,
 } from "../../data/adminStore"
 import { fetchAdminUsersApi } from "../../api/userApi"
+import { fetchCategoriesApi } from "../../api/categoryApi"
 
 interface Counts {
   applications: number
@@ -26,12 +27,10 @@ export default function AdminOverview() {
     function refresh() {
       const apps = getApplications()
       const companies = getListedCompanies()
-      const cats = getAdminCategories()
       setCounts((prev) => ({
         ...prev,
         applications: apps.filter((a) => a.status === "pending").length,
         companies: companies.filter((c) => c.status === "active").length,
-        categories: cats.filter((c) => c.status === "active").length,
       }))
     }
     refresh()
@@ -44,6 +43,21 @@ export default function AdminOverview() {
         }
       })
       .catch(() => {})
+
+    // Fetch real active categories from live backend
+    fetchCategoriesApi({ is_active: true, limit: 1 })
+      .then((res) => {
+        if (res.success && res.meta?.total !== undefined) {
+          setCounts((prev) => ({ ...prev, categories: res.meta.total }))
+        }
+      })
+      .catch(() => {
+        const cats = getAdminCategories()
+        setCounts((prev) => ({
+          ...prev,
+          categories: cats.filter((c) => c.status === "active").length,
+        }))
+      })
 
     return adminSubscribe(refresh)
   }, [])

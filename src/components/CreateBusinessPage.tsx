@@ -1,11 +1,13 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useAuth } from "../auth/AuthContext"
 import {
-  fetchCategories,
   submitCompanyCreation,
-  type CategoryItem,
   type CompanyApiResponse,
 } from "../api/companyApi"
+import {
+  fetchActiveCategoriesApi,
+  type CategoryApiItem,
+} from "../api/categoryApi"
 
 interface SocialLinkItem {
   platform: string
@@ -33,8 +35,9 @@ export default function CreateBusinessPage({
   const { user } = useAuth()
 
   const [step, setStep] = useState(1)
-  const [categories, setCategories] = useState<CategoryItem[]>([])
+  const [categories, setCategories] = useState<CategoryApiItem[]>([])
   const [loadingCategories, setLoadingCategories] = useState(true)
+  const [categoriesError, setCategoriesError] = useState<string | null>(null)
 
   // Form inputs
   const [companyName, setCompanyName] = useState("")
@@ -85,25 +88,32 @@ export default function CreateBusinessPage({
   const coverInputRef = useRef<HTMLInputElement>(null)
   const licenseInputRef = useRef<HTMLInputElement>(null)
 
-  // Load categories from backend API on mount
-  useEffect(() => {
-    let mounted = true
-    async function load() {
-      setLoadingCategories(true)
-      const data = await fetchCategories()
-      if (mounted) {
-        setCategories(data)
-        if (data.length > 0) {
-          setCategoryId(data[0].id)
-        }
-        setLoadingCategories(false)
-      }
-    }
-    load()
-    return () => {
-      mounted = false
+  // Load active categories from backend API
+  const loadCategories = useCallback(async () => {
+    setLoadingCategories(true)
+    setCategoriesError(null)
+    try {
+      const data = await fetchActiveCategoriesApi()
+      setCategories(data)
+      setCategoryId((prev) => {
+        if (prev && data.some((c) => c.id === prev)) return prev
+        return data.length > 0 ? data[0].id : ""
+      })
+    } catch (err: unknown) {
+      setCategories([])
+      setCategoriesError(
+        err instanceof Error
+          ? err.message
+          : "Failed to load categories from server."
+      )
+    } finally {
+      setLoadingCategories(false)
     }
   }, [])
+
+  useEffect(() => {
+    void loadCategories()
+  }, [loadCategories])
 
   // Auto-cleanup object URL preview for logo
   useEffect(() => {
@@ -406,31 +416,95 @@ export default function CreateBusinessPage({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2">
-                  Business Category <span className="text-red-500">*</span>
-                </label>
-                {loadingCategories ? (
-                  <div className="text-xs text-[var(--text-tertiary)] py-2">Loading categories...</div>
-                ) : categories.length > 0 ? (
-                  <select
-                    value={categoryId}
-                    onChange={(e) => setCategoryId(e.target.value)}
-                    className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-4 py-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--brand)] transition-colors"
+                <div className="flex items-center justify-between mb-2">
+                  <label
+                    htmlFor="business-category-select"
+                    className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider"
                   >
-                    {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.name} ({cat.type})
-                      </option>
-                    ))}
-                  </select>
+                    Business Category <span className="text-red-500">*</span>
+                  </label>
+                  {!loadingCategories && (
+                    <button
+                      type="button"
+                      onClick={() => void loadCategories()}
+                      className="text-[11px] font-medium text-[var(--brand)] dark:text-[var(--accent)] hover:underline cursor-pointer"
+                    >
+                      Refresh list
+                    </button>
+                  )}
+                </div>
+
+                {loadingCategories ? (
+                  <div className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-4 py-3 text-sm text-[var(--text-tertiary)] flex items-center gap-2.5">
+                    <span className="w-4 h-4 border-2 border-[var(--brand)]/30 border-t-[var(--brand)] rounded-full animate-spin flex-shrink-0" />
+                    <span>Loading categories...</span>
+                  </div>
+                ) : categoriesError ? (
+                  <div className="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/40 flex items-center justify-between gap-3">
+                    <p className="text-xs text-red-700 dark:text-red-300">
+                      {categoriesError}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void loadCategories()}
+                      className="px-3 py-1.5 rounded-lg bg-[var(--brand)] text-white text-xs font-semibold hover:bg-[var(--brand-light)] transition-colors cursor-pointer flex-shrink-0"
+                    >
+                      Retry
+                    </button>
+                  </div>
                 ) : (
-                  <input
-                    type="text"
-                    value={categoryId}
-                    onChange={(e) => setCategoryId(e.target.value)}
-                    placeholder="Enter category UUID"
-                    className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-4 py-3 text-sm text-[var(--text-primary)]"
-                  />
+                  <>
+                    <div className="relative">
+                      <select
+                        id="business-category-select"
+                        value={categoryId}
+                        onChange={(e) => setCategoryId(e.target.value)}
+                        disabled={categories.length === 0}
+                        className="w-full appearance-none bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl pl-4 pr-10 py-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand)]/20 transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {categories.length === 0 ? (
+                          <option value="">No categories available yet</option>
+                        ) : (
+                          <>
+                            <option value="">Select a business category...</option>
+                            {categories.map((cat) => {
+                              const emojiPrefix =
+                                cat.icon &&
+                                !cat.icon.startsWith("/") &&
+                                !cat.icon.startsWith("http")
+                                  ? `${cat.icon} `
+                                  : ""
+                              return (
+                                <option key={cat.id} value={cat.id}>
+                                  {emojiPrefix}
+                                  {cat.name}
+                                </option>
+                              )
+                            })}
+                          </>
+                        )}
+                      </select>
+                      <svg
+                        className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        aria-hidden="true"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </div>
+                    {categories.length === 0 && (
+                      <p className="mt-2 text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 rounded-xl px-3.5 py-2.5">
+                        No active categories have been configured yet. Please ask an administrator to add categories in the Admin Dashboard.
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
 

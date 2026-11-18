@@ -12,9 +12,12 @@ export interface CategoryItem {
   id: string
   name: string
   type: string
-  description?: string
-  icon?: string
+  description?: string | null
+  icon?: string | null
   is_active?: boolean
+  company_count?: number
+  created_at?: string
+  updated_at?: string | null
 }
 
 export interface CompanyApiResponse {

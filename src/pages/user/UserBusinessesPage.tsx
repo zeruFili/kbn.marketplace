@@ -9,7 +9,15 @@ import {
   resolveFileUrl,
   type CompanyApiResponse,
 } from "../../api/companyApi"
-import type { UserBusinessData } from "../../data/userDataStore"
+import {
+  fetchActiveCategoriesApi,
+  type CategoryApiItem,
+} from "../../api/categoryApi"
+import {
+  updateUserContent,
+  deleteUserContent,
+  type UserBusinessData,
+} from "../../data/userDataStore"
 
 function mapCompanyToBusiness(
   company: CompanyApiResponse,
@@ -44,6 +52,7 @@ function mapCompanyToBusiness(
     coverImage: cover,
     companyName: company.company_name,
     industry: company.business_category?.name || "Business",
+    businessCategoryId: company.business_category_id || company.business_category?.id,
     description: company.description || "",
     founderLeadership:
       company.owner_primary_contact || fallbackUser?.name || "Founder",
@@ -182,7 +191,9 @@ export default function UserBusinessesPage() {
         title="Business"
         description="Businesses and companies owned by your member profile."
         count={allBusinesses.length}
-        onAdd={() => navigate("/companies/new")}
+        onAdd={() =>
+          navigate("/companies/new", { state: { from: "/dashboard/business" } })
+        }
       />
 
       {loading && allBusinesses.length === 0 ? (
@@ -206,7 +217,11 @@ export default function UserBusinessesPage() {
             <EmptyState
               title="No businesses yet"
               description="Businesses you own or submit will appear here."
-              onAdd={() => navigate("/companies/new")}
+              onAdd={() =>
+                navigate("/companies/new", {
+                  state: { from: "/dashboard/business" },
+                })
+              }
             />
           )}
         </>
@@ -501,6 +516,8 @@ function BusinessDetail({
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState(item)
+  const [categories, setCategories] = useState<CategoryApiItem[]>([])
+  const [loadingCategories, setLoadingCategories] = useState(false)
 
   // Image upload, replacement, and removal states
   const [logoFile, setLogoFile] = useState<File | null>(null)
@@ -517,6 +534,25 @@ function BusinessDetail({
   useEffect(() => {
     setForm(item)
   }, [item])
+
+  useEffect(() => {
+    if (!editing) return
+    let active = true
+    setLoadingCategories(true)
+    fetchActiveCategoriesApi()
+      .then((list) => {
+        if (active) setCategories(list)
+      })
+      .catch((err) => {
+        console.warn("Could not load categories for business edit:", err)
+      })
+      .finally(() => {
+        if (active) setLoadingCategories(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [editing])
 
   useEffect(() => {
     if (!logoFile) {
@@ -559,6 +595,9 @@ function BusinessDetail({
     try {
       const formData = new FormData()
       formData.append("company_name", form.companyName)
+      if (form.businessCategoryId) {
+        formData.append("business_category_id", form.businessCategoryId)
+      }
       formData.append("description", form.description)
       formData.append("owner_primary_contact", form.founderLeadership)
       formData.append("website", form.website)
@@ -592,11 +631,23 @@ function BusinessDetail({
           ? (updated.cover_image ? resolveFileUrl(updated.cover_image) : "")
           : (removeCover ? "" : form.coverImage)
 
+      const selectedCategory = categories.find(
+        (c) => c.id === form.businessCategoryId,
+      )
+
       const updatedForm: UserBusinessData = {
         ...form,
         companyLogo: finalLogo,
         coverImage: finalCover,
         companyName: updated?.company_name || form.companyName,
+        businessCategoryId:
+          updated?.business_category_id ||
+          updated?.business_category?.id ||
+          form.businessCategoryId,
+        industry:
+          updated?.business_category?.name ||
+          selectedCategory?.name ||
+          form.industry,
         description: updated?.description || form.description,
         founderLeadership: updated?.owner_primary_contact || form.founderLeadership,
         website: updated?.website || form.website,
@@ -691,11 +742,76 @@ function BusinessDetail({
                 value={form.companyName}
                 onChange={(value) => update("companyName", value)}
               />
-              <EditField
-                label="Industry"
-                value={form.industry}
-                onChange={(value) => update("industry", value)}
-              />
+              <label className="block">
+                <span className="flex items-center gap-1 text-xs font-semibold text-[var(--text-secondary)] mb-1.5">
+                  Business category
+                  <span className="text-red-500">*</span>
+                </span>
+                <div className="relative">
+                  <select
+                    value={form.businessCategoryId || ""}
+                    onChange={(event) => {
+                      const nextId = event.target.value
+                      const matched = categories.find((c) => c.id === nextId)
+                      setForm((current) => ({
+                        ...current,
+                        businessCategoryId: nextId,
+                        industry: matched ? matched.name : current.industry,
+                      }))
+                    }}
+                    disabled={loadingCategories}
+                    className="w-full appearance-none bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl py-2.5 pl-3 pr-9 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 transition-all cursor-pointer disabled:opacity-60"
+                  >
+                    {loadingCategories ? (
+                      <option value={form.businessCategoryId || ""}>
+                        Loading categories...
+                      </option>
+                    ) : (
+                      <>
+                        {!form.businessCategoryId && (
+                          <option value="">Select a business category...</option>
+                        )}
+                        {form.businessCategoryId &&
+                          !categories.some(
+                            (c) => c.id === form.businessCategoryId,
+                          ) && (
+                            <option value={form.businessCategoryId}>
+                              {form.industry || "Current Category"}
+                            </option>
+                          )}
+                        {categories.map((cat) => {
+                          const emojiPrefix =
+                            cat.icon &&
+                            !cat.icon.startsWith("/") &&
+                            !cat.icon.startsWith("http")
+                              ? `${cat.icon} `
+                              : ""
+                          return (
+                            <option key={cat.id} value={cat.id}>
+                              {emojiPrefix}
+                              {cat.name}
+                            </option>
+                          )
+                        })}
+                      </>
+                    )}
+                  </select>
+                  <svg
+                    className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </div>
+              </label>
 
               {/* Company Logo Upload / Replace / Remove */}
               <div className="flex flex-col gap-1.5">

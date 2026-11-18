@@ -1,20 +1,24 @@
 import { useState, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import Navbar from "../components/Navbar"
-import { useAuth } from "../auth/AuthContext"
-import { type Company, type Category } from "../data/companies"
+import { type Company } from "../data/companies"
 import {
   updateCompanyApi,
   fetchCompanyById,
   mapApiResponseToCompany,
 } from "../api/companyApi"
+import {
+  fetchActiveCategoriesApi,
+  type CategoryApiItem,
+} from "../api/categoryApi"
 
 export default function EditCompanyPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { user } = useAuth()
 
   const [company, setCompany] = useState<Company | null>(null)
+  const [categories, setCategories] = useState<CategoryApiItem[]>([])
+  const [loadingCategories, setLoadingCategories] = useState(true)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -22,7 +26,8 @@ export default function EditCompanyPage() {
 
   // Form state
   const [name, setName] = useState("")
-  const [category, setCategory] = useState<Category>("Construction")
+  const [businessCategoryId, setBusinessCategoryId] = useState("")
+  const [currentCategoryName, setCurrentCategoryName] = useState("")
   const [ownerName, setOwnerName] = useState("")
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
@@ -39,15 +44,34 @@ export default function EditCompanyPage() {
   const [newTag, setNewTag] = useState("")
 
   useEffect(() => {
+    let active = true
+    setLoadingCategories(true)
+    fetchActiveCategoriesApi()
+      .then((cats) => {
+        if (active) setCategories(cats)
+      })
+      .catch((err) => {
+        console.warn("Could not load categories:", err)
+      })
+      .finally(() => {
+        if (active) setLoadingCategories(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
     if (!id) return
     let isMounted = true
     setLoading(true)
     setError("")
 
-    const populate = (comp: Company) => {
+    const populate = (comp: Company, catId?: string, catName?: string) => {
       setCompany(comp)
       setName(comp.name || "")
-      setCategory(comp.category || "Construction")
+      setBusinessCategoryId(catId || "")
+      setCurrentCategoryName(catName || comp.category || "")
       setOwnerName(comp.ownerName || "")
       setEmail(comp.email || "")
       setPhone(comp.phone || "")
@@ -67,7 +91,11 @@ export default function EditCompanyPage() {
         if (!isMounted) return
         if (apiComp) {
           const mapped = mapApiResponseToCompany(apiComp)
-          populate(mapped)
+          populate(
+            mapped,
+            apiComp.business_category_id || apiComp.business_category?.id,
+            apiComp.business_category?.name
+          )
         } else {
           setError(`Could not find company with ID "${id}".`)
         }
@@ -123,33 +151,17 @@ export default function EditCompanyPage() {
 
     setSaving(true)
 
-    const updatedData: Partial<Company> = {
-      name: name.trim(),
-      category,
-      ownerName: ownerName.trim(),
-      email: email.trim(),
-      phone: phone.trim(),
-      website: website.trim(),
-      address: address.trim(),
-      description: description.trim(),
-      longDescription: longDescription.trim(),
-      missionStatement: missionStatement.trim(),
-      logo: logo.trim() || company.logo,
-      banner: banner.trim() || company.banner,
-      services,
-      tags,
-    }
-
     try {
       const res = await updateCompanyApi(id, {
-        company_name: updatedData.name,
-        owner_primary_contact: updatedData.ownerName,
-        email: updatedData.email,
-        phone_number: updatedData.phone,
-        website: updatedData.website,
-        physical_address: updatedData.address,
-        description: updatedData.description,
-        services: updatedData.services,
+        company_name: name.trim(),
+        ...(businessCategoryId ? { business_category_id: businessCategoryId } : {}),
+        owner_primary_contact: ownerName.trim(),
+        email: email.trim(),
+        phone_number: phone.trim(),
+        website: website.trim(),
+        physical_address: address.trim(),
+        description: description.trim(),
+        services,
       })
 
       if (!res) {
@@ -277,19 +289,62 @@ export default function EditCompanyPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase mb-1">
-                    Category *
+                    Business Category *
                   </label>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value as Category)}
-                    className="w-full bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-4 py-2.5 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
-                  >
-                    {CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={businessCategoryId}
+                      onChange={(e) => setBusinessCategoryId(e.target.value)}
+                      disabled={loadingCategories}
+                      className="w-full appearance-none bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl pl-4 pr-10 py-2.5 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer disabled:opacity-60"
+                    >
+                      {loadingCategories ? (
+                        <option value={businessCategoryId}>
+                          Loading categories...
+                        </option>
+                      ) : (
+                        <>
+                          {!businessCategoryId && (
+                            <option value="">Select a business category...</option>
+                          )}
+                          {businessCategoryId &&
+                            !categories.some((c) => c.id === businessCategoryId) && (
+                              <option value={businessCategoryId}>
+                                {currentCategoryName || "Current Category"}
+                              </option>
+                            )}
+                          {categories.map((cat) => {
+                            const emojiPrefix =
+                              cat.icon &&
+                              !cat.icon.startsWith("/") &&
+                              !cat.icon.startsWith("http")
+                                ? `${cat.icon} `
+                                : ""
+                            return (
+                              <option key={cat.id} value={cat.id}>
+                                {emojiPrefix}
+                                {cat.name}
+                              </option>
+                            )
+                          })}
+                        </>
+                      )}
+                    </select>
+                    <svg
+                      className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase mb-1">

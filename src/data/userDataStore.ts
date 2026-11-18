@@ -25,6 +25,7 @@ export interface UserBusinessData {
   coverImage: string
   companyName: string
   industry: string
+  businessCategoryId?: string
   description: string
   founderLeadership: string
   city: string
