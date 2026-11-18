@@ -12,6 +12,7 @@ import {
   fetchAdminUserById,
   type UserProfileResponse,
 } from "../../api/userApi"
+import { CompanyCover, CompanyLogo } from "../../components/common/CompanyMedia"
 
 function isBusinessActive(company: CompanyApiResponse): boolean {
   const normalizedStatus = (company.status || "").toLowerCase()
@@ -420,28 +421,24 @@ export default function AdminCompanyDetailsPage() {
         </div>
 
         {/* Cover Banner & Business Identity */}
-        <div className="relative h-48 sm:h-56 bg-gradient-to-br from-[var(--brand-dark)] via-[var(--brand)] to-slate-800 overflow-hidden">
-          {coverUrl && (
-            <img
-              src={coverUrl}
-              alt={`${company.company_name} cover`}
-              className="w-full h-full object-cover"
-            />
-          )}
+        <div className="relative h-48 sm:h-56 bg-[var(--brand-dark)] overflow-hidden">
+          <CompanyCover
+            src={coverUrl}
+            name={company.company_name}
+            category={company.business_category?.name}
+            alt={`${company.company_name} cover`}
+            showWatermark
+          />
           <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent" />
           <div className="absolute bottom-5 left-5 right-5 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div className="flex items-end gap-4 min-w-0">
-              {logoUrl ? (
-                <img
-                  src={logoUrl}
-                  alt={company.company_name}
-                  className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover ring-4 ring-white/25 bg-white flex-shrink-0 shadow-lg"
-                />
-              ) : (
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-[var(--brand)] text-white font-serif font-bold text-2xl flex items-center justify-center ring-4 ring-white/25 flex-shrink-0 shadow-lg">
-                  {company.company_name.charAt(0).toUpperCase()}
-                </div>
-              )}
+              <CompanyLogo
+                src={logoUrl}
+                name={company.company_name}
+                category={company.business_category?.name}
+                size="lg"
+                className="w-16 h-16 sm:w-20 sm:h-20 ring-4 ring-white/25 shadow-lg"
+              />
               <div className="text-white min-w-0 pb-0.5">
                 <div className="flex items-center gap-2 flex-wrap mb-1">
                   <span className="text-[10px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-white/15 backdrop-blur-xs text-white border border-white/20">

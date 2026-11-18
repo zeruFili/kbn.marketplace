@@ -1,7 +1,12 @@
 import { useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../auth/AuthContext"
-import { type Company, type Category } from "../data/companies"
+import { type Company } from "../data/companies"
+import {
+  CompanyCardMedia,
+  CompanyCover,
+  CompanyLogo,
+} from "./common/CompanyMedia"
 
 function CategoryIcon({ category }: { category: string }) {
   const icons: Record<string, string> = {
@@ -98,40 +103,29 @@ function CompanyCard({
   return (
     <article
       onClick={onClick}
-      className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden cursor-pointer group"
+      className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden cursor-pointer group flex flex-col h-full"
     >
-      <div className="relative h-36 bg-[var(--border-light)] overflow-hidden">
-        <img
-          src={company.banner}
-          alt=""
-          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent" />
-        {company.featured && (
-          <span className="absolute top-3 left-3 text-[10px] font-semibold text-white bg-black/30 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/10">
-            ✦ Featured
-          </span>
-        )}
-        <div className="absolute top-3 right-3">
-          <div className="w-10 h-10 rounded-xl overflow-hidden border-2 border-white/30 bg-white shadow-lg">
-            <img
-              src={company.logo}
-              alt={company.name}
-              className="w-full h-full object-cover"
-            />
-          </div>
-        </div>
-      </div>
-      <div className="p-5">
-        <div className="flex items-center gap-2 mb-2">
+      <CompanyCardMedia
+        name={company.name}
+        category={company.category}
+        coverSrc={company.banner}
+        logoSrc={company.logo}
+        featured={company.featured}
+        heightClass="h-36"
+        logoPosition="top-right"
+        logoSize="sm"
+        hoverZoom
+      />
+      <div className="p-5 flex-1 flex flex-col">
+        <div className="flex items-center gap-2 mb-2 min-w-0">
           <span
-            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${getCategoryColor(company.category)}`}
+            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${getCategoryColor(company.category)}`}
           >
             {company.category}
           </span>
-          <span className="text-[10px] font-medium text-[var(--text-tertiary)] flex items-center gap-1">
+          <span className="text-[10px] font-medium text-[var(--text-tertiary)] flex items-center gap-1 min-w-0 truncate">
             <svg
-              className="w-3 h-3"
+              className="w-3 h-3 shrink-0"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -149,17 +143,19 @@ function CompanyCard({
                 d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
               />
             </svg>
-            {(company.address || "Addis Ababa").split(",")[1]?.trim() ||
-              (company.address || "Addis Ababa").split(",")[0]}
+            <span className="truncate">
+              {(company.address || "Addis Ababa").split(",")[1]?.trim() ||
+                (company.address || "Addis Ababa").split(",")[0]}
+            </span>
           </span>
         </div>
         <h3 className="font-semibold text-[var(--text-primary)] text-[15px] leading-tight mb-1.5 truncate group-hover:text-[var(--brand)] transition-colors">
           {company.name}
         </h3>
-        <p className="text-xs text-[var(--text-tertiary)] leading-relaxed mb-4 line-clamp-2">
+        <p className="text-xs text-[var(--text-tertiary)] leading-relaxed mb-4 line-clamp-2 min-h-[2.45rem]">
           {company.description}
         </p>
-        <div className="flex items-center justify-end">
+        <div className="mt-auto flex items-center justify-end">
           <span className="text-xs font-medium text-[var(--brand)] opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-1 group-hover:translate-x-0">
             View →
           </span>
@@ -193,10 +189,12 @@ export default function CompanyProfile({
   return (
     <div className="min-h-screen bg-[var(--surface-alt)]">
       <div className="relative h-64 md:h-80 lg:h-96 bg-[var(--brand-dark)] overflow-hidden">
-        <img
+        <CompanyCover
           src={company.banner}
-          alt=""
-          className="w-full h-full object-cover opacity-50"
+          name={company.name}
+          category={company.category}
+          imageClassName="opacity-50"
+          showWatermark
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[var(--brand-dark)]/90 via-[var(--brand-dark)]/30 to-transparent" />
         <button
@@ -241,13 +239,13 @@ export default function CompanyProfile({
         )}
         <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10">
           <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-start sm:items-end gap-5">
-            <div className="w-20 h-20 md:w-28 md:h-28 rounded-2xl overflow-hidden border-4 border-white/20 flex-shrink-0 bg-white/10 backdrop-blur-sm shadow-2xl">
-              <img
-                src={company.logo}
-                alt={company.name}
-                className="w-full h-full object-cover"
-              />
-            </div>
+            <CompanyLogo
+              src={company.logo}
+              name={company.name}
+              category={company.category}
+              size="xl"
+              className="border-4 border-white/25 shadow-2xl"
+            />
             <div className="flex-1">
               <div className="flex flex-wrap items-center gap-2 mb-2">
                 <span

@@ -1,6 +1,11 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { useAuth } from "../auth/AuthContext"
 import UserAvatar from "./common/UserAvatar"
+import {
+  CompanyCardMedia,
+  CompanyCover,
+  CompanyLogo,
+} from "./common/CompanyMedia"
 import CreateBusinessPage from "./CreateBusinessPage"
 import {
   fetchMyCompanies,
@@ -60,14 +65,8 @@ function mapCompanyToBusiness(
   company: CompanyApiResponse,
   fallbackUser?: { name: string; email: string },
 ): UserBusinessData {
-  const rawLogo = resolveFileUrl(company.company_logo)
-  const logo =
-    rawLogo ||
-    "https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=120&h=120&fit=crop&auto=format"
-  const rawCover = resolveFileUrl(company.cover_image)
-  const cover =
-    rawCover ||
-    "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1200&h=420&fit=crop&auto=format"
+  const logo = resolveFileUrl(company.company_logo) || ""
+  const cover = resolveFileUrl(company.cover_image) || ""
 
   const addressParts = (company.physical_address || "").split(",")
   const city = addressParts[0]?.trim() || "Addis Ababa"
@@ -1435,30 +1434,21 @@ function BusinessDetail({
         onDelete={() => void handleDelete()}
       />
       <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden">
-        <div className="relative h-48 bg-gradient-to-r from-slate-700 to-slate-900">
-          {effectiveCover ? (
-            <img
-              src={effectiveCover}
-              alt=""
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-white/50 text-xs">
-              No cover image
-            </div>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-          {effectiveLogo ? (
-            <img
-              src={effectiveLogo}
-              alt={form.companyName}
-              className="absolute bottom-5 left-6 w-20 h-20 rounded-2xl object-cover border-4 border-white shadow-lg bg-white"
-            />
-          ) : (
-            <div className="absolute bottom-5 left-6 w-20 h-20 rounded-2xl border-4 border-white shadow-lg bg-slate-800 flex items-center justify-center text-white font-bold text-xl">
-              {form.companyName.charAt(0) || "C"}
-            </div>
-          )}
+        <div className="relative h-48 bg-[var(--brand-dark)] overflow-hidden">
+          <CompanyCover
+            src={effectiveCover}
+            name={form.companyName}
+            category={form.industry}
+            showWatermark
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-transparent" />
+          <CompanyLogo
+            src={effectiveLogo}
+            name={form.companyName}
+            category={form.industry}
+            size="lg"
+            className="absolute bottom-5 left-6 border-4 border-white shadow-lg"
+          />
         </div>
         <div className="p-6 md:p-8 pt-10">
           {editing ? (
@@ -2467,37 +2457,34 @@ function BusinessCard({
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") onOpen(business.id)
       }}
-      className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden card-hover cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--brand)]"
+      className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden card-hover cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--brand)] group flex flex-col h-full"
     >
-      <div className="relative h-36 overflow-hidden">
-        <img
-          src={business.coverImage}
-          alt=""
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-        <img
-          src={business.companyLogo}
-          alt={business.companyName}
-          className="absolute bottom-4 left-5 w-14 h-14 rounded-xl object-cover border-2 border-white shadow-lg"
-        />
-      </div>
-      <div className="p-5 pt-7">
+      <CompanyCardMedia
+        name={business.companyName}
+        category={business.industry}
+        coverSrc={business.coverImage}
+        logoSrc={business.companyLogo}
+        heightClass="h-36"
+        logoPosition="bottom-left"
+        logoSize="md"
+        hoverZoom
+      />
+      <div className="p-5 pt-6 flex-1 flex flex-col">
         <div className="flex justify-between items-start gap-3">
-          <div>
-            <p className="text-xs font-semibold text-[var(--accent-dark)] uppercase tracking-wide">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-[var(--accent-dark)] uppercase tracking-wide truncate">
               {business.industry}
             </p>
-            <h3 className="font-serif text-xl text-[var(--text-primary)] mt-1">
+            <h3 className="font-serif text-xl text-[var(--text-primary)] mt-1 truncate group-hover:text-[var(--brand)] transition-colors">
               {business.companyName}
             </h3>
           </div>
           <StatusBadge status={business.status} />
         </div>
-        <p className="text-sm text-[var(--text-secondary)] leading-relaxed mt-3">
+        <p className="text-sm text-[var(--text-secondary)] leading-relaxed mt-3 line-clamp-2 min-h-[2.75rem]">
           {business.description}
         </p>
-        <div className="grid grid-cols-2 gap-3 mt-5 text-xs">
+        <div className="grid grid-cols-2 gap-3 mt-auto pt-5 text-xs">
           <Info label="Leadership" value={business.founderLeadership} />
           <Info
             label="Location"

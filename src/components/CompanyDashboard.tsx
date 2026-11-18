@@ -8,6 +8,8 @@ import {
   type CompanyApiResponse,
 } from "../api/companyApi"
 import { type Category, type Company as CompanyData } from "../data/companies"
+import { CompanyCardMedia } from "./common/CompanyMedia"
+import { getCategoryColor } from "./CompanyProfile"
 
 const ALL_CATEGORIES: Category[] = [
   "Construction",
@@ -66,12 +68,8 @@ export default function CompanyDashboard({ onBack }: { onBack: () => void }) {
             id: user?.companyId || `comp-${user?.id}`,
             name: user?.business || user?.name || "My Company",
             category: "Professional Services",
-            logo:
-              user?.profileImage ||
-              user?.avatar ||
-              "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=160&h=160&fit=crop&auto=format",
-            banner:
-              "https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=1200&h=420&fit=crop&auto=format",
+            logo: user?.profileImage || user?.avatar || "",
+            banner: "",
             rating: 5.0,
             reviewCount: 0,
             description: `Welcome to ${user?.business || user?.name}. Add your company description here.`,
@@ -509,28 +507,24 @@ export default function CompanyDashboard({ onBack }: { onBack: () => void }) {
             Your changes appear live on your public profile and directory card.
           </p>
           <div className="max-w-sm">
-            <div className="bg-[var(--surface-alt)] rounded-xl border border-[var(--border-light)] overflow-hidden">
-              <div className="relative h-28 bg-[var(--border-light)] overflow-hidden">
-                <img
-                  src={company.banner}
-                  alt=""
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute top-3 right-3">
-                  <div className="w-10 h-10 rounded-xl overflow-hidden border-2 border-white/30 bg-white shadow-lg">
-                    <img
-                      src={company.logo}
-                      alt=""
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                </div>
-              </div>
+            <div className="bg-[var(--surface-alt)] rounded-2xl border border-[var(--border-light)] overflow-hidden group">
+              <CompanyCardMedia
+                name={form.name}
+                category={form.category}
+                coverSrc={company.banner}
+                logoSrc={company.logo}
+                heightClass="h-32"
+                logoPosition="top-right"
+                logoSize="sm"
+                hoverZoom
+              />
               <div className="p-4">
-                <span className="text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 px-2 py-0.5 rounded-full">
+                <span
+                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${getCategoryColor(form.category)}`}
+                >
                   {form.category}
                 </span>
-                <h4 className="font-semibold text-[var(--text-primary)] text-sm mt-1.5">
+                <h4 className="font-semibold text-[var(--text-primary)] text-sm mt-1.5 truncate">
                   {form.name}
                 </h4>
                 <p className="text-xs text-[var(--text-tertiary)] mt-1 line-clamp-2">

@@ -384,14 +384,8 @@ export function normalizeCategoryName(raw?: string): Category {
 }
 
 export function mapApiResponseToCompany(c: CompanyApiResponse): Company {
-  const rawLogo = resolveFileUrl(c.company_logo)
-  const logo =
-    rawLogo ||
-    "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=120&h=120&fit=crop&auto=format"
-  const rawCover = resolveFileUrl(c.cover_image)
-  const banner =
-    rawCover ||
-    "https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=1200&h=420&fit=crop&auto=format"
+  const logo = resolveFileUrl(c.company_logo) || ""
+  const banner = resolveFileUrl(c.cover_image) || ""
 
   return {
     id: c.id,
