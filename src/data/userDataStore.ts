@@ -67,11 +67,10 @@ export interface UserDashboardData {
   profile: UserProfileData
   businesses: UserBusinessData[]
   articles: UserArticleData[]
-  blogs: UserArticleData[]
   events: UserEventData[]
 }
 
-export type UserContentType = "businesses" | "articles" | "blogs" | "events"
+export type UserContentType = "businesses" | "articles" | "events"
 
 type UserContentItem = UserBusinessData | UserArticleData | UserEventData
 
@@ -144,21 +143,6 @@ const DEMO_DASHBOARD_DATA: Record<string, Omit<UserDashboardData, "profile">> =
           publishedDate: "September 2, 2025",
           status: "Draft",
           visibility: "Members only",
-        },
-      ],
-      blogs: [
-        {
-          id: "abel-blog-1",
-          featuredImage:
-            "https://images.unsplash.com/photo-1500534623283-312aade485b7?w=900&h=520&fit=crop&auto=format",
-          title: "Notes from a Builder in Addis",
-          topic: "Community story",
-          excerpt:
-            "A reflection on the people and small acts of faithfulness behind a new neighborhood project.",
-          author: "Abel Tesfaye",
-          publishedDate: "July 29, 2025",
-          status: "Published",
-          visibility: "Public",
         },
       ],
       events: [
@@ -246,21 +230,6 @@ const DEMO_DASHBOARD_DATA: Record<string, Omit<UserDashboardData, "profile">> =
           publishedDate: "August 8, 2025",
           status: "Published",
           visibility: "Public",
-        },
-      ],
-      blogs: [
-        {
-          id: "tigist-blog-1",
-          featuredImage:
-            "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=900&h=520&fit=crop&auto=format",
-          title: "Why Local Stories Matter",
-          topic: "Culture and work",
-          excerpt:
-            "A personal note about celebrating local makers and creating room for their stories to be heard.",
-          author: "Tigist Lemma",
-          publishedDate: "September 12, 2025",
-          status: "Published",
-          visibility: "Members only",
         },
       ],
       events: [
@@ -371,13 +340,7 @@ export function getUserDashboardData(
     articles: (stored?.articles ?? demo?.articles ?? []).map((item) => {
       const content =
         item.content ??
-        buildPostContent(item.title, item.topic, item.author, "article")
-      return { ...item, content, excerpt: content }
-    }),
-    blogs: (stored?.blogs ?? demo?.blogs ?? []).map((item) => {
-      const content =
-        item.content ??
-        buildPostContent(item.title, item.topic, item.author, "blog")
+        buildPostContent(item.title, item.topic, item.author)
       return { ...item, content, excerpt: content }
     }),
     events: stored?.events ?? demo?.events ?? [],
@@ -449,28 +412,6 @@ export function getPublicUserDashboardData(): UserDashboardData[] {
     "Learning from the People We Serve",
     "Purposeful Work in Practice",
   ]
-  const blogTitles = [
-    "Notes from a New Season",
-    "A Morning with Local Makers",
-    "What I Learned from Our First Workshop",
-    "Stories That Keep Us Going",
-    "Reflections from the Community Table",
-    "The People Behind the Progress",
-    "Finding Joy in Faithful Work",
-    "A Founder’s Guide to Rest",
-    "Small Beginnings, Lasting Roots",
-    "When Collaboration Changes Everything",
-    "A Walk Through Our Neighborhood",
-    "The Beauty of Shared Wisdom",
-    "Making Time for the Important Work",
-    "A Letter to the Next Generation",
-    "What Hospitality Has Taught Me",
-    "The Work Behind the Work",
-    "Celebrating Quiet Milestones",
-    "A More Generous Definition of Success",
-    "Lessons from Listening Well",
-    "Looking Ahead with Gratitude",
-  ]
   const eventTitles = [
     "Purpose and Practice Breakfast",
     "Women in Enterprise Circle",
@@ -503,16 +444,6 @@ export function getPublicUserDashboardData(): UserDashboardData[] {
     "1553877522-43269d4ea984",
     "1551836022-1bd8b4c9b1b0",
   ]
-  const blogImages = [
-    "1500534623283-312aade485b7",
-    "1516321318423-f06f85e504b3",
-    "1499750310107-5fef28a66643",
-    "1499750310107-5fef28a66643",
-    "1511988617509-a57c8a288659",
-    "1470252649378-9c29740c9fa8",
-    "1500530855697-b586d89ba3ee",
-    "1504306666337-3a6b1a7c8f7b",
-  ]
   const eventImages = [
     "1515169067868-5387ec356754",
     "1475721027785-f74eccf877e2",
@@ -528,7 +459,6 @@ export function getPublicUserDashboardData(): UserDashboardData[] {
     const email = `public-member-${index + 1}@kbn.demo`
     const avatar = ""
     const articleImage = `https://images.unsplash.com/photo-${articleImages[index % articleImages.length]}?w=900&h=520&fit=crop&auto=format`
-    const blogImage = `https://images.unsplash.com/photo-${blogImages[index % blogImages.length]}?w=900&h=520&fit=crop&auto=format`
     const eventImage = `https://images.unsplash.com/photo-${eventImages[index % eventImages.length]}?w=900&h=520&fit=crop&auto=format`
     const topic = topics[index % topics.length]
     const city = cities[index % cities.length]
@@ -551,9 +481,7 @@ export function getPublicUserDashboardData(): UserDashboardData[] {
       articleTitles[index],
       topic,
       name,
-      "article",
     )
-    const blogContent = buildPostContent(blogTitles[index], topic, name, "blog")
     const article = {
       id: `public-article-${index + 1}`,
       featuredImage: articleImage,
@@ -563,18 +491,6 @@ export function getPublicUserDashboardData(): UserDashboardData[] {
       content: articleContent,
       author: name,
       publishedDate: `September ${index + 1}, 2025`,
-      status: "Published" as const,
-      visibility: "Public" as const,
-    }
-    const blog = {
-      id: `public-blog-${index + 1}`,
-      featuredImage: blogImage,
-      title: blogTitles[index],
-      topic,
-      excerpt: blogContent,
-      content: blogContent,
-      author: name,
-      publishedDate: `August ${index + 1}, 2025`,
       status: "Published" as const,
       visibility: "Public" as const,
     }
@@ -596,7 +512,6 @@ export function getPublicUserDashboardData(): UserDashboardData[] {
       profile,
       businesses: [],
       articles: [article],
-      blogs: [blog],
       events: [event],
     }
   })
@@ -606,20 +521,10 @@ function buildPostContent(
   title: string,
   topic: string,
   author: string,
-  kind: "article" | "blog",
 ): string {
-  const opening =
-    kind === "article"
-      ? `${title} examines how ${topic.toLowerCase()} can become a practical discipline rather than a slogan. In conversations with founders, team leads, and community members, ${author} kept returning to the same question: what does this look like in the ordinary decisions that shape our work?`
-      : `${title} began with an ordinary conversation and became a reflection on ${topic.toLowerCase()}. ${author} writes from the middle of the work, where plans change, people surprise us, and meaningful progress is usually built through small faithful choices.`
-  const middle =
-    kind === "article"
-      ? `The first lesson is to make the idea specific. Instead of measuring ${topic.toLowerCase()} only by ambition or visibility, leaders can name the people they serve, the problem they are solving, and the habits that will keep the work honest. That clarity helps a team choose better priorities when time and resources are limited.\n\nThe second lesson is to build a rhythm of listening. Regular conversations with customers, colleagues, and neighbors reveal what a spreadsheet cannot: where a process creates friction, which opportunities are truly useful, and what kind of support will help people flourish. Strong work grows when feedback is treated as material for improvement rather than a threat to authority.`
-      : `One moment made the theme especially clear. A simple act of attention changed the direction of a project and reminded the team that progress is not always dramatic. Sometimes it is a well-made introduction, a patient answer, or the decision to leave room for someone else’s contribution.\n\nThese moments also reveal the connection between personal formation and public work. The way we welcome people, handle disappointment, and share credit becomes part of the story our organizations tell. When those habits are practiced consistently, ${topic.toLowerCase()} moves from an idea on the wall into a culture people can feel.`
-  const closing =
-    kind === "article"
-      ? `A useful next step is to choose one practice and make it visible this week. Invite a trusted person to challenge the plan, define a simple measure of progress, and return to the conversation after the first attempt. Meaningful change rarely arrives all at once, but it becomes durable when good intentions are translated into repeatable action.`
-      : `I left the conversation grateful for the reminder that good work has a longer horizon than a single result. There is room to begin again, to ask better questions, and to notice the people who make the journey possible. That is where the next chapter of this story starts.`
+  const opening = `${title} examines how ${topic.toLowerCase()} can become a practical discipline rather than a slogan. In conversations with founders, team leads, and community members, ${author} kept returning to the same question: what does this look like in the ordinary decisions that shape our work?`
+  const middle = `The first lesson is to make the idea specific. Instead of measuring ${topic.toLowerCase()} only by ambition or visibility, leaders can name the people they serve, the problem they are solving, and the habits that will keep the work honest. That clarity helps a team choose better priorities when time and resources are limited.\n\nThe second lesson is to build a rhythm of listening. Regular conversations with customers, colleagues, and neighbors reveal what a spreadsheet cannot: where a process creates friction, which opportunities are truly useful, and what kind of support will help people flourish. Strong work grows when feedback is treated as material for improvement rather than a threat to authority.`
+  const closing = `A useful next step is to choose one practice and make it visible this week. Invite a trusted person to challenge the plan, define a simple measure of progress, and return to the conversation after the first attempt. Meaningful change rarely arrives all at once, but it becomes durable when good intentions are translated into repeatable action.`
   return `${opening}\n\n${middle}\n\n${closing}`
 }
 

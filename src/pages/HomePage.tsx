@@ -11,11 +11,7 @@ import {
   mapUserToProfileData,
 } from "../api/userApi"
 import UserAvatar from "../components/common/UserAvatar"
-import {
-  fetchBlogs,
-  mapBlogToUserArticleData,
-} from "../api/blogsApi"
-import type { UserProfileData, UserArticleData } from "../data/userDataStore"
+import type { UserProfileData } from "../data/userDataStore"
 
 const knbLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
 
@@ -157,11 +153,6 @@ export default function HomePage() {
   const [loadingCompanies, setLoadingCompanies] = useState(true)
   const [companiesError, setCompaniesError] = useState<string | null>(null)
 
-  // Dynamic blogs state
-  const [blogs, setBlogs] = useState<UserArticleData[]>([])
-  const [loadingBlogs, setLoadingBlogs] = useState(true)
-  const [blogsError, setBlogsError] = useState<string | null>(null)
-
   const loadPeopleData = useCallback(async () => {
     setLoadingPeople(true)
     setPeopleError(null)
@@ -194,34 +185,16 @@ export default function HomePage() {
     }
   }, [])
 
-  const loadBlogsData = useCallback(async () => {
-    setLoadingBlogs(true)
-    setBlogsError(null)
-    try {
-      const apiBlogs = await fetchBlogs()
-      const mapped = apiBlogs.map(mapBlogToUserArticleData)
-      setBlogs(mapped)
-    } catch (err: unknown) {
-      setBlogsError(
-        err instanceof Error ? err.message : "Unable to load articles and blogs."
-      )
-    } finally {
-      setLoadingBlogs(false)
-    }
-  }, [])
-
   useEffect(() => {
     loadPeopleData()
     loadCompaniesData()
-    loadBlogsData()
-  }, [loadPeopleData, loadCompaniesData, loadBlogsData])
+  }, [loadPeopleData, loadCompaniesData])
 
   // Featured members (people) and companies from database (strictly maximum 6 each)
   const displayPeople = people.slice(0, 6)
   const featuredCompanies = companies.filter((c) => c.featured)
   const nonFeaturedCompanies = companies.filter((c) => !c.featured)
   const displayCompanies = [...featuredCompanies, ...nonFeaturedCompanies].slice(0, 6)
-  const displayBlogs = blogs.slice(0, 3)
 
   return (
     <div className="min-h-screen bg-[var(--surface-alt)]">
@@ -384,73 +357,6 @@ export default function HomePage() {
                 className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand)] border border-[var(--border-default)] bg-[var(--surface)] px-6 py-2.5 rounded-xl hover:border-[var(--brand)] transition-colors cursor-pointer"
               >
                 Browse All Businesses &rarr;
-              </button>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Latest from KBN Journal / Blogs */}
-      <section className="py-8 sm:py-10 md:py-14 bg-[var(--surface)] animate-fade-in-up">
-        <div className="max-w-7xl mx-auto px-4 md:px-8">
-          <SectionHeading
-            overline="Stories & Insights"
-            title="Latest from KBN Journal"
-            subtitle="Perspectives on faithful enterprise, purposeful leadership, and local innovation."
-          />
-
-          {loadingBlogs ? (
-            <LoadingSkeleton count={3} />
-          ) : blogsError ? (
-            <SectionError message={blogsError} onRetry={loadBlogsData} />
-          ) : displayBlogs.length === 0 ? (
-            <SectionEmpty
-              title="No Articles Published Yet"
-              description="Reflections, interviews, and community updates will be published here soon."
-              actionLabel="View Journal"
-              onAction={() => navigate("/blogs")}
-            />
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-stagger">
-              {displayBlogs.map((blog) => (
-                <article
-                  key={blog.id}
-                  onClick={() => navigate(`/blogs/${blog.id}`)}
-                  className="card-hover bg-[var(--surface-alt)] rounded-2xl border border-[var(--border-light)] overflow-hidden cursor-pointer flex flex-col justify-between"
-                >
-                  <div>
-                    <img
-                      src={blog.featuredImage}
-                      alt={blog.title}
-                      className="w-full h-44 object-cover"
-                    />
-                    <div className="p-5">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent-dark)] mb-2">
-                        {blog.topic}
-                      </p>
-                      <h3 className="font-serif text-xl text-[var(--text-primary)] mb-2 leading-snug">
-                        {blog.title}
-                      </h3>
-                      <p className="text-sm text-[var(--text-secondary)] line-clamp-3 leading-relaxed">
-                        {blog.excerpt}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="px-5 pb-5 pt-2 flex items-center justify-between text-xs text-[var(--text-tertiary)] border-t border-[var(--border-light)] mt-2">
-                    <span>{blog.publishedDate}</span>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-
-          {displayBlogs.length > 0 && (
-            <div className="text-center mt-10">
-              <button
-                onClick={() => navigate("/blogs")}
-                className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand)] border border-[var(--brand)] px-6 py-2.5 rounded-xl hover:bg-[var(--brand)] hover:text-white transition-colors cursor-pointer"
-              >
-                Read More Stories &rarr;
               </button>
             </div>
           )}

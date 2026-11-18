@@ -5,12 +5,11 @@ import UserAvatar from "./common/UserAvatar"
 
 const knbLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
 
-export type PublicPage = "companies" | "people" | "blogs" | "events" | "articles"
+export type PublicPage = "companies" | "people" | "events" | "articles"
 
 const NAV_ITEMS: { id: PublicPage; label: string; path: string }[] = [
   { id: "companies", label: "Companies", path: "/companies" },
   { id: "people", label: "People", path: "/people" },
-  { id: "blogs", label: "Blogs", path: "/blogs" },
   { id: "events", label: "Events", path: "/events" },
   { id: "articles", label: "Articles", path: "/articles" },
 ]

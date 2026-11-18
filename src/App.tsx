@@ -34,8 +34,6 @@ import AdminCategories from "./components/admin/AdminCategories"
 import AdminContent from "./components/admin/AdminContent"
 import AdminEventDetailsPage from "./pages/admin/AdminEventDetailsPage"
 import AdminEventEditPage from "./pages/admin/AdminEventEditPage"
-import AdminBlogDetailsPage from "./pages/admin/AdminBlogDetailsPage"
-import AdminBlogEditPage from "./pages/admin/AdminBlogEditPage"
 import AdminArticleDetailsPage from "./pages/admin/AdminArticleDetailsPage"
 import AdminArticleEditPage from "./pages/admin/AdminArticleEditPage"
 import UserLayout from "./pages/user/UserLayout"
@@ -55,9 +53,6 @@ import {
   fetchEvents,
   fetchEventById,
   mapEventToUserEventData,
-  fetchBlogs,
-  fetchBlogById,
-  mapBlogToUserArticleData,
   fetchArticles,
   fetchArticleById,
   mapArticleToUserArticleData,
@@ -72,11 +67,11 @@ import type {
   UserEventData,
 } from "./data/userDataStore"
 
-type PublicPage = "companies" | "people" | "blogs" | "events" | "articles"
+type PublicPage = "companies" | "people" | "events" | "articles"
 type PublicSelection =
   | { type: "person"; item: UserProfileData }
   | {
-      type: "article" | "blog"
+      type: "article"
       item: UserArticleData
       returnToProfile?: UserProfileData
     }
@@ -151,21 +146,6 @@ function PublicContentPage({
           if (!active) return
           setError(
             err instanceof Error ? err.message : "Failed to load events.",
-          )
-        })
-        .finally(() => {
-          if (active) setLoading(false)
-        })
-    } else if (page === "blogs") {
-      fetchBlogs()
-        .then((blogs) => {
-          if (!active) return
-          setArticles((blogs || []).map(mapBlogToUserArticleData))
-        })
-        .catch((err) => {
-          if (!active) return
-          setError(
-            err instanceof Error ? err.message : "Failed to load blogs.",
           )
         })
         .finally(() => {
@@ -405,14 +385,14 @@ function PublicContentPage({
               </div>
             )}
 
-            {(page === "articles" || page === "blogs") && (
+            {page === "articles" && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-stagger">
                 {filteredArticles.map((item) => (
                   <article
                     key={item.id}
                     onClick={() =>
                       onSelectContent({
-                        type: page === "articles" ? "article" : "blog",
+                        type: "article",
                         item,
                       })
                     }
@@ -547,9 +527,7 @@ function PublicContentDetail({
       ? "People"
       : selection.type === "event"
         ? "Events"
-        : selection.type === "article"
-          ? "Articles"
-          : "Blogs"
+        : "Articles"
   const title =
     selection.type === "person" ? selection.item.fullName : selection.item.title
 
@@ -580,9 +558,6 @@ function PublicContentDetail({
       )}
       {selection.type === "article" && (
         <PublicPostDetail item={selection.item} kind="Article" />
-      )}
-      {selection.type === "blog" && (
-        <PublicPostDetail item={selection.item} kind="Blog" />
       )}
       {selection.type === "event" && (
         <PublicEventDetail item={selection.item} />
@@ -967,45 +942,20 @@ function PublicPostDetail({
   kind,
 }: {
   item: UserArticleData
-  kind: "Article" | "Blog"
+  kind: "Article"
 }) {
-  const isBlog = kind === "Blog"
   return (
-    <div
-      className={`max-w-5xl mx-auto px-4 md:px-8 py-10 md:py-16 ${
-        isBlog ? "bg-[#fbfaf7]" : ""
-      }`}
-    >
-      <article
-        className={`overflow-hidden ${
-          isBlog
-            ? "bg-white rounded-[2rem] border border-[#e8e1d5] shadow-[0_18px_50px_rgba(90,67,40,0.08)]"
-            : "bg-white rounded-xl border border-[var(--border-light)] shadow-[0_18px_45px_rgba(15,29,58,0.07)]"
-        }`}
-      >
+    <div className="max-w-5xl mx-auto px-4 md:px-8 py-10 md:py-16">
+      <article className="overflow-hidden bg-white rounded-xl border border-[var(--border-light)] shadow-[0_18px_45px_rgba(15,29,58,0.07)]">
         <div className="relative">
           <img
             src={item.featuredImage}
             alt={item.title}
-            className={`w-full object-cover ${
-              isBlog ? "h-64 md:h-[25rem]" : "h-64 md:h-[28rem]"
-            }`}
+            className="w-full object-cover h-64 md:h-[28rem]"
           />
-          <div
-            className={`absolute inset-0 ${
-              isBlog
-                ? "bg-gradient-to-t from-[#2c241d]/65 via-transparent to-transparent"
-                : "bg-gradient-to-t from-[var(--brand-dark)]/75 via-transparent to-transparent"
-            }`}
-          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[var(--brand-dark)]/75 via-transparent to-transparent" />
           <div className="absolute bottom-6 left-6 flex items-center gap-3">
-            <span
-              className={`text-xs font-bold uppercase tracking-[0.18em] px-3 py-2 rounded-full ${
-                isBlog
-                  ? "bg-[#f4ead7] text-[#6d5137]"
-                  : "bg-white/95 text-[var(--brand)]"
-              }`}
-            >
+            <span className="text-xs font-bold uppercase tracking-[0.18em] px-3 py-2 rounded-full bg-white/95 text-[var(--brand)]">
               {kind}
             </span>
             <span className="text-xs font-medium text-white/85">
@@ -1013,34 +963,18 @@ function PublicPostDetail({
             </span>
           </div>
         </div>
-        <div className={`${isBlog ? "p-7 md:p-12" : "p-7 md:p-12 md:pt-14"}`}>
+        <div className="p-7 md:p-12 md:pt-14">
           <div className="max-w-3xl mx-auto">
             <div className="flex items-center gap-3 text-[var(--accent-dark)] mb-5">
-              <PublicIcon
-                path={
-                  isBlog
-                    ? "M4 4h16v16H4zM8 8h8M8 12h6M8 16h4"
-                    : "M4 19.5A2.5 2.5 0 016.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"
-                }
-              />
+              <PublicIcon path="M4 19.5A2.5 2.5 0 016.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
               <p className="text-xs font-bold uppercase tracking-[0.2em]">
-                {isBlog ? "A community journal" : "KBN editorial"}
+                KBN editorial
               </p>
             </div>
-            <h2
-              className={`font-serif leading-tight text-[var(--text-primary)] mb-6 ${
-                isBlog ? "text-4xl md:text-6xl" : "text-3xl md:text-5xl"
-              }`}
-            >
+            <h2 className="font-serif leading-tight text-[var(--text-primary)] mb-6 text-3xl md:text-5xl">
               {item.title}
             </h2>
-            <div
-              className={`flex flex-wrap items-center gap-x-5 gap-y-3 text-sm border-b pb-7 mb-8 ${
-                isBlog
-                  ? "border-[#e8e1d5] text-[#806d5c]"
-                  : "border-[var(--border-light)] text-[var(--text-tertiary)]"
-              }`}
-            >
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-3 text-sm border-b pb-7 mb-8 border-[var(--border-light)] text-[var(--text-tertiary)]">
               <span className="inline-flex items-center gap-2">
                 <PublicIcon
                   path="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z"
@@ -1056,20 +990,8 @@ function PublicPostDetail({
                 {item.visibility}
               </span>
             </div>
-            <div
-              className={`${
-                isBlog
-                  ? "bg-[#f8f3ea] border-l-4 border-[#d7b27a] px-6 py-5"
-                  : "border-l-4 border-[var(--accent)] bg-[var(--surface-alt)] px-6 py-5"
-              }`}
-            >
-              <p
-                className={`text-xl leading-relaxed ${
-                  isBlog
-                    ? "font-serif italic text-[#5f4c3c]"
-                    : "text-[var(--text-primary)] font-medium"
-                }`}
-              >
+            <div className="border-l-4 border-[var(--accent)] bg-[var(--surface-alt)] px-6 py-5">
+              <p className="text-xl leading-relaxed text-[var(--text-primary)] font-medium">
                 {item.excerpt}
               </p>
             </div>
@@ -1237,25 +1159,6 @@ function PublicPageWrapper({ page }: { page: PublicPage }) {
           if (!active) return
           setError(
             err instanceof Error ? err.message : "Failed to load event.",
-          )
-        })
-        .finally(() => {
-          if (active) setLoading(false)
-        })
-    } else if (page === "blogs") {
-      fetchBlogById(id)
-        .then((blog) => {
-          if (!active) return
-          if (blog) {
-            setSelection({ type: "blog", item: mapBlogToUserArticleData(blog) })
-          } else {
-            setError(`Could not find blog post with ID "${id}".`)
-          }
-        })
-        .catch((err) => {
-          if (!active) return
-          setError(
-            err instanceof Error ? err.message : "Failed to load blog post.",
           )
         })
         .finally(() => {
@@ -1492,22 +1395,6 @@ export default function App() {
           }
         />
         <Route
-          path="/blogs"
-          element={
-            <ProtectedRoute>
-              <PublicPageWrapper page="blogs" />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/blogs/:id"
-          element={
-            <ProtectedRoute>
-              <PublicPageWrapper page="blogs" />
-            </ProtectedRoute>
-          }
-        />
-        <Route
           path="/events"
           element={
             <ProtectedRoute>
@@ -1632,9 +1519,6 @@ export default function App() {
           <Route path="articles" element={<AdminContent kind="articles" />} />
           <Route path="articles/:id" element={<AdminArticleDetailsPage />} />
           <Route path="articles/:id/edit" element={<AdminArticleEditPage />} />
-          <Route path="blogs" element={<AdminContent kind="blogs" />} />
-          <Route path="blogs/:id" element={<AdminBlogDetailsPage />} />
-          <Route path="blogs/:id/edit" element={<AdminBlogEditPage />} />
         </Route>
 
         {/* Catch-all 404 */}

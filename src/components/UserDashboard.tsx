@@ -994,12 +994,12 @@ function UserContentDetail({
       />
     )
   }
-  const items = selected.type === "articles" ? data.articles : data.blogs
+  const items = data.articles
   const item = items.find((article) => article.id === selected.id)
   return item ? (
     <ArticleDetail
       item={item}
-      type={selected.type}
+      type="articles"
       email={email}
       onBack={onBack}
     />
@@ -1256,7 +1256,7 @@ function EditField({
                 <DetailField label="Visibility" value={form.visibility} />
                 <DetailField
                   label="Content type"
-                  value={type === "blogs" ? "Blog post" : "Article"}
+                  value="Article"
                 />
               </div>
             </>
@@ -1717,7 +1717,7 @@ function ArticleDetail({
   onBack,
 }: {
   item: UserArticleData
-  type: "articles" | "blogs"
+  type: "articles"
   email: string
   onBack: () => void
 }) {
@@ -2208,7 +2208,7 @@ function ArticleCreateForm({
 }: {
   email: string
   author: string
-  type: "articles" | "blogs"
+  type: "articles"
   onCancel: () => void
   onCreated: () => void
 }) {
@@ -2242,7 +2242,7 @@ function ArticleCreateForm({
   }
   return (
     <CreateShell
-      title={type === "articles" ? "Article" : "Blog"}
+      title="Article"
       onCancel={onCancel}
       onSubmit={save}
     >
@@ -2522,7 +2522,7 @@ function ArticlePage({
   title: string
   description: string
   items: UserArticleData[]
-  type: "articles" | "blogs"
+  type: "articles"
   onOpen: (id: string) => void
   onAdd: () => void
 }) {

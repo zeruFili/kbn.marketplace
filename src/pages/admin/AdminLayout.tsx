@@ -57,12 +57,6 @@ const NAV_ITEMS: NavItem[] = [
     label: "Articles",
     icon: "M6 4h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2zm3 4h6m-6 4h6m-6 4h4",
   },
-  {
-    id: "blogs",
-    path: "/admin/blogs",
-    label: "Blogs",
-    icon: "M4 5a2 2 0 012-2h12a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm4 3h8m-8 4h8m-8 4h5",
-  },
 ]
 
 export default function AdminLayout() {

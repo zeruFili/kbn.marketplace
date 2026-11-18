@@ -9,7 +9,7 @@ import AdminOverview from "./admin/AdminOverview"
 import AdminContent from "./admin/AdminContent"
 import AdminPayments from "./admin/AdminPayments"
 
-type Section = "overview" | "companies" | "users" | "payments" | "categories" | "events" | "articles" | "blogs"
+type Section = "overview" | "companies" | "users" | "payments" | "categories" | "events" | "articles"
 
 const NAV_ITEMS: { id: Section; label: string; icon: string; hidden?: boolean }[] = [
   {
@@ -48,11 +48,6 @@ const NAV_ITEMS: { id: Section; label: string; icon: string; hidden?: boolean }[
     label: "Articles",
     icon: "M6 4h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2zm3 4h6m-6 4h6m-6 4h4",
   },
-  {
-    id: "blogs",
-    label: "Blogs",
-    icon: "M4 5a2 2 0 012-2h12a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm4 3h8m-8 4h8m-8 4h5",
-  },
 ]
 
 export default function AdminDashboard({ onBack }: { onBack: () => void }) {
@@ -86,8 +81,6 @@ export default function AdminDashboard({ onBack }: { onBack: () => void }) {
         return <AdminContent kind="events" />
       case "articles":
         return <AdminContent kind="articles" />
-      case "blogs":
-        return <AdminContent kind="blogs" />
     }
   })()
 
