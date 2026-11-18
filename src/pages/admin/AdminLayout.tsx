@@ -8,6 +8,7 @@ const knbLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
 interface NavItem {
   id: string
   path: string
+  matchPaths?: string[]
   label: string
   icon: string
   hidden?: boolean
@@ -23,9 +24,9 @@ const NAV_ITEMS: NavItem[] = [
   {
     id: "companies",
     path: "/admin/companies",
-    label: "Listed Companies",
+    matchPaths: ["/admin/companies", "/admin/businesses"],
+    label: "Business Management",
     icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4",
-    hidden: true,
   },
   {
     id: "users",
@@ -59,6 +60,11 @@ const NAV_ITEMS: NavItem[] = [
   },
 ]
 
+function isNavItemActive(item: NavItem, pathname: string): boolean {
+  const paths = item.matchPaths ?? [item.path]
+  return paths.some((p) => pathname === p || pathname.startsWith(p + "/"))
+}
+
 export default function AdminLayout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
@@ -66,11 +72,9 @@ export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  const activeItem = NAV_ITEMS.find(
-    (item) =>
-      location.pathname === item.path ||
-      location.pathname.startsWith(item.path + "/"),
-  ) || NAV_ITEMS[0]
+  const activeItem =
+    NAV_ITEMS.find((item) => isNavItemActive(item, location.pathname)) ||
+    NAV_ITEMS[0]
 
   const sidebar = (
     <aside
@@ -96,9 +100,7 @@ export default function AdminLayout() {
 
       <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto">
         {NAV_ITEMS.filter((item) => !item.hidden).map((item) => {
-          const isActive =
-            location.pathname === item.path ||
-            location.pathname.startsWith(item.path + "/")
+          const isActive = isNavItemActive(item, location.pathname)
           return (
             <button
               key={item.id}

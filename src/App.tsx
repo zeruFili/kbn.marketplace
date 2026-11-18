@@ -1508,6 +1508,11 @@ export default function App() {
             path="companies/:id"
             element={<AdminCompanyDetailsPage />}
           />
+          <Route path="businesses" element={<AdminCompanies />} />
+          <Route
+            path="businesses/:id"
+            element={<AdminCompanyDetailsPage />}
+          />
           <Route path="users" element={<AdminUsers />} />
           <Route path="users/:id" element={<AdminUserDetailsPage />} />
           <Route path="users/:id/edit" element={<AdminUserEditPage />} />

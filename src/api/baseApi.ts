@@ -77,7 +77,7 @@ export const clearToken = removeAuthToken
 /**
  * Resolves static or uploaded asset URLs returned by backend (e.g. /uploads/companys/...)
  */
-export function resolveAssetUrl(filePath?: string): string {
+export function resolveAssetUrl(filePath?: string | null): string {
   if (!filePath) return ""
   if (
     filePath.startsWith("http://") ||

@@ -4,9 +4,13 @@
  */
 
 import { baseApi, API_BASE_URL, resolveAssetUrl } from "./baseApi"
+import type { ApiResponse } from "./types"
 import type { Company, Category } from "../data/companies"
 
 export const API_BASE = API_BASE_URL
+
+export type CompanyStatusValue = "pending" | "active" | "inactive" | "suspended"
+export type CompanyVerificationStatusValue = "pending" | "verified" | "rejected"
 
 export interface CategoryItem {
   id: string
@@ -31,15 +35,16 @@ export interface CompanyApiResponse {
   description: string
   services?: string[]
   website?: string
-  company_logo?: string
-  cover_image?: string
+  company_logo?: string | null
+  cover_image?: string | null
   business_license?: string
-  verification_status: "pending" | "verified" | "rejected"
-  status?: "pending" | "active" | "inactive" | "suspended"
+  verification_status: CompanyVerificationStatusValue
+  status?: CompanyStatusValue
   is_active: boolean
   business_category?: CategoryItem
   social_media?: { id?: string; platform: string; link: string }[]
   created_at?: string
+  updated_at?: string | null
   created_by?: string
 }
 
@@ -59,26 +64,42 @@ export interface FetchCompaniesOptions {
   user_email?: string
 }
 
+export interface CompaniesPaginationMeta {
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
+
 export interface PaginatedCompaniesResponse {
   data: CompanyApiResponse[]
-  meta?: {
-    total: number
-    page: number
-    limit: number
-    totalPages: number
-  }
+  meta?: CompaniesPaginationMeta
+}
+
+export interface PaginatedAdminCompaniesResponse {
+  success: boolean
+  data: CompanyApiResponse[]
+  meta: CompaniesPaginationMeta
+  message?: string
 }
 
 export async function fetchCompanies(
   options: FetchCompaniesOptions = {}
-): Promise<{ companies: Company[]; total: number; raw: CompanyApiResponse[] }> {
+): Promise<{
+  companies: Company[]
+  total: number
+  raw: CompanyApiResponse[]
+  meta: CompaniesPaginationMeta
+}> {
   try {
+    const limit = options.limit || 50
+    const page = options.page || 1
     const res = await baseApi.get<CompanyApiResponse[] | PaginatedCompaniesResponse>(
       "/companies",
       {
         params: {
           page: options.page,
-          limit: options.limit || 50,
+          limit,
           search: options.search,
           business_category_id: options.categoryId || options.business_category_id,
           status: options.status,
@@ -94,19 +115,27 @@ export async function fetchCompanies(
     )
 
     let items: CompanyApiResponse[] = []
-    let total = 0
+    let rawMeta = (res as { meta?: CompaniesPaginationMeta }).meta
 
     if (res.success && res.data) {
       if (Array.isArray(res.data)) {
         items = res.data
-        total = items.length
       } else if (Array.isArray((res.data as PaginatedCompaniesResponse).data)) {
         items = (res.data as PaginatedCompaniesResponse).data
-        total = (res.data as PaginatedCompaniesResponse).meta?.total ?? items.length
+        rawMeta = (res.data as PaginatedCompaniesResponse).meta ?? rawMeta
       }
     } else if (Array.isArray((res as any).data)) {
       items = (res as any).data
-      total = items.length
+    }
+
+    const total = rawMeta?.total ?? items.length
+    const resolvedLimit = rawMeta?.limit ?? limit
+    const resolvedPage = rawMeta?.page ?? page
+    const meta: CompaniesPaginationMeta = {
+      total,
+      page: resolvedPage,
+      limit: resolvedLimit,
+      totalPages: rawMeta?.totalPages ?? (Math.ceil(total / resolvedLimit) || 1),
     }
 
     const mapped = items.map(mapApiResponseToCompany)
@@ -114,11 +143,110 @@ export async function fetchCompanies(
       companies: mapped,
       total,
       raw: items,
+      meta,
     }
   } catch (err) {
     console.warn("Could not fetch companies from backend:", err)
     throw err
   }
+}
+
+/**
+ * Fetch registered businesses for the Admin Business Management dashboard
+ * with full pagination metadata, status/category/search filters, and sorting.
+ */
+export async function fetchAdminCompaniesApi(
+  options: FetchCompaniesOptions = {}
+): Promise<PaginatedAdminCompaniesResponse> {
+  const limit = options.limit ?? 20
+  const page = options.page ?? 1
+
+  const res = await baseApi.get<CompanyApiResponse[]>("/companies", {
+    params: {
+      page,
+      limit,
+      search: options.search,
+      business_category_id: options.categoryId || options.business_category_id,
+      status: options.status,
+      is_active:
+        options.is_active !== undefined ? String(options.is_active) : undefined,
+      verification_status: options.verification_status,
+      sort_by: options.sort_by,
+      sort_order: options.sort_order,
+      created_by: options.created_by || options.user_id,
+    },
+  })
+
+  const items = Array.isArray(res.data) ? res.data : []
+  const rawMeta = res.meta as CompaniesPaginationMeta | undefined
+  const total = rawMeta?.total ?? items.length
+  const resolvedLimit = rawMeta?.limit ?? limit
+
+  return {
+    success: !!res.success,
+    data: items,
+    meta: {
+      total,
+      page: rawMeta?.page ?? page,
+      limit: resolvedLimit,
+      totalPages: rawMeta?.totalPages ?? (Math.ceil(total / resolvedLimit) || 1),
+    },
+    message: res.message,
+  }
+}
+
+/**
+ * Fetch a single business profile by ID for admin inspection.
+ * Throws ApiError if the request fails or returns an error status.
+ */
+export async function fetchAdminCompanyById(
+  id: string
+): Promise<CompanyApiResponse | null> {
+  const res = await baseApi.get<CompanyApiResponse>(`/companies/${id}`)
+  if (res.success && res.data) {
+    return res.data
+  }
+  return null
+}
+
+/**
+ * Activate or deactivate a business (updates both status and is_active in real time).
+ */
+export async function updateCompanyStatusApi(
+  id: string,
+  payload:
+    | { status?: CompanyStatusValue; is_active?: boolean }
+    | boolean
+): Promise<ApiResponse<CompanyApiResponse>> {
+  const body =
+    typeof payload === "boolean"
+      ? {
+          status: payload ? ("active" as const) : ("inactive" as const),
+          is_active: payload,
+        }
+      : {
+          ...(payload.status !== undefined ? { status: payload.status } : {}),
+          ...(payload.is_active !== undefined
+            ? { is_active: payload.is_active }
+            : payload.status !== undefined
+              ? { is_active: payload.status === "active" }
+              : {}),
+        }
+
+  return baseApi.patch<CompanyApiResponse>(`/companies/${id}/status`, body)
+}
+
+/**
+ * Update a business's verification status (Admin only).
+ */
+export async function updateCompanyVerificationStatusApi(
+  id: string,
+  verification_status: CompanyVerificationStatusValue
+): Promise<ApiResponse<CompanyApiResponse>> {
+  return baseApi.patch<CompanyApiResponse>(
+    `/companies/${id}/verification-status`,
+    { verification_status }
+  )
 }
 
 export async function fetchCategories(): Promise<CategoryItem[]> {

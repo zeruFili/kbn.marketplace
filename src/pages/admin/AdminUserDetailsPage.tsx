@@ -8,7 +8,10 @@ import {
   type UserProfileResponse,
 } from "../../api/userApi"
 import { fetchUserPayments, type PaymentItem } from "../../api/paymentApi"
-import { fetchCompanies, type Company } from "../../api/companyApi"
+import {
+  fetchAdminCompaniesApi,
+  type CompanyApiResponse,
+} from "../../api/companyApi"
 import UserAvatar from "../../components/common/UserAvatar"
 import { resolveAssetUrl } from "../../api/baseApi"
 
@@ -25,7 +28,7 @@ export default function AdminUserDetailsPage() {
   // Payments & Companies state
   const [payments, setPayments] = useState<PaymentItem[]>([])
   const [loadingPayments, setLoadingPayments] = useState(false)
-  const [userCompanies, setUserCompanies] = useState<Company[]>([])
+  const [userCompanies, setUserCompanies] = useState<CompanyApiResponse[]>([])
   const [loadingCompanies, setLoadingCompanies] = useState(false)
 
   // Modals & Action states
@@ -86,16 +89,22 @@ export default function AdminUserDetailsPage() {
     if (!id) return
     setLoadingCompanies(true)
     try {
-      const allCompanies = await fetchCompanies()
-      // Filter companies owned or created by this user
-      const filtered = (allCompanies || []).filter(
-        (c: any) =>
-          c.created_by === id ||
-          c.ownerId === id ||
-          c.userId === id ||
-          (user?.email && c.email?.toLowerCase() === user.email.toLowerCase())
-      )
-      setUserCompanies(filtered)
+      const res = await fetchAdminCompaniesApi({ created_by: id, limit: 50 })
+      let matched = res.success ? res.data : []
+      if (matched.length === 0 && user?.email) {
+        const byEmail = await fetchAdminCompaniesApi({
+          search: user.email,
+          limit: 50,
+        })
+        if (byEmail.success) {
+          matched = byEmail.data.filter(
+            (c) =>
+              c.created_by === id ||
+              c.email?.toLowerCase() === user.email?.toLowerCase()
+          )
+        }
+      }
+      setUserCompanies(matched)
     } catch {
       setUserCompanies([])
     } finally {
@@ -628,25 +637,39 @@ export default function AdminUserDetailsPage() {
             Associated Businesses / Companies
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {userCompanies.map((c) => (
-              <div
-                key={c.id}
-                onClick={() => navigate(`/admin/companies/${c.id}`)}
-                className="p-4 rounded-xl bg-[var(--surface-alt)] border border-[var(--border-light)] hover:border-[var(--brand)] transition-colors cursor-pointer flex items-center justify-between"
-              >
-                <div>
-                  <h4 className="font-semibold text-sm text-[var(--text-primary)]">
-                    {c.name || (c as any).company_name}
-                  </h4>
-                  <p className="text-xs text-[var(--text-tertiary)]">
-                    {(c as any).phone_number || c.phone || c.email}
-                  </p>
+            {userCompanies.map((c) => {
+              const isActive = c.is_active && (c.status || "active") === "active"
+              return (
+                <div
+                  key={c.id}
+                  onClick={() => navigate(`/admin/companies/${c.id}`)}
+                  className="p-4 rounded-xl bg-[var(--surface-alt)] border border-[var(--border-light)] hover:border-[var(--brand)] transition-colors cursor-pointer flex items-center justify-between gap-3"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-semibold text-sm text-[var(--text-primary)] truncate">
+                        {c.company_name}
+                      </h4>
+                      <span
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase ${
+                          isActive
+                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+                            : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300"
+                        }`}
+                      >
+                        {isActive ? "Active" : c.status || "Inactive"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[var(--text-tertiary)] truncate">
+                      {c.phone_number || c.email}
+                    </p>
+                  </div>
+                  <span className="text-xs font-semibold text-[var(--brand)] whitespace-nowrap">
+                    View Business →
+                  </span>
                 </div>
-                <span className="text-xs font-semibold text-[var(--brand)]">
-                  View Company →
-                </span>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}

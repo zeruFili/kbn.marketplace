@@ -558,7 +558,7 @@ export default function AdminCategories() {
                         <td className="px-5 py-4 text-right">
                           <button
                             type="button"
-                            onClick={() => navigate(`/companies/${company.id}`)}
+                            onClick={() => navigate(`/admin/companies/${company.id}`)}
                             className="text-xs font-semibold text-[var(--brand)] dark:text-[var(--accent)] hover:underline cursor-pointer whitespace-nowrap"
                           >
                             View Profile →

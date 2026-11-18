@@ -1,12 +1,18 @@
 import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import {
   getApplications,
-  getListedCompanies,
   getAdminCategories,
   adminSubscribe,
+  type CompanyApplication,
 } from "../../data/adminStore"
 import { fetchAdminUsersApi } from "../../api/userApi"
 import { fetchCategoriesApi } from "../../api/categoryApi"
+import {
+  fetchAdminCompaniesApi,
+  resolveFileUrl,
+  type CompanyApiResponse,
+} from "../../api/companyApi"
 
 interface Counts {
   applications: number
@@ -16,29 +22,51 @@ interface Counts {
 }
 
 export default function AdminOverview() {
+  const navigate = useNavigate()
   const [counts, setCounts] = useState<Counts>({
     applications: 0,
     companies: 0,
     users: 0,
     categories: 0,
   })
+  const [recentCompanies, setRecentCompanies] = useState<CompanyApiResponse[]>([])
+  const [loadingCompanies, setLoadingCompanies] = useState(true)
 
   useEffect(() => {
+    let active = true
+
     function refresh() {
       const apps = getApplications()
-      const companies = getListedCompanies()
       setCounts((prev) => ({
         ...prev,
         applications: apps.filter((a) => a.status === "pending").length,
-        companies: companies.filter((c) => c.status === "active").length,
       }))
     }
     refresh()
 
+    // Fetch real active businesses count and recent businesses from live backend
+    Promise.all([
+      fetchAdminCompaniesApi({ is_active: true, limit: 1 }),
+      fetchAdminCompaniesApi({ limit: 5, sort_by: "created_at", sort_order: "DESC" }),
+    ])
+      .then(([activeRes, recentRes]) => {
+        if (!active) return
+        if (activeRes.success) {
+          setCounts((prev) => ({ ...prev, companies: activeRes.meta.total }))
+        }
+        if (recentRes.success) {
+          setRecentCompanies(recentRes.data)
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (active) setLoadingCompanies(false)
+      })
+
     // Fetch real registered users from live backend
     fetchAdminUsersApi({ limit: 1 })
       .then((res) => {
-        if (res.success && res.meta?.total !== undefined) {
+        if (active && res.success && res.meta?.total !== undefined) {
           setCounts((prev) => ({ ...prev, users: res.meta!.total }))
         }
       })
@@ -47,11 +75,12 @@ export default function AdminOverview() {
     // Fetch real active categories from live backend
     fetchCategoriesApi({ is_active: true, limit: 1 })
       .then((res) => {
-        if (res.success && res.meta?.total !== undefined) {
+        if (active && res.success && res.meta?.total !== undefined) {
           setCounts((prev) => ({ ...prev, categories: res.meta.total }))
         }
       })
       .catch(() => {
+        if (!active) return
         const cats = getAdminCategories()
         setCounts((prev) => ({
           ...prev,
@@ -59,9 +88,12 @@ export default function AdminOverview() {
         }))
       })
 
-    return adminSubscribe(refresh)
+    const unsub = adminSubscribe(refresh)
+    return () => {
+      active = false
+      unsub()
+    }
   }, [])
-
 
   const cards = [
     {
@@ -69,24 +101,28 @@ export default function AdminOverview() {
       value: counts.applications,
       color: "bg-amber-500",
       icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+      path: undefined as string | undefined,
     },
     {
-      label: "Active Companies",
+      label: "Active Businesses",
       value: counts.companies,
       color: "bg-blue-500",
       icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5",
+      path: "/admin/companies",
     },
     {
       label: "Registered Users",
       value: counts.users,
       color: "bg-emerald-500",
       icon: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z",
+      path: "/admin/users",
     },
     {
       label: "Active Categories",
       value: counts.categories,
       color: "bg-purple-500",
       icon: "M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z",
+      path: "/admin/categories",
     },
   ]
 
@@ -96,7 +132,10 @@ export default function AdminOverview() {
         {cards.map((card) => (
           <div
             key={card.label}
-            className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6 card-hover"
+            onClick={card.path ? () => navigate(card.path!) : undefined}
+            className={`bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6 card-hover ${
+              card.path ? "cursor-pointer" : ""
+            }`}
           >
             <div className="flex items-start justify-between mb-4">
               <div
@@ -129,7 +168,12 @@ export default function AdminOverview() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <RecentApplications />
-        <RecentActivity />
+        <RecentBusinesses
+          companies={recentCompanies}
+          loading={loadingCompanies}
+          onSelect={(id) => navigate(`/admin/companies/${id}`)}
+          onViewAll={() => navigate("/admin/companies")}
+        />
       </div>
     </div>
   )
@@ -187,54 +231,88 @@ function RecentApplications() {
   )
 }
 
-function RecentActivity() {
-  const [companies, setCompanies] = useState<AdminCompany[]>([])
-
-  useEffect(() => {
-    function refresh() {
-      setCompanies(getListedCompanies())
-    }
-    refresh()
-    return adminSubscribe(refresh)
-  }, [])
-
+function RecentBusinesses({
+  companies,
+  loading,
+  onSelect,
+  onViewAll,
+}: {
+  companies: CompanyApiResponse[]
+  loading: boolean
+  onSelect: (id: string) => void
+  onViewAll: () => void
+}) {
   return (
     <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6">
-      <h2 className="font-serif text-lg text-[var(--text-primary)] mb-4">
-        Company Status
-      </h2>
-      {companies.length === 0 ? (
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-serif text-lg text-[var(--text-primary)]">
+          Registered Businesses
+        </h2>
+        <button
+          type="button"
+          onClick={onViewAll}
+          className="text-xs font-semibold text-[var(--brand)] dark:text-[var(--accent)] hover:underline cursor-pointer"
+        >
+          Manage All →
+        </button>
+      </div>
+      {loading ? (
+        <div className="py-8 text-center">
+          <div className="w-6 h-6 border-2 border-[var(--brand)]/30 border-t-[var(--brand)] rounded-full animate-spin mx-auto" />
+        </div>
+      ) : companies.length === 0 ? (
         <p className="text-sm text-[var(--text-tertiary)] py-4 text-center">
-          No companies listed yet.
+          No businesses registered yet.
         </p>
       ) : (
         <div className="space-y-3">
-          {companies.slice(0, 5).map((c) => (
-            <div
-              key={c.id}
-              className="flex items-center gap-3 p-3 bg-[var(--surface-alt)] rounded-xl border border-[var(--border-light)]"
-            >
-              <img
-                src={c.logo}
-                alt=""
-                className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
-              />
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium text-[var(--text-primary)] truncate">
-                  {c.name}
-                </div>
-              </div>
-              <span
-                className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                  c.status === "active"
-                    ? "bg-emerald-100 text-emerald-700"
-                    : "bg-red-100 text-red-700"
-                }`}
+          {companies.map((c) => {
+            const logoUrl = resolveFileUrl(c.company_logo)
+            const isActive = c.is_active && (c.status || "active") === "active"
+            const statusLabel = isActive
+              ? "Active"
+              : (c.status || "inactive").toLowerCase() === "suspended"
+                ? "Suspended"
+                : "Inactive"
+
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => onSelect(c.id)}
+                className="w-full flex items-center gap-3 p-3 bg-[var(--surface-alt)] rounded-xl border border-[var(--border-light)] hover:border-[var(--brand)]/40 transition-colors text-left cursor-pointer"
               >
-                {c.status}
-              </span>
-            </div>
-          ))}
+                {logoUrl ? (
+                  <img
+                    src={logoUrl}
+                    alt={c.company_name}
+                    className="w-10 h-10 rounded-lg object-cover flex-shrink-0 bg-white border border-[var(--border-light)]"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-lg bg-[var(--brand)] text-white font-serif font-bold text-sm flex items-center justify-center flex-shrink-0">
+                    {c.company_name.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-[var(--text-primary)] truncate">
+                    {c.company_name}
+                  </div>
+                  <div className="text-xs text-[var(--text-tertiary)] truncate">
+                    {c.business_category?.name || "Business"}
+                  </div>
+                </div>
+                <span
+                  className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full uppercase ${
+                    isActive
+                      ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+                      : "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300"
+                  }`}
+                >
+                  {statusLabel}
+                </span>
+              </button>
+            )
+          })}
         </div>
       )}
     </div>
