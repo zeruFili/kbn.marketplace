@@ -622,10 +622,11 @@ function UserProfile({
     <section className="bg-[var(--surface)] rounded-3xl border border-[var(--border-light)] p-6 md:p-10 shadow-xs animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-5 mb-8">
         <div className="flex items-start gap-5">
-          <img
+          <UserAvatar
             src={profile.profilePhoto}
-            alt={profile.fullName}
-            className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover flex-shrink-0 shadow-sm border border-[var(--border-light)]"
+            name={profile.fullName}
+            size="xl"
+            className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl shadow-sm border border-[var(--border-light)] shrink-0"
           />
           <div>
             <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[var(--brand)] dark:text-[var(--text-primary)] leading-tight">
