@@ -212,7 +212,7 @@ export default function UserPaymentPage() {
           </p>
           <div className="mt-4 pt-2">
             <Link
-              to="/payment/receiver"
+              to="/payment"
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-white text-[var(--brand)] hover:bg-white/90 transition-colors shadow-sm"
             >
               <span>
