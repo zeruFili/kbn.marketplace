@@ -485,45 +485,44 @@ export default function CompanyProfile({
               </div>
             </section>
 
-            <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6 md:p-8 animate-fade-in-up">
-              <h2 className="font-serif text-2xl text-[var(--text-primary)] mb-5">
-                Services
-              </h2>
-              {company.services && company.services.length > 0 ? (
+            {company.services &&
+              company.services.filter((s) => Boolean(s && s.trim())).length > 0 && (
+              <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6 md:p-8 animate-fade-in-up">
+                <h2 className="font-serif text-2xl text-[var(--text-primary)] mb-5">
+                  Services
+                </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {company.services.map((svc, i) => (
-                    <div
-                      key={svc}
-                      className="flex items-center gap-3 p-3.5 bg-[var(--surface-alt)] rounded-xl border border-[var(--border-light)] hover:border-[var(--brand)]/30 hover:bg-[var(--brand)]/5 transition-all group"
-                      style={{ animationDelay: `${i * 50}ms` }}
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-[var(--brand)]/10 flex items-center justify-center flex-shrink-0 group-hover:bg-[var(--brand)]/20 transition-colors">
-                        <svg
-                          className="w-4 h-4 text-[var(--brand)]"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
+                  {company.services
+                    .filter((s) => Boolean(s && s.trim()))
+                    .map((svc, i) => (
+                      <div
+                        key={svc}
+                        className="flex items-center gap-3 p-3.5 bg-[var(--surface-alt)] rounded-xl border border-[var(--border-light)] hover:border-[var(--brand)]/30 hover:bg-[var(--brand)]/5 transition-all group"
+                        style={{ animationDelay: `${i * 50}ms` }}
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-[var(--brand)]/10 flex items-center justify-center flex-shrink-0 group-hover:bg-[var(--brand)]/20 transition-colors">
+                          <svg
+                            className="w-4 h-4 text-[var(--brand)]"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        </div>
+                        <span className="text-sm font-medium text-[var(--text-primary)]">
+                          {svc}
+                        </span>
                       </div>
-                      <span className="text-sm font-medium text-[var(--text-primary)]">
-                        {svc}
-                      </span>
-                    </div>
-                  ))}
+                    ))}
                 </div>
-              ) : (
-                <p className="text-sm text-[var(--text-tertiary)] italic">
-                  No services listed yet.
-                </p>
-              )}
-            </section>
+              </section>
+            )}
 
             {company.gallery.length > 0 && (
               <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6 md:p-8 animate-fade-in-up">
@@ -547,46 +546,50 @@ export default function CompanyProfile({
               </section>
             )}
 
-            {company.socialMedia && company.socialMedia.length > 0 && (
+            {company.socialMedia &&
+              company.socialMedia.filter((sm) => Boolean(sm && sm.link && sm.link.trim())).length > 0 && (
               <section className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6 md:p-8 animate-fade-in-up">
                 <div className="flex items-center justify-between mb-5">
                   <h2 className="font-serif text-2xl text-[var(--text-primary)]">
                     Social Media & Links
                   </h2>
                   <span className="text-xs text-[var(--text-tertiary)] font-medium">
-                    {company.socialMedia.length} {company.socialMedia.length === 1 ? "Link" : "Links"}
+                    {company.socialMedia.filter((sm) => Boolean(sm && sm.link && sm.link.trim())).length}{" "}
+                    {company.socialMedia.filter((sm) => Boolean(sm && sm.link && sm.link.trim())).length === 1 ? "Link" : "Links"}
                   </span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {company.socialMedia.map((sm, i) => {
-                    const href = sm.link.startsWith("http")
-                      ? sm.link
-                      : `https://${sm.link}`
-                    return (
-                      <a
-                        key={sm.id || `${sm.platform}-${i}`}
-                        href={href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 p-3.5 bg-[var(--surface-alt)] rounded-xl border border-[var(--border-light)] hover:border-[var(--brand)]/40 hover:bg-[var(--brand)]/5 transition-all group cursor-pointer"
-                      >
-                        <div className="w-10 h-10 rounded-xl bg-[var(--brand)]/10 text-[var(--brand)] flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
-                          <PlatformIcon platform={sm.platform} />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors capitalize truncate">
-                            {sm.platform}
-                          </p>
-                          <p className="text-[11px] text-[var(--text-tertiary)] truncate">
-                            {sm.link.replace(/^https?:\/\//, "")}
-                          </p>
-                        </div>
-                        <span className="text-xs text-[var(--brand)] flex-shrink-0 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
-                          ↗
-                        </span>
-                      </a>
-                    )
-                  })}
+                  {company.socialMedia
+                    .filter((sm) => Boolean(sm && sm.link && sm.link.trim()))
+                    .map((sm, i) => {
+                      const href = sm.link.startsWith("http")
+                        ? sm.link
+                        : `https://${sm.link}`
+                      return (
+                        <a
+                          key={sm.id || `${sm.platform}-${i}`}
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-3 p-3.5 bg-[var(--surface-alt)] rounded-xl border border-[var(--border-light)] hover:border-[var(--brand)]/40 hover:bg-[var(--brand)]/5 transition-all group cursor-pointer"
+                        >
+                          <div className="w-10 h-10 rounded-xl bg-[var(--brand)]/10 text-[var(--brand)] flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+                            <PlatformIcon platform={sm.platform} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] transition-colors capitalize truncate">
+                              {sm.platform}
+                            </p>
+                            <p className="text-[11px] text-[var(--text-tertiary)] truncate">
+                              {sm.link.replace(/^https?:\/\//, "")}
+                            </p>
+                          </div>
+                          <span className="text-xs text-[var(--brand)] flex-shrink-0 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">
+                            ↗
+                          </span>
+                        </a>
+                      )
+                    })}
                 </div>
               </section>
             )}

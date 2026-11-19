@@ -361,7 +361,8 @@ export default function AdminUserDetailsPage() {
               src={userAvatar}
               name={userName}
               size="xl"
-              className="w-24 h-24 rounded-2xl mx-auto ring-4 ring-[var(--border-light)] mb-4"
+              allowEnlarge
+              className="w-24 h-24 rounded-2xl mx-auto ring-4 ring-[var(--border-light)] mb-4 shrink-0"
             />
             <h2 className="font-serif text-xl font-bold text-[var(--text-primary)]">
               {userName}

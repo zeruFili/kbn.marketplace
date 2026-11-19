@@ -548,32 +548,37 @@ export default function AdminCompanyDetailsPage() {
               </div>
             </div>
 
-            {Array.isArray(company.services) && company.services.length > 0 && (
+            {Array.isArray(company.services) &&
+              company.services.filter((s) => Boolean(s && s.trim())).length > 0 && (
               <div>
                 <h2 className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-2.5">
                   Services Offered
                 </h2>
                 <div className="flex flex-wrap gap-2">
-                  {company.services.map((service, idx) => (
-                    <span
-                      key={`${service}-${idx}`}
-                      className="text-xs font-medium text-[var(--text-primary)] bg-[var(--surface-alt)] px-3.5 py-1.5 rounded-xl border border-[var(--border-light)]"
-                    >
-                      {service}
-                    </span>
-                  ))}
+                  {company.services
+                    .filter((s) => Boolean(s && s.trim()))
+                    .map((service, idx) => (
+                      <span
+                        key={`${service}-${idx}`}
+                        className="text-xs font-medium text-[var(--text-primary)] bg-[var(--surface-alt)] px-3.5 py-1.5 rounded-xl border border-[var(--border-light)]"
+                      >
+                        {service}
+                      </span>
+                    ))}
                 </div>
               </div>
             )}
 
             {Array.isArray(company.social_media) &&
-              company.social_media.length > 0 && (
+              company.social_media.filter((sm) => Boolean(sm && sm.link && sm.link.trim())).length > 0 && (
                 <div>
                   <h2 className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-2.5">
                     Social Media Links
                   </h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {company.social_media.map((sm, idx) => {
+                    {company.social_media
+                      .filter((sm) => Boolean(sm && sm.link && sm.link.trim()))
+                      .map((sm, idx) => {
                       const href = sm.link.startsWith("http")
                         ? sm.link
                         : `https://${sm.link}`

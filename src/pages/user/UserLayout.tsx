@@ -43,6 +43,7 @@ export default function UserLayout() {
           <UserAvatar
             src={user?.profileImage || user?.avatar}
             name={user?.name}
+            allowEnlarge
             className="w-11 h-11 rounded-xl ring-2 ring-white/20"
           />
           <div className="min-w-0">

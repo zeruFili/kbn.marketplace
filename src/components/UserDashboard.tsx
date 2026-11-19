@@ -166,6 +166,7 @@ export default function UserDashboard({ onBack }: { onBack: () => void }) {
             <UserAvatar
               src={user.profileImage || user.avatar}
               name={user.name}
+              allowEnlarge
               className="w-11 h-11 rounded-xl ring-2 ring-white/20"
             />
             <div className="min-w-0">
@@ -291,6 +292,7 @@ export default function UserDashboard({ onBack }: { onBack: () => void }) {
                   <UserAvatar
                     src={user.profileImage || user.avatar}
                     name={user.name}
+                    allowEnlarge
                     className="w-10 h-10 rounded-xl ring-2 ring-white/20"
                   />
                   <div className="min-w-0">
@@ -626,6 +628,7 @@ function UserProfile({
             src={profile.profilePhoto}
             name={profile.fullName}
             size="xl"
+            allowEnlarge
             className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl shadow-sm border border-[var(--border-light)] shrink-0"
           />
           <div>

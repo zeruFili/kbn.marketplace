@@ -292,7 +292,8 @@ export default function UserProfileEditPage() {
               src={currentPhotoUrl}
               name={form.fullName || user.name}
               size="xl"
-              className="w-20 h-20 sm:w-24 sm:h-24 ring-2 ring-[var(--border-light)]"
+              allowEnlarge
+              className="w-20 h-20 sm:w-24 sm:h-24 ring-2 ring-[var(--border-light)] shrink-0"
             />
           </div>
 

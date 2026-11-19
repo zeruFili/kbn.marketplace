@@ -341,6 +341,7 @@ function PublicContentPage({
                             src={profile.profilePhoto}
                             name={profile.fullName}
                             size="lg"
+                            allowEnlarge={true}
                             className="w-16 h-16 rounded-2xl shrink-0"
                           />
                           <div className="min-w-0">
@@ -692,8 +693,15 @@ function PublicPersonDetailLegacy({ item }: { item: UserProfileData }) {
           src={item.profilePhoto}
           name={item.fullName}
           size="xl"
-          className="w-32 h-32 rounded-2xl ring-4 ring-white/20 mb-6"
+          allowEnlarge={true}
+          className="w-32 h-32 rounded-2xl ring-4 ring-white/20 mb-3 cursor-pointer"
         />
+        <p className="text-[11px] text-white/60 mb-5 flex items-center gap-1.5 font-medium">
+          <svg className="w-3.5 h-3.5 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
+          </svg>
+          Click photo to view larger
+        </p>
         {hasTitle && (
           <p className="text-sm text-[var(--accent)] font-semibold mb-2">
             {item.professionalTitle}

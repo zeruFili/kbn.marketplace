@@ -250,6 +250,7 @@ export default function HomePage() {
                           src={person.profilePhoto}
                           name={person.fullName}
                           size="lg"
+                          allowEnlarge={true}
                           className="w-16 h-16 rounded-2xl shrink-0"
                         />
                         <div className="min-w-0">

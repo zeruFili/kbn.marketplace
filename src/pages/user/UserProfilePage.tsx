@@ -362,6 +362,7 @@ export default function UserProfilePage() {
                 src={form.profilePhoto || user.profileImage || user.avatar}
                 name={form.fullName || user.name}
                 size="xl"
+                allowEnlarge
                 className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover shadow-sm border border-[var(--border-light)] shrink-0"
               />
               <div className="min-w-0">
@@ -717,6 +718,7 @@ export default function UserProfilePage() {
               src={currentDisplayPhoto}
               name={form.fullName || user.name}
               size="xl"
+              allowEnlarge
               className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl ring-2 ring-[var(--border-light)] shrink-0"
             />
             <div className="flex-1 text-center sm:text-left min-w-0">

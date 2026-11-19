@@ -1279,62 +1279,68 @@ function BusinessDetail({
               </div>
 
               {/* Requirement 5 & 4: Services and Social Media in read mode */}
-              {form.services && form.services.length > 0 && (
+              {form.services &&
+                form.services.filter((s) => Boolean(s && s.trim())).length > 0 && (
                 <div className="mt-8 pt-6 border-t border-[var(--border-light)]">
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-3">
-                    Services ({form.services.length})
+                    Services ({form.services.filter((s) => Boolean(s && s.trim())).length})
                   </h3>
                   <div className="flex flex-wrap gap-2">
-                    {form.services.map((svc, i) => (
-                      <span
-                        key={i}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--surface-alt)] border border-[var(--border-light)] text-xs font-medium text-[var(--text-primary)]"
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand)]" />
-                        {svc}
-                      </span>
-                    ))}
+                    {form.services
+                      .filter((s) => Boolean(s && s.trim()))
+                      .map((svc, i) => (
+                        <span
+                          key={i}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--surface-alt)] border border-[var(--border-light)] text-xs font-medium text-[var(--text-primary)]"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand)]" />
+                          {svc}
+                        </span>
+                      ))}
                   </div>
                 </div>
               )}
 
-              {form.socialMedia && form.socialMedia.length > 0 && (
+              {form.socialMedia &&
+                form.socialMedia.filter((sm) => Boolean(sm && sm.link && sm.link.trim())).length > 0 && (
                 <div className="mt-8 pt-6 border-t border-[var(--border-light)]">
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-3">
-                    Social Media & Links ({form.socialMedia.length})
+                    Social Media & Links ({form.socialMedia.filter((sm) => Boolean(sm && sm.link && sm.link.trim())).length})
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {form.socialMedia.map((sm, i) => {
-                      const href = sm.link.startsWith("http")
-                        ? sm.link
-                        : `https://${sm.link}`
-                      return (
-                        <a
-                          key={sm.id || `${sm.platform}-${i}`}
-                          href={href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-[var(--surface-alt)] border border-[var(--border-light)] hover:border-[var(--brand)]/40 transition-colors group cursor-pointer"
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-7 h-7 rounded-lg bg-[var(--brand)]/10 text-[var(--brand)] flex items-center justify-center flex-shrink-0">
-                              <PlatformIcon platform={sm.platform} />
+                    {form.socialMedia
+                      .filter((sm) => Boolean(sm && sm.link && sm.link.trim()))
+                      .map((sm, i) => {
+                        const href = sm.link.startsWith("http")
+                          ? sm.link
+                          : `https://${sm.link}`
+                        return (
+                          <a
+                            key={sm.id || `${sm.platform}-${i}`}
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-[var(--surface-alt)] border border-[var(--border-light)] hover:border-[var(--brand)]/40 transition-colors group cursor-pointer"
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="w-7 h-7 rounded-lg bg-[var(--brand)]/10 text-[var(--brand)] flex items-center justify-center flex-shrink-0">
+                                <PlatformIcon platform={sm.platform} />
+                              </div>
+                              <div className="min-w-0">
+                                <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] block">
+                                  {sm.platform}
+                                </span>
+                                <p className="text-xs font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] truncate">
+                                  {sm.link.replace(/^https?:\/\//, "")}
+                                </p>
+                              </div>
                             </div>
-                            <div className="min-w-0">
-                              <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] block">
-                                {sm.platform}
-                              </span>
-                              <p className="text-xs font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] truncate">
-                                {sm.link.replace(/^https?:\/\//, "")}
-                              </p>
-                            </div>
-                          </div>
-                          <span className="text-xs text-[var(--brand)] flex-shrink-0">
-                            ↗
-                          </span>
-                        </a>
-                      )
-                    })}
+                            <span className="text-xs text-[var(--brand)] flex-shrink-0">
+                              ↗
+                            </span>
+                          </a>
+                        )
+                      })}
                   </div>
                 </div>
               )}
