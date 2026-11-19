@@ -160,8 +160,16 @@ export async function getMe(): Promise<User | null> {
 
     clearSession()
     return null
-  } catch {
-    clearSession()
+  } catch (err: unknown) {
+    if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+      clearSession()
+      return null
+    }
+    // On network failure or offline state, do not destroy user session; fall back to cached session
+    const cached = getStoredSession()
+    if (cached) {
+      return cached
+    }
     return null
   }
 }

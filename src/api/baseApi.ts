@@ -11,11 +11,43 @@ export const TOKEN_STORAGE_KEY = "kbn_token"
  * Centralized Backend Base URL
  * Reads from VITE_API_URL if configured, otherwise defaults appropriately.
  */
-export const API_BASE_URL: string =
-  import.meta.env.VITE_API_URL ||
-  (typeof window !== "undefined" && window.location.port === "3001"
-    ? "/api/v1"
-    : "http://localhost:3001/api/v1")
+function getResolvedApiBaseUrl(): string {
+  const envUrl = import.meta.env.VITE_API_URL
+
+  if (typeof window !== "undefined") {
+    const isRemote =
+      window.location.hostname &&
+      window.location.hostname !== "localhost" &&
+      window.location.hostname !== "127.0.0.1"
+
+    // If accessing from another device (e.g. mobile on LAN)
+    if (isRemote) {
+      if (envUrl) {
+        try {
+          const parsed = new URL(envUrl, window.location.origin)
+          // If the configured URL has localhost/127.0.0.1, route via proxy or current host
+          if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") {
+            return "/api/v1"
+          }
+          return envUrl
+        } catch {
+          return envUrl
+        }
+      }
+      return "/api/v1"
+    }
+
+    if (envUrl) {
+      return envUrl
+    }
+
+    return window.location.port === "3001" ? "/api/v1" : "http://localhost:3001/api/v1"
+  }
+
+  return envUrl || "/api/v1"
+}
+
+export const API_BASE_URL: string = getResolvedApiBaseUrl()
 
 // Alias for backward compatibility
 export const API_BASE = API_BASE_URL
@@ -90,9 +122,24 @@ export function resolveAssetUrl(filePath?: string | null): string {
   const cleanPath = filePath.startsWith("/") ? filePath : `/${filePath}`
   if (API_BASE_URL.startsWith("http://") || API_BASE_URL.startsWith("https://")) {
     const base = API_BASE_URL.replace(/\/api\/v1\/?$/, "")
+    if (
+      typeof window !== "undefined" &&
+      window.location.hostname &&
+      window.location.hostname !== "localhost" &&
+      window.location.hostname !== "127.0.0.1"
+    ) {
+      try {
+        const url = new URL(base)
+        if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
+          return cleanPath
+        }
+      } catch {
+        // Fallback below
+      }
+    }
     return `${base}${cleanPath}`
   }
-  return `http://localhost:3001${cleanPath}`
+  return cleanPath
 }
 
 export const resolveFileUrl = resolveAssetUrl
