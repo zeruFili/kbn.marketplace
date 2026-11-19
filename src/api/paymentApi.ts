@@ -6,6 +6,7 @@
  */
 
 import { baseApi, ApiError } from "./baseApi"
+import type { ApiResponse } from "./types"
 
 export interface MembershipCategoryOption {
   id: string
@@ -28,9 +29,9 @@ export const DEFAULT_MEMBERSHIP_CATEGORIES: MembershipCategoryOption[] = [
     name: "Beginner Professionals & Business Owners",
     amount: 250,
     currency: "ETB",
-    formattedPrice: "250 ETB",
+    formattedPrice: "ETB 250",
     tier: 1,
-    description: "Ideal for emerging professionals, startups, and small business owners starting their kingdom journey.",
+    description: "Ideal for emerging professionals, startups, and small business owners.",
   },
   {
     id: "developing_professionals_business_owners",
@@ -38,7 +39,7 @@ export const DEFAULT_MEMBERSHIP_CATEGORIES: MembershipCategoryOption[] = [
     name: "Developing Professionals & Business Owners",
     amount: 500,
     currency: "ETB",
-    formattedPrice: "500 ETB",
+    formattedPrice: "ETB 500",
     tier: 2,
     popular: true,
     description: "For growing professionals and established businesses scaling operations and networking.",
@@ -49,9 +50,9 @@ export const DEFAULT_MEMBERSHIP_CATEGORIES: MembershipCategoryOption[] = [
     name: "Established Professionals & Business Owners",
     amount: 750,
     currency: "ETB",
-    formattedPrice: "750 ETB",
+    formattedPrice: "ETB 750",
     tier: 3,
-    description: "For seasoned leaders, enterprise builders, and high-impact industry leaders.",
+    description: "For experienced professionals and business owners expanding their influence and partnerships.",
   },
   {
     id: "investors_strategic_partners",
@@ -59,9 +60,9 @@ export const DEFAULT_MEMBERSHIP_CATEGORIES: MembershipCategoryOption[] = [
     name: "Investors & Strategic Partners",
     amount: 1000,
     currency: "ETB",
-    formattedPrice: "1,000 ETB",
+    formattedPrice: "ETB 1,000",
     tier: 4,
-    description: "Exclusive tier for capital allocators, board leaders, and catalytic ecosystem partners.",
+    description: "For investors and strategic partners seeking meaningful connections and opportunities.",
   },
 ]
 
@@ -470,5 +471,16 @@ export async function updateAdminPaymentStatus(
     return res.data
   }
   return null
+}
+
+/**
+ * Persist selected membership category to backend for authenticated user
+ */
+export async function selectMembershipCategoryApi(
+  membershipCategory: string
+): Promise<ApiResponse<{ user: any; membershipCategory: any }>> {
+  return baseApi.post<{ user: any; membershipCategory: any }>("/payments/select-category", {
+    membershipCategory,
+  })
 }
 

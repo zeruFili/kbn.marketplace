@@ -5,6 +5,7 @@ import {
   verifyPaymentReceipt,
   fetchPaymentValidity,
   fetchMembershipCategories,
+  selectMembershipCategoryApi,
   getMembershipCategoryLabel,
   DEFAULT_MEMBERSHIP_CATEGORIES,
   type VerifiedPayment,
@@ -59,6 +60,7 @@ export default function PaymentReceiverPage() {
   const [loading, setLoading] = useState(false)
   const [checkingStatus, setCheckingStatus] = useState(false)
   const [copiedField, setCopiedField] = useState<string | null>(null)
+  const [savingCategory, setSavingCategory] = useState(false)
 
   // Under verification / duplicate prevention state
   const [isUnderVerification, setIsUnderVerification] = useState(false)
@@ -99,13 +101,12 @@ export default function PaymentReceiverPage() {
   }, [categories, selectedCategoryId])
 
   // Determine active flow step
-  // Step 1: Category selection
-  // Step 2: Payment credentials & receipt upload
+  // Step 1: Category selection (/payment)
+  // Step 2: Payment credentials & receipt upload (/payment/verify or /payment/receiver)
   const isPaymentStep = Boolean(
     selectedCategory &&
       (location.pathname === "/payment/verify" ||
-        location.pathname === "/payment/receiver" ||
-        Boolean(categoryQuery))
+        location.pathname === "/payment/receiver")
   )
 
   // Fetch dynamic categories on mount
@@ -116,13 +117,6 @@ export default function PaymentReceiverPage() {
       }
     })
   }, [])
-
-  // Redirect if user is already active
-  useEffect(() => {
-    if (user && user.status === "active") {
-      navigate("/", { replace: true })
-    }
-  }, [user, navigate])
 
   // Clean up object URL previews on unmount
   useEffect(() => {
@@ -256,23 +250,38 @@ export default function PaymentReceiverPage() {
   }
 
   // STEP NAVIGATION:
-  // Redirect to separate payment credentials and upload page
-  const handleProceedToPayment = (catId?: string) => {
+  // Persist selected membership category to backend and redirect to payment credentials and upload page
+  const handleProceedToPayment = async (catId?: string) => {
     const targetId = catId || selectedCategoryId
     if (!targetId) {
       setClientError("Please select a membership category first.")
       return
     }
-    const cat = categories.find((c) => c.id === targetId)
+    const cat = categories.find((c) => c.id === targetId || c.code === targetId)
     if (!cat) {
       setClientError("Selected category could not be found. Please pick a category from the list.")
       return
     }
 
-    setSelectedCategoryId(targetId)
-    sessionStorage.setItem("kbn_selected_category", targetId)
+    const resolvedId = cat.id || cat.code || targetId
+    setSelectedCategoryId(resolvedId)
+    sessionStorage.setItem("kbn_selected_category", resolvedId)
     setClientError(null)
-    navigate(`/payment/verify?category=${encodeURIComponent(targetId)}`)
+    setSavingCategory(true)
+
+    try {
+      // Persist chosen category to backend for this user
+      const res = await selectMembershipCategoryApi(resolvedId)
+      if (res && res.success && res.data?.user) {
+        updateUser(res.data.user)
+      }
+    } catch (err) {
+      console.warn("Could not persist category selection to backend:", err)
+      // Non-blocking: allow user to continue to payment credentials
+    } finally {
+      setSavingCategory(false)
+      navigate(`/payment/verify?category=${encodeURIComponent(resolvedId)}`)
+    }
   }
 
   // Back to category selection (Step 1)
@@ -438,25 +447,25 @@ export default function PaymentReceiverPage() {
               <div>
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider bg-[var(--brand)]/10 text-[var(--brand)] mb-2">
                   <span className="w-2 h-2 rounded-full bg-[var(--brand)] animate-pulse" />
-                  {isUnderVerification
+                  {isPaymentStep && isUnderVerification
                     ? "Payment Verification Status"
                     : isPaymentStep
                     ? "Step 2 of 2 • Payment & Verification"
                     : "Step 1 of 2 • Category Selection"}
                 </div>
                 <h1 className="font-serif text-3xl sm:text-4xl text-[var(--text-primary)]">
-                  {isUnderVerification
+                  {isPaymentStep && isUnderVerification
                     ? "Submission Under Review"
                     : isPaymentStep
                     ? "Payment Receiver & Verification"
-                    : "Membership Category Selection"}
+                    : "Choose Your Membership Package"}
                 </h1>
                 <p className="text-sm text-[var(--text-secondary)] mt-1 max-w-2xl">
-                  {isUnderVerification
+                  {isPaymentStep && isUnderVerification
                     ? "Your payment details have been submitted and are currently being reviewed by the administrative team."
                     : isPaymentStep && selectedCategory
                     ? `Transfer your membership fee for ${selectedCategory.name} (${selectedCategory.formattedPrice}) to the official receiver details below, then upload your receipt.`
-                    : "Select a membership category below. Once selected, you will proceed to the official receiver payment credentials and receipt upload instructions."}
+                    : "Select one of the 4 membership categories below. Once chosen, you will be redirected to the official payment credentials and receipt upload page."}
                 </p>
               </div>
 
@@ -482,7 +491,7 @@ export default function PaymentReceiverPage() {
             </div>
 
             {/* Step Progress Breadcrumb */}
-            {!isUnderVerification && (
+            {(!isPaymentStep || !isUnderVerification) && (
               <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
                 <div className="flex items-center gap-2 sm:gap-3 text-xs font-semibold">
                   <button
@@ -541,8 +550,8 @@ export default function PaymentReceiverPage() {
             )}
           </div>
 
-          {/* VIEW MODE 1: UNDER VERIFICATION (When submitted or existing pending payment) */}
-          {isUnderVerification ? (
+          {/* VIEW MODE 1: UNDER VERIFICATION (When on verify step and submission is pending) */}
+          {isPaymentStep && isUnderVerification ? (
             <div className="bg-white rounded-3xl border border-amber-200 p-6 sm:p-10 shadow-sm space-y-6 animate-fade-in">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--border-light)] pb-6">
                 <div className="flex items-start gap-4">
@@ -957,6 +966,42 @@ export default function PaymentReceiverPage() {
                   )}
                 </div>
 
+                {/* Under Review Notice Banner if user already submitted a payment */}
+                {isUnderVerification && (
+                  <div className="p-4 sm:p-5 rounded-2xl bg-amber-50/90 border border-amber-300 text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
+                    <div className="flex items-start sm:items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-amber-100 border border-amber-300 flex items-center justify-center text-xl shrink-0">
+                        ⏳
+                      </div>
+                      <div>
+                        <p className="font-bold text-xs uppercase tracking-wide text-amber-900">
+                          Current Payment Under Review
+                        </p>
+                        <p className="text-xs text-amber-800 mt-0.5 leading-relaxed">
+                          {verificationMessage} You can still re-select a membership package below if needed.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                      <button
+                        type="button"
+                        onClick={handleRefreshStatus}
+                        disabled={checkingStatus}
+                        className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-white border border-amber-300 hover:bg-amber-100 transition-colors shadow-2xs cursor-pointer"
+                      >
+                        {checkingStatus ? "Checking..." : "↻ Check Status"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => navigate("/payment/verify")}
+                        className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white transition-colors shadow-2xs cursor-pointer"
+                      >
+                        View Submission Details →
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Error Banner */}
                 {clientError && (
                   <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-3 animate-fade-in">
@@ -1072,6 +1117,7 @@ export default function PaymentReceiverPage() {
 
                           <button
                             type="button"
+                            disabled={savingCategory}
                             onClick={(e) => {
                               e.stopPropagation()
                               handleProceedToPayment(cat.id)
@@ -1080,10 +1126,19 @@ export default function PaymentReceiverPage() {
                               isSelected
                                 ? "bg-[var(--accent)] hover:bg-[var(--accent-dark)] text-white shadow-xs"
                                 : "bg-[var(--brand)] hover:bg-[var(--brand-light)] text-white"
-                            }`}
+                            } ${savingCategory ? "opacity-70 cursor-not-allowed" : ""}`}
                           >
-                            <span>Select & Continue</span>
-                            <span aria-hidden="true">→</span>
+                            {savingCategory && selectedCategoryId === cat.id ? (
+                              <>
+                                <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                <span>Saving...</span>
+                              </>
+                            ) : (
+                              <>
+                                <span>Select & Continue</span>
+                                <span aria-hidden="true">→</span>
+                              </>
+                            )}
                           </button>
                         </div>
                       </div>
@@ -1102,15 +1157,24 @@ export default function PaymentReceiverPage() {
                   <button
                     type="button"
                     onClick={() => handleProceedToPayment()}
-                    disabled={!selectedCategory}
+                    disabled={!selectedCategory || savingCategory}
                     className="py-3.5 px-7 rounded-2xl font-semibold text-sm text-white bg-[var(--brand)] hover:bg-[var(--brand-light)] transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-sm flex items-center justify-center gap-2"
                   >
-                    <span>
-                      {selectedCategory
-                        ? `Proceed to Payment (${selectedCategory.formattedPrice})`
-                        : "Select a Category to Proceed"}
-                    </span>
-                    <span aria-hidden="true">→</span>
+                    {savingCategory ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Saving Selection...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>
+                          {selectedCategory
+                            ? `Proceed to Payment (${selectedCategory.formattedPrice})`
+                            : "Select a Category to Proceed"}
+                        </span>
+                        <span aria-hidden="true">→</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
