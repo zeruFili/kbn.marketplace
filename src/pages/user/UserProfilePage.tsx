@@ -375,6 +375,9 @@ export default function UserProfilePage() {
                   </svg>
                   <span className="truncate">{user.email}</span>
                 </p>
+                <p className="text-xs text-[var(--text-tertiary)] mt-1.5 font-medium">
+                  Click photo to view larger
+                </p>
               </div>
             </div>
 

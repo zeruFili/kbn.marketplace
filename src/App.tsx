@@ -694,12 +694,9 @@ function PublicPersonDetailLegacy({ item }: { item: UserProfileData }) {
           name={item.fullName}
           size="xl"
           allowEnlarge={true}
-          className="w-32 h-32 rounded-2xl ring-4 ring-white/20 mb-3 cursor-pointer"
+          className="w-32 h-32 rounded-2xl ring-4 ring-white/20 mb-2 cursor-pointer"
         />
-        <p className="text-[11px] text-white/60 mb-5 flex items-center gap-1.5 font-medium">
-          <svg className="w-3.5 h-3.5 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
-          </svg>
+        <p className="text-xs text-white/70 mb-5 font-medium">
           Click photo to view larger
         </p>
         {hasTitle && (

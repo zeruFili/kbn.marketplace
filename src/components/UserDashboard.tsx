@@ -641,6 +641,9 @@ function UserProfile({
             <p className="text-sm text-[var(--text-tertiary)] mt-1.5">
               {profile.city}, {profile.country}
             </p>
+            <p className="text-xs text-[var(--text-tertiary)] mt-1 font-medium">
+              Click photo to view larger
+            </p>
           </div>
         </div>
         {editing ? (

@@ -131,9 +131,7 @@ export default function UserAvatar({
         tabIndex: 0,
         onClick: handleClick,
         onKeyDown: handleKeyDown,
-        title: name
-          ? `Click to view ${name}'s profile photo`
-          : "Click to enlarge profile photo",
+        title: "Click photo to view larger",
       }
     : onClick
     ? {
@@ -258,27 +256,6 @@ export default function UserAvatar({
             onError={() => setHasError(true)}
             className="w-full h-full object-cover rounded-[inherit]"
           />
-          {shouldEnlarge && (
-            <span
-              className="pointer-events-none absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-[inherit]"
-              aria-hidden="true"
-            >
-              <svg className="w-1/3 h-1/3 text-white drop-shadow-md" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
-              </svg>
-            </span>
-          )}
-          {shouldEnlarge && (size === "xl" || size === "lg") && (
-            <span
-              className="pointer-events-none absolute bottom-1 right-1 w-5 h-5 rounded-full bg-black/60 backdrop-blur-xs text-white flex items-center justify-center shadow-xs border border-white/20 group-hover:scale-110 transition-transform"
-              aria-hidden="true"
-              title="Click to enlarge"
-            >
-              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
-              </svg>
-            </span>
-          )}
         </div>
         {modalElement}
       </>
@@ -291,7 +268,7 @@ export default function UserAvatar({
         {...interactiveAttrs}
         className={`${dims.box} ${roundedClass} ${posClass} overflow-hidden bg-gradient-to-br from-[#162D50] via-[#10233F] to-[#0A1628] flex items-center justify-center flex-shrink-0 select-none shadow-sm ${interactiveClass} ${className}`}
         aria-label={alt || name || "User monogram"}
-        title={shouldEnlarge ? `Click to enlarge ${name || "profile photo"}` : name || alt || undefined}
+        title={shouldEnlarge ? "Click photo to view larger" : name || alt || undefined}
       >
         {/* Ambient gold radial highlight overlay (matching business monogram) */}
         <div
@@ -311,27 +288,6 @@ export default function UserAvatar({
         >
           {initials}
         </span>
-        {shouldEnlarge && (
-          <span
-            className="pointer-events-none absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-[inherit]"
-            aria-hidden="true"
-          >
-            <svg className="w-1/3 h-1/3 text-white drop-shadow-md" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
-            </svg>
-          </span>
-        )}
-        {shouldEnlarge && (size === "xl" || size === "lg") && (
-          <span
-            className="pointer-events-none absolute bottom-1 right-1 w-5 h-5 rounded-full bg-black/60 backdrop-blur-xs text-white flex items-center justify-center shadow-xs border border-white/20 group-hover:scale-110 transition-transform"
-            aria-hidden="true"
-            title="Click to enlarge"
-          >
-            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
-            </svg>
-          </span>
-        )}
       </div>
       {modalElement}
     </>
