@@ -399,14 +399,22 @@ export default function AdminCompanyDetailsPage() {
           <div className="flex flex-wrap items-center gap-2.5">
             <button
               type="button"
-              onClick={() => navigate(`/companies/${company.id}`)}
+              onClick={() =>
+                navigate(`/companies/${company.id}`, {
+                  state: { fromDashboard: true },
+                })
+              }
               className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
             >
               View Public Page
             </button>
             <button
               type="button"
-              onClick={() => navigate(`/companies/${company.id}/edit`)}
+              onClick={() =>
+                navigate(`/companies/${company.id}/edit`, {
+                  state: { fromDashboard: true },
+                })
+              }
               className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--brand-dark)] bg-[var(--accent)] hover:brightness-105 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
             >
               Edit Business

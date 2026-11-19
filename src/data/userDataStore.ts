@@ -34,6 +34,8 @@ export interface UserBusinessData {
   phone: string
   email: string
   status: "Published" | "Pending review"
+  services?: string[]
+  socialMedia?: { id?: string; platform: string; link: string }[]
 }
 
 export interface UserArticleData {

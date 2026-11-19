@@ -31,6 +31,7 @@ export interface Company {
   ownerName?: string
   missionStatement?: string
   createdBy?: string
+  socialMedia?: { id?: string; platform: string; link: string }[]
 }
 
 export const CATEGORIES: Category[] = [

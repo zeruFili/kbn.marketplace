@@ -23,6 +23,7 @@ import {
   CompanyCover,
   CompanyLogo,
 } from "../../components/common/CompanyMedia"
+import { PlatformIcon } from "../../components/CompanyProfile"
 
 function mapCompanyToBusiness(
   company: CompanyApiResponse,
@@ -61,6 +62,30 @@ function mapCompanyToBusiness(
     phone: company.phone_number || "",
     email: company.email || fallbackUser?.email || "",
     status: statusText,
+    services: Array.isArray(company.services)
+      ? company.services
+      : typeof company.services === "string"
+        ? (() => {
+            try {
+              const p = JSON.parse(company.services)
+              return Array.isArray(p) ? p : []
+            } catch {
+              return []
+            }
+          })()
+        : [],
+    socialMedia: Array.isArray(company.social_media)
+      ? company.social_media
+      : typeof company.social_media === "string"
+        ? (() => {
+            try {
+              const p = JSON.parse(company.social_media)
+              return Array.isArray(p) ? p : []
+            } catch {
+              return []
+            }
+          })()
+        : [],
   }
 }
 
@@ -509,6 +534,7 @@ function BusinessDetail({
   onSaved?: (updated: UserBusinessData) => void
   onDeleted?: (id: string) => void
 }) {
+  const navigate = useNavigate()
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState(item)
@@ -586,6 +612,47 @@ function BusinessDetail({
     setForm((current) => ({ ...current, [key]: value }))
   }
 
+  const [newService, setNewService] = useState("")
+  const [newPlatform, setNewPlatform] = useState("Website")
+  const [newLink, setNewLink] = useState("")
+
+  function addService() {
+    if (newService.trim()) {
+      const current = form.services || []
+      if (!current.includes(newService.trim())) {
+        update("services", [...current, newService.trim()])
+      }
+      setNewService("")
+    }
+  }
+
+  function removeService(index: number) {
+    const current = form.services || []
+    update(
+      "services",
+      current.filter((_, i) => i !== index),
+    )
+  }
+
+  function addSocialMedia() {
+    if (newLink.trim()) {
+      const current = form.socialMedia || []
+      update("socialMedia", [
+        ...current,
+        { platform: newPlatform, link: newLink.trim() },
+      ])
+      setNewLink("")
+    }
+  }
+
+  function removeSocialMedia(index: number) {
+    const current = form.socialMedia || []
+    update(
+      "socialMedia",
+      current.filter((_, i) => i !== index),
+    )
+  }
+
   async function save() {
     setSaving(true)
     try {
@@ -600,6 +667,13 @@ function BusinessDetail({
       formData.append("phone_number", form.phone)
       formData.append("email", form.email)
       formData.append("physical_address", `${form.city}, ${form.country}`)
+
+      if (form.services && form.services.length > 0) {
+        formData.append("services", JSON.stringify(form.services))
+      }
+      if (form.socialMedia && form.socialMedia.length > 0) {
+        formData.append("social_media", JSON.stringify(form.socialMedia))
+      }
 
       if (logoFile) {
         formData.append("company_logo", logoFile)
@@ -649,6 +723,34 @@ function BusinessDetail({
         website: updated?.website || form.website,
         phone: updated?.phone_number || form.phone,
         email: updated?.email || form.email,
+        services: updated?.services
+          ? (Array.isArray(updated.services)
+              ? updated.services
+              : typeof updated.services === "string"
+                ? (() => {
+                    try {
+                      const p = JSON.parse(updated.services)
+                      return Array.isArray(p) ? p : form.services || []
+                    } catch {
+                      return form.services || []
+                    }
+                  })()
+                : form.services || [])
+          : form.services || [],
+        socialMedia: updated?.social_media
+          ? (Array.isArray(updated.social_media)
+              ? updated.social_media
+              : typeof updated.social_media === "string"
+                ? (() => {
+                    try {
+                      const p = JSON.parse(updated.social_media)
+                      return Array.isArray(p) ? p : form.socialMedia || []
+                    } catch {
+                      return form.socialMedia || []
+                    }
+                  })()
+                : form.socialMedia || [])
+          : form.socialMedia || [],
       }
 
       setForm(updatedForm)
@@ -691,6 +793,9 @@ function BusinessDetail({
       <DetailHeader
         title={form.companyName}
         onBack={onBack}
+        onViewPublic={() =>
+          navigate(`/companies/${item.id}`, { state: { fromDashboard: true } })
+        }
         editing={editing}
         saving={saving}
         onEdit={() => setEditing(true)}
@@ -704,24 +809,27 @@ function BusinessDetail({
       />
 
       <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden">
-        <div className="relative h-48 bg-[var(--brand-dark)] overflow-hidden">
+        <div className="relative h-40 sm:h-52 md:h-60 bg-[var(--brand-dark)] overflow-hidden">
           <CompanyCover
             src={effectiveCover}
             name={form.companyName}
             category={form.industry}
             showWatermark
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-transparent" />
-          <CompanyLogo
-            src={effectiveLogo}
-            name={form.companyName}
-            category={form.industry}
-            size="lg"
-            className="absolute bottom-5 left-6 border-4 border-white shadow-lg"
-          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
         </div>
 
-        <div className="p-6 md:p-8 pt-10">
+        <div className="px-5 sm:px-8 pb-6 md:pb-8 pt-0">
+          <div className="relative -mt-10 sm:-mt-12 mb-5 z-10 flex items-end">
+            <CompanyLogo
+              src={effectiveLogo}
+              name={form.companyName}
+              category={form.industry}
+              size="lg"
+              fit="contain"
+              className="w-20 h-20 sm:w-24 sm:h-24 border-4 border-white dark:border-[var(--surface)] shadow-xl bg-white rounded-2xl shrink-0"
+            />
+          </div>
           {editing ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <EditField
@@ -988,6 +1096,133 @@ function BusinessDetail({
                   multiline
                 />
               </div>
+
+              {/* Inline Services Editor */}
+              <div className="sm:col-span-2 pt-4 border-t border-[var(--border-light)]">
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase mb-2">
+                  Services Offered
+                </label>
+                <div className="flex flex-col sm:flex-row gap-2 mb-3">
+                  <input
+                    type="text"
+                    value={newService}
+                    onChange={(e) => setNewService(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault()
+                        addService()
+                      }
+                    }}
+                    placeholder="Add a business service..."
+                    className="flex-1 bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-4 py-2.5 text-sm text-[var(--text-primary)] outline-none min-h-[44px]"
+                  />
+                  <button
+                    type="button"
+                    onClick={addService}
+                    className="px-5 py-2.5 bg-[var(--brand)] text-white text-sm font-semibold rounded-xl hover:bg-[var(--brand-light)] transition-colors cursor-pointer min-h-[44px] shrink-0"
+                  >
+                    Add Service
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {(form.services || []).map((svc, i) => (
+                    <span
+                      key={i}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 bg-[var(--surface-alt)] border border-[var(--border-light)] text-xs text-[var(--text-secondary)] rounded-full"
+                    >
+                      {svc}
+                      <button
+                        type="button"
+                        onClick={() => removeService(i)}
+                        className="text-red-500 hover:text-red-700 font-bold ml-1 cursor-pointer p-0.5"
+                        title="Remove service"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                  {(!form.services || form.services.length === 0) && (
+                    <span className="text-xs text-[var(--text-tertiary)] italic">
+                      No services added yet.
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Inline Social Media Editor */}
+              <div className="sm:col-span-2 pt-4 border-t border-[var(--border-light)]">
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase mb-2">
+                  Social Media Links
+                </label>
+                <div className="flex flex-col sm:flex-row gap-2 mb-3">
+                  <select
+                    value={newPlatform}
+                    onChange={(e) => setNewPlatform(e.target.value)}
+                    className="bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--text-primary)] outline-none min-h-[44px] sm:w-44 cursor-pointer"
+                  >
+                    <option value="Website">Website</option>
+                    <option value="LinkedIn">LinkedIn</option>
+                    <option value="Facebook">Facebook</option>
+                    <option value="Instagram">Instagram</option>
+                    <option value="Twitter">Twitter / X</option>
+                    <option value="YouTube">YouTube</option>
+                    <option value="Telegram">Telegram</option>
+                    <option value="TikTok">TikTok</option>
+                    <option value="WhatsApp">WhatsApp</option>
+                  </select>
+                  <input
+                    type="text"
+                    value={newLink}
+                    onChange={(e) => setNewLink(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault()
+                        addSocialMedia()
+                      }
+                    }}
+                    placeholder="https://... or profile handle"
+                    className="flex-1 bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-4 py-2.5 text-sm text-[var(--text-primary)] outline-none min-h-[44px]"
+                  />
+                  <button
+                    type="button"
+                    onClick={addSocialMedia}
+                    className="px-5 py-2.5 bg-[var(--brand)] text-white text-sm font-semibold rounded-xl hover:bg-[var(--brand-light)] transition-colors cursor-pointer min-h-[44px] shrink-0"
+                  >
+                    Add Link
+                  </button>
+                </div>
+                {form.socialMedia && form.socialMedia.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {form.socialMedia.map((sm, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[var(--surface-alt)] border border-[var(--border-light)]"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <span className="text-[10px] font-semibold text-[var(--brand)] uppercase tracking-wider block">
+                            {sm.platform}
+                          </span>
+                          <p className="text-xs text-[var(--text-primary)] font-medium truncate">
+                            {sm.link}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeSocialMedia(i)}
+                          className="text-red-500 hover:text-red-700 p-1 rounded font-bold cursor-pointer"
+                          title="Remove link"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-[var(--text-tertiary)] italic">
+                    No social media links added yet.
+                  </p>
+                )}
+              </div>
             </div>
           ) : (
             <>
@@ -1013,30 +1248,96 @@ function BusinessDetail({
                   label="Founder / leadership"
                   value={form.founderLeadership}
                 />
-                <DetailField
-                  label="Website"
-                  value={form.website}
-                  href={
-                    form.website
-                      ? form.website.startsWith("http")
+                {/* Requirement 6: Only display website when provided */}
+                {Boolean(form.website && form.website.trim()) && (
+                  <DetailField
+                    label="Website"
+                    value={form.website}
+                    href={
+                      form.website.startsWith("http")
                         ? form.website
                         : `https://${form.website}`
-                      : undefined
-                  }
-                />
-                <DetailField
-                  label="Phone"
-                  value={form.phone}
-                  href={form.phone ? `tel:${form.phone}` : undefined}
-                />
-                <DetailField
-                  label="Email"
-                  value={form.email}
-                  href={form.email ? `mailto:${form.email}` : undefined}
-                />
+                    }
+                  />
+                )}
+                {Boolean(form.phone && form.phone.trim()) && (
+                  <DetailField
+                    label="Phone"
+                    value={form.phone}
+                    href={`tel:${form.phone}`}
+                  />
+                )}
+                {Boolean(form.email && form.email.trim()) && (
+                  <DetailField
+                    label="Email"
+                    value={form.email}
+                    href={`mailto:${form.email}`}
+                  />
+                )}
                 <DetailField label="City" value={form.city} />
                 <DetailField label="Country" value={form.country} />
               </div>
+
+              {/* Requirement 5 & 4: Services and Social Media in read mode */}
+              {form.services && form.services.length > 0 && (
+                <div className="mt-8 pt-6 border-t border-[var(--border-light)]">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-3">
+                    Services ({form.services.length})
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {form.services.map((svc, i) => (
+                      <span
+                        key={i}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--surface-alt)] border border-[var(--border-light)] text-xs font-medium text-[var(--text-primary)]"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand)]" />
+                        {svc}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {form.socialMedia && form.socialMedia.length > 0 && (
+                <div className="mt-8 pt-6 border-t border-[var(--border-light)]">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-3">
+                    Social Media & Links ({form.socialMedia.length})
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {form.socialMedia.map((sm, i) => {
+                      const href = sm.link.startsWith("http")
+                        ? sm.link
+                        : `https://${sm.link}`
+                      return (
+                        <a
+                          key={sm.id || `${sm.platform}-${i}`}
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-[var(--surface-alt)] border border-[var(--border-light)] hover:border-[var(--brand)]/40 transition-colors group cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-7 h-7 rounded-lg bg-[var(--brand)]/10 text-[var(--brand)] flex items-center justify-center flex-shrink-0">
+                              <PlatformIcon platform={sm.platform} />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)] block">
+                                {sm.platform}
+                              </span>
+                              <p className="text-xs font-semibold text-[var(--text-primary)] group-hover:text-[var(--brand)] truncate">
+                                {sm.link.replace(/^https?:\/\//, "")}
+                              </p>
+                            </div>
+                          </div>
+                          <span className="text-xs text-[var(--brand)] flex-shrink-0">
+                            ↗
+                          </span>
+                        </a>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -1048,6 +1349,7 @@ function BusinessDetail({
 function DetailHeader({
   title,
   onBack,
+  onViewPublic,
   editing,
   saving,
   onEdit,
@@ -1057,6 +1359,7 @@ function DetailHeader({
 }: {
   title: string
   onBack: () => void
+  onViewPublic?: () => void
   editing: boolean
   saving: boolean
   onEdit: () => void
@@ -1072,7 +1375,29 @@ function DetailHeader({
       >
         <span aria-hidden="true">←</span> Back to list
       </button>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
+        {!editing && onViewPublic && (
+          <button
+            type="button"
+            onClick={onViewPublic}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold text-[var(--brand)] border border-[var(--brand)]/30 hover:bg-[var(--brand)]/10 transition-colors cursor-pointer"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+              />
+            </svg>
+            View Public Profile
+          </button>
+        )}
         {editing ? (
           <>
             <button

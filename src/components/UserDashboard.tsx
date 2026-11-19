@@ -41,9 +41,9 @@ import {
 import { type Category } from "../data/companies"
 
 type UserPage = "profile" | "business" | "payment"
-type SelectedContent = { type: UserContentType id: string } | null
+type SelectedContent = { type: UserContentType; id: string } | null
 
-const USER_NAV_ITEMS: { id: UserPage label: string icon: string }[] = [
+const USER_NAV_ITEMS: { id: UserPage; label: string; icon: string }[] = [
   {
     id: "profile",
     label: "Profile",
@@ -577,7 +577,7 @@ function PaymentPage() {
   )
 }
 
-function PaymentDetail({ label, value }: { label: string value: string }) {
+function PaymentDetail({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-[var(--surface-alt)] rounded-xl border border-[var(--border-light)] p-4">
       <p className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)] mb-1">
@@ -959,7 +959,7 @@ function UserContentDetail({
   data: UserDashboardData
   businesses?: UserBusinessData[]
   email: string
-  selected: { type: UserContentType id: string }
+  selected: { type: UserContentType; id: string }
   onBack: () => void
   onBusinessUpdated?: () => void
   onBusinessDeleted?: () => void
@@ -1434,7 +1434,7 @@ function BusinessDetail({
         onDelete={() => void handleDelete()}
       />
       <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] overflow-hidden">
-        <div className="relative h-48 bg-[var(--brand-dark)] overflow-hidden">
+        <div className="relative h-40 sm:h-52 md:h-60 bg-[var(--brand-dark)] overflow-hidden">
           <CompanyCover
             src={effectiveCover}
             name={form.companyName}
@@ -1442,15 +1442,18 @@ function BusinessDetail({
             showWatermark
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-transparent" />
-          <CompanyLogo
-            src={effectiveLogo}
-            name={form.companyName}
-            category={form.industry}
-            size="lg"
-            className="absolute bottom-5 left-6 border-4 border-white shadow-lg"
-          />
         </div>
-        <div className="p-6 md:p-8 pt-10">
+        <div className="px-5 sm:px-8 pb-6 md:pb-8 pt-0">
+          <div className="relative -mt-10 sm:-mt-12 mb-5 z-10 flex items-end">
+            <CompanyLogo
+              src={effectiveLogo}
+              name={form.companyName}
+              category={form.industry}
+              size="lg"
+              fit="contain"
+              className="w-20 h-20 sm:w-24 sm:h-24 border-4 border-white dark:border-[var(--surface)] shadow-xl bg-white rounded-2xl shrink-0"
+            />
+          </div>
           {editing ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <EditField
@@ -3191,7 +3194,7 @@ const ALL_CATEGORIES: Category[] = [
   "Automotive",
 ]
 
-function ApplyCompany({ user }: { user: { name: string email: string } }) {
+function ApplyCompany({ user }: { user: { name: string; email: string } }) {
   const [step, setStep] = useState(1)
   const [submitted, setSubmitted] = useState(false)
   const [form, setForm] = useState({
@@ -3210,7 +3213,7 @@ function ApplyCompany({ user }: { user: { name: string email: string } }) {
     licenseDoc:
       "https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=600&h=800&fit=crop&auto=format",
     supportingDocs: [] as string[],
-    socialLinks: [] as { platform: string url: string }[],
+    socialLinks: [] as { platform: string; url: string }[],
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { useParams, useNavigate } from "react-router-dom"
+import { useParams, useNavigate, useLocation } from "react-router-dom"
 import Navbar from "../components/Navbar"
 import { type Company } from "../data/companies"
 import {
@@ -15,6 +15,8 @@ import {
 export default function EditCompanyPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
+  const isFromDashboard = Boolean(location.state?.fromDashboard)
 
   const [company, setCompany] = useState<Company | null>(null)
   const [categories, setCategories] = useState<CategoryApiItem[]>([])
@@ -42,6 +44,11 @@ export default function EditCompanyPage() {
   const [tags, setTags] = useState<string[]>([])
   const [newService, setNewService] = useState("")
   const [newTag, setNewTag] = useState("")
+
+  // Social Media state
+  const [socialMedia, setSocialMedia] = useState<{ id?: string; platform: string; link: string }[]>([])
+  const [newSocialPlatform, setNewSocialPlatform] = useState("Website")
+  const [newSocialLink, setNewSocialLink] = useState("")
 
   useEffect(() => {
     let active = true
@@ -84,6 +91,7 @@ export default function EditCompanyPage() {
       setBanner(comp.banner || "")
       setServices([...(comp.services || [])])
       setTags([...(comp.tags || [])])
+      setSocialMedia(comp.socialMedia ? [...comp.socialMedia] : [])
     }
 
     fetchCompanyById(id)
@@ -139,6 +147,21 @@ export default function EditCompanyPage() {
     setTags(tags.filter((_, i) => i !== index))
   }
 
+  const handleAddSocialMedia = (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    if (newSocialLink.trim()) {
+      setSocialMedia([
+        ...socialMedia,
+        { platform: newSocialPlatform, link: newSocialLink.trim() },
+      ])
+      setNewSocialLink("")
+    }
+  }
+
+  const handleRemoveSocialMedia = (index: number) => {
+    setSocialMedia(socialMedia.filter((_, i) => i !== index))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!id || !company) return
@@ -162,6 +185,7 @@ export default function EditCompanyPage() {
         physical_address: address.trim(),
         description: description.trim(),
         services,
+        social_media: socialMedia,
       })
 
       if (!res) {
@@ -170,7 +194,9 @@ export default function EditCompanyPage() {
 
       setSuccess(true)
       setTimeout(() => {
-        navigate(`/companies/${id}`)
+        navigate(`/companies/${id}`, {
+          state: isFromDashboard ? { fromDashboard: true } : undefined,
+        })
       }, 1200)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to update company.")
@@ -221,7 +247,11 @@ export default function EditCompanyPage() {
       <div className="bg-[var(--brand-dark)] py-10 md:py-14 text-white">
         <div className="max-w-5xl mx-auto px-4 md:px-8">
           <button
-            onClick={() => navigate(`/companies/${id}`)}
+            onClick={() =>
+              navigate(`/companies/${id}`, {
+                state: isFromDashboard ? { fromDashboard: true } : undefined,
+              })
+            }
             className="flex items-center gap-2 bg-white/10 backdrop-blur-md text-white text-sm font-medium px-4 py-2 rounded-xl border border-white/15 hover:bg-white/20 transition-all mb-4 cursor-pointer"
           >
             <svg
@@ -495,7 +525,7 @@ export default function EditCompanyPage() {
                 <h2 className="text-lg font-serif font-bold text-[var(--text-primary)] border-b border-[var(--border-light)] pb-2 mb-3">
                   Services
                 </h2>
-                <div className="flex gap-2 mb-3">
+                <div className="flex flex-col sm:flex-row gap-2 mb-3">
                   <input
                     type="text"
                     value={newService}
@@ -507,14 +537,14 @@ export default function EditCompanyPage() {
                       }
                     }}
                     placeholder="Add a service..."
-                    className="flex-1 bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-3 py-2 text-sm text-[var(--text-primary)] outline-none"
+                    className="flex-1 bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-4 py-2.5 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 min-h-[44px]"
                   />
                   <button
                     type="button"
                     onClick={() => handleAddService()}
-                    className="px-4 py-2 bg-[var(--brand)] text-white text-xs font-semibold rounded-xl hover:bg-[var(--brand-light)] transition-colors cursor-pointer"
+                    className="px-5 py-2.5 bg-[var(--brand)] text-white text-sm font-semibold rounded-xl hover:bg-[var(--brand-light)] transition-colors cursor-pointer min-h-[44px] shrink-0"
                   >
-                    Add
+                    Add Service
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -527,12 +557,18 @@ export default function EditCompanyPage() {
                       <button
                         type="button"
                         onClick={() => handleRemoveService(i)}
-                        className="text-red-500 hover:text-red-700 font-bold ml-1 cursor-pointer"
+                        className="text-red-500 hover:text-red-700 font-bold ml-1 cursor-pointer p-0.5"
+                        title="Remove service"
                       >
                         ×
                       </button>
                     </span>
                   ))}
+                  {services.length === 0 && (
+                    <span className="text-xs text-[var(--text-tertiary)] italic">
+                      No services added yet.
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -540,20 +576,26 @@ export default function EditCompanyPage() {
                 <h2 className="text-lg font-serif font-bold text-[var(--text-primary)] border-b border-[var(--border-light)] pb-2 mb-3">
                   Tags
                 </h2>
-                <div className="flex gap-2 mb-3">
+                <div className="flex flex-col sm:flex-row gap-2 mb-3">
                   <input
                     type="text"
                     value={newTag}
                     onChange={(e) => setNewTag(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault()
+                        handleAddTag(e)
+                      }
+                    }}
                     placeholder="Add a tag..."
-                    className="flex-1 bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-3 py-2 text-sm text-[var(--text-primary)] outline-none"
+                    className="flex-1 bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-4 py-2.5 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--accent-dark)]/20 min-h-[44px]"
                   />
                   <button
                     type="button"
                     onClick={handleAddTag}
-                    className="px-4 py-2 bg-[var(--accent-dark)] text-white text-xs font-semibold rounded-xl hover:bg-amber-700 transition-colors cursor-pointer"
+                    className="px-5 py-2.5 bg-[var(--accent-dark)] text-white text-sm font-semibold rounded-xl hover:bg-amber-700 transition-colors cursor-pointer min-h-[44px] shrink-0"
                   >
-                    Add
+                    Add Tag
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -566,29 +608,118 @@ export default function EditCompanyPage() {
                       <button
                         type="button"
                         onClick={() => handleRemoveTag(i)}
-                        className="text-red-500 hover:text-red-700 font-bold ml-1 cursor-pointer"
+                        className="text-red-500 hover:text-red-700 font-bold ml-1 cursor-pointer p-0.5"
+                        title="Remove tag"
                       >
                         ×
                       </button>
                     </span>
                   ))}
+                  {tags.length === 0 && (
+                    <span className="text-xs text-[var(--text-tertiary)] italic">
+                      No tags added yet.
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
 
+            {/* Section 6: Social Media Links */}
+            <div>
+              <h2 className="text-lg font-serif font-bold text-[var(--text-primary)] border-b border-[var(--border-light)] pb-2 mb-3">
+                Social Media Links
+              </h2>
+              <p className="text-xs text-[var(--text-tertiary)] mb-3">
+                Connect your social media pages and handles to make them accessible on your company profile.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2.5 mb-4">
+                <select
+                  value={newSocialPlatform}
+                  onChange={(e) => setNewSocialPlatform(e.target.value)}
+                  className="bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--text-primary)] outline-none min-h-[44px] sm:w-44 cursor-pointer focus:ring-2 focus:ring-[var(--brand)]/20"
+                >
+                  <option value="Website">Website</option>
+                  <option value="LinkedIn">LinkedIn</option>
+                  <option value="Facebook">Facebook</option>
+                  <option value="Instagram">Instagram</option>
+                  <option value="Twitter">Twitter / X</option>
+                  <option value="YouTube">YouTube</option>
+                  <option value="Telegram">Telegram</option>
+                  <option value="TikTok">TikTok</option>
+                  <option value="WhatsApp">WhatsApp</option>
+                </select>
+                <input
+                  type="text"
+                  value={newSocialLink}
+                  onChange={(e) => setNewSocialLink(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      handleAddSocialMedia()
+                    }
+                  }}
+                  placeholder="https://... or handle"
+                  className="flex-1 bg-[var(--surface-alt)] border border-[var(--border-default)] rounded-xl px-4 py-2.5 text-sm text-[var(--text-primary)] outline-none min-h-[44px] focus:ring-2 focus:ring-[var(--brand)]/20"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleAddSocialMedia()}
+                  className="px-5 py-2.5 bg-[var(--brand)] text-white text-sm font-semibold rounded-xl hover:bg-[var(--brand-light)] transition-colors cursor-pointer min-h-[44px] shrink-0"
+                >
+                  Add Link
+                </button>
+              </div>
+
+              {socialMedia.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {socialMedia.map((sm, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between gap-3 p-3 rounded-xl bg-[var(--surface-alt)] border border-[var(--border-light)]"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[10px] font-semibold text-[var(--brand)] uppercase tracking-wider block">
+                          {sm.platform}
+                        </span>
+                        <p className="text-xs text-[var(--text-primary)] font-medium truncate">
+                          {sm.link}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveSocialMedia(i)}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 p-1.5 rounded-lg text-sm font-bold cursor-pointer transition-colors"
+                        title="Remove link"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-[var(--text-tertiary)] italic">
+                  No social media links added yet.
+                </p>
+              )}
+            </div>
+
             {/* Actions */}
-            <div className="flex items-center justify-end gap-3 pt-6 border-t border-[var(--border-light)]">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-6 border-t border-[var(--border-light)]">
               <button
                 type="button"
-                onClick={() => navigate(`/companies/${id}`)}
-                className="px-5 py-2.5 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-alt)] rounded-xl transition-all cursor-pointer"
+                onClick={() =>
+                  navigate(`/companies/${id}`, {
+                    state: isFromDashboard ? { fromDashboard: true } : undefined,
+                  })
+                }
+                className="px-5 py-3 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-alt)] rounded-xl transition-all cursor-pointer text-center"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={saving}
-                className="px-6 py-2.5 bg-[var(--brand)] text-white text-sm font-semibold rounded-xl hover:bg-[var(--brand-light)] transition-all shadow-md cursor-pointer disabled:opacity-50"
+                className="px-6 py-3 bg-[var(--brand)] text-white text-sm font-semibold rounded-xl hover:bg-[var(--brand-light)] transition-all shadow-md cursor-pointer disabled:opacity-50 text-center"
               >
                 {saving ? "Saving Changes..." : "Save Changes"}
               </button>

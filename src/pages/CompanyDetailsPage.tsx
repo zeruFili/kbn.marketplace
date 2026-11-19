@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { useParams, useNavigate } from "react-router-dom"
+import { useParams, useNavigate, useLocation } from "react-router-dom"
 import Navbar from "../components/Navbar"
 import CompanyProfile from "../components/CompanyProfile"
 import {
@@ -85,12 +85,22 @@ export default function CompanyDetailsPage() {
     )
   }
 
+  const location = useLocation()
+  const isFromDashboard = Boolean(location.state?.fromDashboard)
+
   return (
     <div className="min-h-screen bg-[var(--surface-alt)]">
       <Navbar />
       <CompanyProfile
         company={company}
-        onBack={() => navigate("/companies")}
+        fromDashboard={isFromDashboard}
+        onBack={() => {
+          if (isFromDashboard) {
+            navigate("/dashboard/business")
+          } else {
+            navigate("/companies")
+          }
+        }}
       />
     </div>
   )

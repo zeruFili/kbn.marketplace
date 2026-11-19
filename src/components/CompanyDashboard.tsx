@@ -577,7 +577,7 @@ function Field({
   onChange: (v: string) => void
   onBlur?: () => void
   as?: "textarea" | "select"
-  options?: { value: string label: string }[]
+  options?: { value: string; label: string }[]
 }) {
   const id = label.toLowerCase().replace(/\s+/g, "-")
   return (

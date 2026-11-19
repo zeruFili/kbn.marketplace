@@ -324,6 +324,7 @@ export interface CompanyLogoProps {
   name?: string
   category?: string
   size?: "sm" | "md" | "lg" | "xl"
+  fit?: "contain" | "cover"
   className?: string
   imageClassName?: string
 }
@@ -347,6 +348,7 @@ export function CompanyLogo({
   name = "",
   category,
   size = "sm",
+  fit = "contain",
   className = "",
   imageClassName = "",
 }: CompanyLogoProps) {
@@ -360,16 +362,21 @@ export function CompanyLogo({
     setHasError(false)
   }, [src])
 
+  const hasPosition = /\b(absolute|fixed|relative|sticky)\b/.test(className)
+  const posClass = hasPosition ? "" : "relative"
+
   if (resolvedUrl && !hasError) {
     return (
       <div
-        className={`${dims.box} overflow-hidden bg-white flex items-center justify-center flex-shrink-0 ${className}`}
+        className={`${dims.box} ${posClass} overflow-hidden bg-white flex items-center justify-center flex-shrink-0 ${className}`}
       >
         <img
           src={resolvedUrl}
           alt={name || "Company logo"}
           onError={() => setHasError(true)}
-          className={`w-full h-full object-cover ${imageClassName}`}
+          className={`w-full h-full ${
+            fit === "cover" ? "object-cover" : "object-contain p-1"
+          } ${imageClassName}`}
         />
       </div>
     )
@@ -377,7 +384,7 @@ export function CompanyLogo({
 
   return (
     <div
-      className={`${dims.box} relative overflow-hidden bg-gradient-to-br ${theme.badgeBgClass} flex items-center justify-center flex-shrink-0 select-none ${className}`}
+      className={`${dims.box} ${posClass} overflow-hidden bg-gradient-to-br ${theme.badgeBgClass} flex items-center justify-center flex-shrink-0 select-none ${className}`}
       aria-label={name || "Company monogram"}
       title={name || undefined}
     >

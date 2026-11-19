@@ -72,7 +72,7 @@ function ValueCard({
   )
 }
 
-function StatCard({ value, label }: { value: string label: string }) {
+function StatCard({ value, label }: { value: string; label: string }) {
   return (
     <div className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-4 sm:p-6 text-center min-w-0">
       <div className="font-serif text-2xl sm:text-3xl font-extrabold text-[var(--accent-dark)] mb-0.5 sm:mb-1">

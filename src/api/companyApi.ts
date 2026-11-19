@@ -5,7 +5,7 @@
 
 import { baseApi, API_BASE_URL, resolveAssetUrl } from "./baseApi"
 import type { ApiResponse } from "./types"
-import type { Company, Category } from "../data/companies"
+export type { Company, Category } from "../data/companies"
 
 export const API_BASE = API_BASE_URL
 
@@ -401,13 +401,36 @@ export function mapApiResponseToCompany(c: CompanyApiResponse): Company {
     email: c.email || "",
     website: c.website || "",
     address: c.physical_address || "Addis Ababa, Ethiopia",
-    services: Array.isArray(c.services) ? c.services : [],
+    services: Array.isArray(c.services)
+      ? c.services
+      : typeof c.services === "string"
+        ? (() => {
+            try {
+              const parsed = JSON.parse(c.services)
+              return Array.isArray(parsed) ? parsed : []
+            } catch {
+              return []
+            }
+          })()
+        : [],
     gallery: [],
     tags: [c.business_category?.name || "Business"].filter(Boolean),
     reviews: [],
     featured: false,
     ownerName: c.owner_primary_contact,
     createdBy: c.created_by,
+    socialMedia: Array.isArray(c.social_media)
+      ? c.social_media
+      : typeof (c as any).social_media === "string"
+        ? (() => {
+            try {
+              const parsed = JSON.parse((c as any).social_media)
+              return Array.isArray(parsed) ? parsed : []
+            } catch {
+              return []
+            }
+          })()
+        : [],
   }
 }
 
