@@ -17,6 +17,9 @@ export interface UserProfileData {
   socialMedia: string
   digitalSlug: string
   email?: string
+  membershipCategory?: string | null
+  membership_category?: string | null
+  membershipCategoryLabel?: string | null
 }
 
 export interface UserBusinessData {
@@ -275,69 +278,82 @@ export function getUserDashboardData(
 ): UserDashboardData {
   const demo = DEMO_DASHBOARD_DATA[email.toLowerCase()]
   const stored = readStoredDashboardData(email)
+  const resolvedCategory =
+    user.membershipCategory ||
+    user.membership_category ||
+    stored?.profile?.membershipCategory ||
+    null
+
+  const baseProfile: UserProfileData =
+    stored?.profile ??
+    (demo
+      ? {
+          fullName: user.name,
+          phone: email.startsWith("abel")
+            ? "+251 911 246 810"
+            : "+251 913 553 204",
+          professionalTitle: email.startsWith("abel")
+            ? "Builder and Community Leader"
+            : "Founder and Creative Director",
+          profilePhoto: user.profileImage || user.avatar || "",
+          shortBio: email.startsWith("abel")
+            ? "I help build practical spaces and purposeful businesses that strengthen families and communities."
+            : "I create thoughtful products and spaces that celebrate Ethiopian creativity and help people flourish.",
+          professionalExperience: email.startsWith("abel")
+            ? "12 years in construction, operations, and social enterprise leadership."
+            : "9 years in fashion, retail, and creative business development.",
+          education: email.startsWith("abel")
+            ? "BSc in Construction Management, Addis Ababa University"
+            : "BA in Fashion Design, Ethiopian Institute of Technology.",
+          achievements: email.startsWith("abel")
+            ? [
+                "Built 18 community spaces",
+                "KBN Community Impact Award 2024",
+                "Mentor, Young Builders Fellowship",
+              ]
+            : [
+                "Launched 2 local brands",
+                "Ethiopian Design Week speaker",
+                "Mentor, Women in Enterprise Circle",
+              ],
+          city: "Addis Ababa",
+          country: "Ethiopia",
+          website: email.startsWith("abel")
+            ? "abeltesfaye.et"
+            : "tigistlemma.et",
+          socialMedia: email.startsWith("abel")
+            ? "@abelbuilds"
+            : "@tigistcreates",
+          digitalSlug: email.startsWith("abel")
+            ? "abel-tesfaye"
+            : "tigist-lemma",
+          membershipCategory: resolvedCategory,
+        }
+      : {
+          fullName: user.name,
+          phone: "Not provided",
+          professionalTitle: "Community Member",
+          profilePhoto: user.profileImage || user.avatar || "",
+          shortBio: "A member of the Kingdom Builders Network community.",
+          professionalExperience: "Add your professional experience.",
+          education: "Add your education.",
+          achievements: [],
+          city: "Not provided",
+          country: "Not provided",
+          website: "Not provided",
+          socialMedia: "Not provided",
+          digitalSlug: user.name
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-|-$/g, ""),
+          membershipCategory: resolvedCategory,
+        })
+
   return {
-    profile:
-      stored?.profile ??
-      (demo
-        ? {
-            fullName: user.name,
-            phone: email.startsWith("abel")
-              ? "+251 911 246 810"
-              : "+251 913 553 204",
-            professionalTitle: email.startsWith("abel")
-              ? "Builder and Community Leader"
-              : "Founder and Creative Director",
-            profilePhoto: user.profileImage || user.avatar || "",
-            shortBio: email.startsWith("abel")
-              ? "I help build practical spaces and purposeful businesses that strengthen families and communities."
-              : "I create thoughtful products and spaces that celebrate Ethiopian creativity and help people flourish.",
-            professionalExperience: email.startsWith("abel")
-              ? "12 years in construction, operations, and social enterprise leadership."
-              : "9 years in fashion, retail, and creative business development.",
-            education: email.startsWith("abel")
-              ? "BSc in Construction Management, Addis Ababa University"
-              : "BA in Fashion Design, Ethiopian Institute of Technology.",
-            achievements: email.startsWith("abel")
-              ? [
-                  "Built 18 community spaces",
-                  "KBN Community Impact Award 2024",
-                  "Mentor, Young Builders Fellowship",
-                ]
-              : [
-                  "Launched 2 local brands",
-                  "Ethiopian Design Week speaker",
-                  "Mentor, Women in Enterprise Circle",
-                ],
-            city: "Addis Ababa",
-            country: "Ethiopia",
-            website: email.startsWith("abel")
-              ? "abeltesfaye.et"
-              : "tigistlemma.et",
-            socialMedia: email.startsWith("abel")
-              ? "@abelbuilds"
-              : "@tigistcreates",
-            digitalSlug: email.startsWith("abel")
-              ? "abel-tesfaye"
-              : "tigist-lemma",
-          }
-        : {
-            fullName: user.name,
-            phone: "Not provided",
-            professionalTitle: "Community Member",
-            profilePhoto: user.profileImage || user.avatar || "",
-            shortBio: "A member of the Kingdom Builders Network community.",
-            professionalExperience: "Add your professional experience.",
-            education: "Add your education.",
-            achievements: [],
-            city: "Not provided",
-            country: "Not provided",
-            website: "Not provided",
-            socialMedia: "Not provided",
-            digitalSlug: user.name
-              .toLowerCase()
-              .replace(/[^a-z0-9]+/g, "-")
-              .replace(/^-|-$/g, ""),
-          }),
+    profile: {
+      ...baseProfile,
+      membershipCategory: resolvedCategory || baseProfile.membershipCategory,
+    },
     businesses: stored?.businesses ?? demo?.businesses ?? [],
     articles: (stored?.articles ?? demo?.articles ?? []).map((item) => {
       const content =
@@ -478,6 +494,7 @@ export function getPublicUserDashboardData(): UserDashboardData[] {
       website: `${name.toLowerCase().replace(/[^a-z]+/g, "")}.et`,
       socialMedia: `@${name.toLowerCase().replace(/[^a-z]+/g, "")}`,
       digitalSlug: name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      membershipCategory: null,
     }
     const articleContent = buildPostContent(
       articleTitles[index],

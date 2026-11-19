@@ -32,6 +32,10 @@ export interface UserProfileResponse {
   updated_at?: string | null
   updatedAt?: string | null
   business?: string | null
+  membershipCategory?: string | null
+  membership_category?: string | null
+  membershipCategoryLabel?: string | null
+  membership_category_label?: string | null
 }
 
 export interface AdminUsersQueryParams {
@@ -211,6 +215,30 @@ export function mapUserToProfileData(u: UserProfileResponse): UserProfileData {
       .filter(Boolean)
   }
 
+  // Only assign membership category if present in user record or active session
+  let membershipCat: string | null =
+    u.membershipCategory ||
+    u.membership_category ||
+    u.membershipCategoryLabel ||
+    u.membership_category_label ||
+    null
+
+  if (!membershipCat) {
+    try {
+      const activeUserJson =
+        typeof localStorage !== "undefined" ? localStorage.getItem("kbn_session") : null
+      if (activeUserJson) {
+        const parsed = JSON.parse(activeUserJson)
+        const isSelf =
+          (Boolean(u.email) && Boolean(parsed.email) && u.email.toLowerCase() === parsed.email.toLowerCase()) ||
+          (Boolean(u.id) && Boolean(parsed.id) && u.id === parsed.id)
+        if (isSelf && (parsed.membershipCategory || parsed.membership_category)) {
+          membershipCat = parsed.membershipCategory || parsed.membership_category
+        }
+      }
+    } catch {}
+  }
+
   return {
     id: u.id,
     fullName: name,
@@ -228,6 +256,11 @@ export function mapUserToProfileData(u: UserProfileResponse): UserProfileData {
     socialMedia: "",
     digitalSlug,
     email: u.email || "",
+    membershipCategory: membershipCat,
+    membershipCategoryLabel:
+      u.membershipCategoryLabel ||
+      u.membership_category_label ||
+      membershipCat,
   }
 }
 

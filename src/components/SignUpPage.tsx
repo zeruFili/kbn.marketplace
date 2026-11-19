@@ -2,6 +2,11 @@ import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../auth/AuthContext"
 import { resendRegistrationOtp } from "../auth/auth"
+import {
+  fetchMembershipCategories,
+  DEFAULT_MEMBERSHIP_CATEGORIES,
+  type MembershipCategoryOption,
+} from "../api/paymentApi"
 import GoogleSignInButton from "./common/GoogleSignInButton"
 const knbLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
 
@@ -33,6 +38,10 @@ export default function SignUpPage({
   // Form State
   const [step, setStep] = useState<"form" | "otp">("form")
   const [otpMethod, setOtpMethod] = useState<"sms" | "email">("sms")
+  const [categories, setCategories] = useState<MembershipCategoryOption[]>(
+    DEFAULT_MEMBERSHIP_CATEGORIES
+  )
+  const [selectedCategory, setSelectedCategory] = useState<string>("beginner_professionals_business_owners")
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
@@ -114,6 +123,16 @@ export default function SignUpPage({
     setImagePreview(url)
     return () => URL.revokeObjectURL(url)
   }, [imageFile])
+
+  useEffect(() => {
+    fetchMembershipCategories()
+      .then((cats) => {
+        if (cats && cats.length > 0) {
+          setCategories(cats)
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   // Cooldown countdown timer for OTP resend
   useEffect(() => {
@@ -215,6 +234,7 @@ export default function SignUpPage({
         password,
         business: business.trim() || undefined,
         profileImage: imageFile,
+        membershipCategory: selectedCategory,
         otpMethod,
       })
 
@@ -293,6 +313,7 @@ export default function SignUpPage({
         password,
         business: business.trim() || undefined,
         profileImage: imageFile,
+        membershipCategory: selectedCategory,
         otp: code,
         otpMethod,
       })
@@ -338,6 +359,9 @@ export default function SignUpPage({
   }
 
   function handlePostRegistrationSuccess(user: any) {
+    if (selectedCategory) {
+      sessionStorage.setItem("kbn_selected_category", selectedCategory)
+    }
     if (onSuccess) {
       onSuccess()
     } else {
@@ -693,6 +717,52 @@ export default function SignUpPage({
                     {fieldErrors.profileImage}
                   </p>
                 )}
+              </div>
+
+              {/* Membership Category Selection */}
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
+                  Membership Tier / Category <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {categories.map((cat) => {
+                    const isSelected = (cat.code || cat.id) === selectedCategory
+                    return (
+                      <button
+                        key={cat.id || cat.code}
+                        type="button"
+                        onClick={() => {
+                          const val = cat.code || cat.id
+                          setSelectedCategory(val)
+                          sessionStorage.setItem("kbn_selected_category", val)
+                        }}
+                        className={`flex flex-col text-left p-3 rounded-xl border transition-all cursor-pointer relative ${
+                          isSelected
+                            ? "border-[var(--brand)] bg-[var(--brand)]/10 ring-2 ring-[var(--brand)] shadow-sm"
+                            : "border-[var(--border-default)] bg-[var(--surface-alt)] hover:border-[var(--border-hover)]"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between w-full mb-1">
+                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                            isSelected
+                              ? "bg-[var(--brand)] text-white"
+                              : "bg-[var(--surface)] text-[var(--text-tertiary)] border border-[var(--border-default)]"
+                          }`}>
+                            Tier {cat.tier}
+                          </span>
+                          <span className="text-xs font-bold text-[var(--brand)]">
+                            {cat.formattedPrice || `${cat.amount} ${cat.currency}`}
+                          </span>
+                        </div>
+                        <span className={`text-xs font-semibold leading-tight mt-0.5 ${
+                          isSelected ? "text-[var(--brand)]" : "text-[var(--text-primary)]"
+                        }`}>
+                          {cat.name}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
 
               <div

@@ -9,50 +9,57 @@ import { baseApi, ApiError } from "./baseApi"
 
 export interface MembershipCategoryOption {
   id: string
+  code?: string
+  categoryId?: string
   name: string
   amount: number
-  currency: "ETB"
+  currency: "ETB" | string
   formattedPrice: string
   tier: number
   description: string
   popular?: boolean
+  is_active?: boolean
 }
 
 export const DEFAULT_MEMBERSHIP_CATEGORIES: MembershipCategoryOption[] = [
   {
     id: "beginner_professionals_business_owners",
+    code: "beginner_professionals_business_owners",
     name: "Beginner Professionals & Business Owners",
     amount: 250,
     currency: "ETB",
-    formattedPrice: "ETB 250",
+    formattedPrice: "250 ETB",
     tier: 1,
     description: "Ideal for emerging professionals, startups, and small business owners starting their kingdom journey.",
   },
   {
     id: "developing_professionals_business_owners",
+    code: "developing_professionals_business_owners",
     name: "Developing Professionals & Business Owners",
     amount: 500,
     currency: "ETB",
-    formattedPrice: "ETB 500",
+    formattedPrice: "500 ETB",
     tier: 2,
     popular: true,
     description: "For growing professionals and established businesses scaling operations and networking.",
   },
   {
     id: "established_professionals_business_owners",
+    code: "established_professionals_business_owners",
     name: "Established Professionals & Business Owners",
     amount: 750,
     currency: "ETB",
-    formattedPrice: "ETB 750",
+    formattedPrice: "750 ETB",
     tier: 3,
     description: "For seasoned leaders, enterprise builders, and high-impact industry leaders.",
   },
   {
     id: "investors_strategic_partners",
+    code: "investors_strategic_partners",
     name: "Investors & Strategic Partners",
     amount: 1000,
     currency: "ETB",
-    formattedPrice: "ETB 1,000",
+    formattedPrice: "1,000 ETB",
     tier: 4,
     description: "Exclusive tier for capital allocators, board leaders, and catalytic ecosystem partners.",
   },
@@ -67,6 +74,41 @@ export function getMembershipCategoryLabel(categoryIdOrKey?: string | null): str
       c.name.toLowerCase().replace(/[^a-z0-9]/g, "") === normalized
   )
   return found ? found.name : categoryIdOrKey
+}
+
+export function getMembershipCategoryInfo(
+  categoryIdOrKey?: string | null
+): MembershipCategoryOption | null {
+  if (!categoryIdOrKey) return null
+  const trimmed = categoryIdOrKey.trim()
+  if (!trimmed) return null
+  const normalized = trimmed.toLowerCase().replace(/[^a-z0-9]/g, "")
+
+  const found = DEFAULT_MEMBERSHIP_CATEGORIES.find(
+    (c) =>
+      c.id.toLowerCase().replace(/[^a-z0-9]/g, "") === normalized ||
+      c.name.toLowerCase().replace(/[^a-z0-9]/g, "") === normalized
+  )
+  if (found) return found
+
+  if (
+    normalized.includes("investor") ||
+    normalized.includes("strategic") ||
+    normalized.includes("partner")
+  ) {
+    return DEFAULT_MEMBERSHIP_CATEGORIES[3]
+  }
+  if (normalized.includes("established")) {
+    return DEFAULT_MEMBERSHIP_CATEGORIES[2]
+  }
+  if (normalized.includes("developing")) {
+    return DEFAULT_MEMBERSHIP_CATEGORIES[1]
+  }
+  if (normalized.includes("beginner") || normalized.includes("starting")) {
+    return DEFAULT_MEMBERSHIP_CATEGORIES[0]
+  }
+
+  return null
 }
 
 export interface VerifiedPayment {

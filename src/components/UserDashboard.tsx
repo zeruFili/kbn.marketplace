@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { useAuth } from "../auth/AuthContext"
 import UserAvatar from "./common/UserAvatar"
+import MembershipBadge from "./common/MembershipBadge"
+import { fetchUserPaymentValidity } from "../api/paymentApi"
 import {
   CompanyCardMedia,
   CompanyCover,
@@ -148,7 +150,54 @@ export default function UserDashboard({ onBack }: { onBack: () => void }) {
   }
 
   const pageTitle = USER_NAV_ITEMS.find((item) => item.id === activePage)?.label
-  const dashboardData = getUserDashboardData(user.email, user)
+  const [paidCategory, setPaidCategory] = useState<string | null>(
+    () => user.membershipCategory || user.membership_category || null
+  )
+
+  useEffect(() => {
+    let active = true
+    if (user?.id) {
+      fetchUserPaymentValidity(user.id)
+        .then((validity) => {
+          if (!active || !validity) return
+          const isPaid =
+            Boolean(validity.isValid) ||
+            (Boolean(validity.hasPayment) &&
+              validity.latestPayment?.status?.toLowerCase() !== "rejected" &&
+              validity.latestPayment?.status?.toLowerCase() !== "pending") ||
+            validity.latestPayment?.status?.toLowerCase() === "accepted" ||
+            validity.latestPayment?.status?.toLowerCase() === "verified" ||
+            validity.latestPayment?.status?.toLowerCase() === "active"
+
+          if (isPaid) {
+            const cat =
+              validity.latestPayment?.membershipCategory ||
+              validity.latestPayment?.membership_category ||
+              user.membershipCategory ||
+              user.membership_category ||
+              null
+            if (cat) {
+              setPaidCategory(cat)
+            }
+          }
+        })
+        .catch(() => {})
+    }
+    return () => {
+      active = false
+    }
+  }, [user])
+
+  const rawDashboardData = getUserDashboardData(user.email, user)
+  const dashboardData = useMemo(() => {
+    return {
+      ...rawDashboardData,
+      profile: {
+        ...rawDashboardData.profile,
+        membershipCategory: paidCategory || rawDashboardData.profile.membershipCategory || null,
+      },
+    }
+  }, [rawDashboardData, paidCategory])
 
   const allBusinesses = useMemo(() => {
     const backendIds = new Set(backendBusinesses.map((b) => b.id))
@@ -631,10 +680,15 @@ function UserProfile({
             allowEnlarge
             className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl shadow-sm border border-[var(--border-light)] shrink-0"
           />
-          <div>
-            <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[var(--brand)] dark:text-[var(--text-primary)] leading-tight">
-              {profile.fullName}
-            </h2>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[var(--brand)] dark:text-[var(--text-primary)] leading-tight">
+                {profile.fullName}
+              </h2>
+              {profile.membershipCategory && (
+                <MembershipBadge category={profile.membershipCategory} size="sm" />
+              )}
+            </div>
             <p className="text-sm font-semibold text-[var(--accent-dark)] mt-1">
               {profile.professionalTitle}
             </p>

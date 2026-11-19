@@ -45,6 +45,7 @@ import PaymentVerificationPage from "./pages/PaymentVerificationPage"
 import PaymentReceiverPage from "./pages/PaymentReceiverPage"
 import AccountStatusPage from "./components/AccountStatusPage"
 import UserAvatar from "./components/common/UserAvatar"
+import MembershipBadge from "./components/common/MembershipBadge"
 import { useAuth } from "./auth/AuthContext"
 import { type UserRole } from "./auth/auth"
 import {
@@ -336,20 +337,28 @@ function PublicContentPage({
                       className="card-hover bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-6 cursor-pointer flex flex-col justify-between"
                     >
                       <div>
-                        <div className="flex items-center gap-4 mb-4">
+                        <div className="flex items-start gap-3.5 mb-4">
                           <UserAvatar
                             src={profile.profilePhoto}
                             name={profile.fullName}
                             size="lg"
                             allowEnlarge={true}
-                            className="w-16 h-16 rounded-2xl shrink-0"
+                            className="w-14 h-14 rounded-2xl shrink-0 mt-0.5 shadow-xs"
                           />
-                          <div className="min-w-0">
-                            <h2 className="font-serif text-xl text-[var(--text-primary)] truncate">
+                          <div className="min-w-0 flex-1">
+                            <h2 className="font-serif text-lg font-bold text-[var(--text-primary)] truncate">
                               {profile.fullName}
                             </h2>
+                            {profile.membershipCategory && (
+                              <div className="mt-1 mb-1.5">
+                                <MembershipBadge
+                                  category={profile.membershipCategory}
+                                  size="xs"
+                                />
+                              </div>
+                            )}
                             {profile.professionalTitle && (
-                              <p className="text-sm text-[var(--accent-dark)] truncate">
+                              <p className="text-xs text-[var(--text-secondary)] truncate">
                                 {profile.professionalTitle}
                               </p>
                             )}
@@ -696,9 +705,18 @@ function PublicPersonDetailLegacy({ item }: { item: UserProfileData }) {
           allowEnlarge={true}
           className="w-32 h-32 rounded-2xl ring-4 ring-white/20 mb-2 cursor-pointer"
         />
-        <p className="text-xs text-white/70 mb-5 font-medium">
+        <p className="text-xs text-white/70 mb-4 font-medium">
           Click photo to view larger
         </p>
+        {item.membershipCategory && (
+          <div className="mb-3">
+            <MembershipBadge
+              category={item.membershipCategory}
+              variant="onDark"
+              size="sm"
+            />
+          </div>
+        )}
         {hasTitle && (
           <p className="text-sm text-[var(--accent)] font-semibold mb-2">
             {item.professionalTitle}

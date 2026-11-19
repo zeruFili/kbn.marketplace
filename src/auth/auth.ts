@@ -390,6 +390,10 @@ export interface SignUpData {
   business?: string
   role?: UserRole
   profileImage?: File | string | null
+  membershipCategory?: string
+  membership_category?: string
+  membershipCategoryId?: string
+  membership_category_id?: string
   otp?: string
   otpMethod?: "sms" | "email"
 }
@@ -416,6 +420,10 @@ export async function signUp(data: SignUpData): Promise<SignUpResult> {
       business: data.business,
       phone: data.phone,
       profileImage: data.profileImage,
+      membershipCategory: data.membershipCategory || data.membership_category,
+      membership_category: data.membershipCategory || data.membership_category,
+      membershipCategoryId: data.membershipCategoryId || data.membership_category_id,
+      membership_category_id: data.membershipCategoryId || data.membership_category_id,
       otp: data.otp,
       otpMethod: data.otpMethod,
     })

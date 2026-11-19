@@ -12,6 +12,7 @@ import {
 } from "../api/paymentApi"
 import { getMe } from "../auth/auth"
 import Navbar from "../components/Navbar"
+import MembershipBadge from "../components/common/MembershipBadge"
 
 const knbLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
 
@@ -44,7 +45,12 @@ export default function PaymentReceiverPage() {
       : null
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
-    () => categoryQuery || storedCategory || null
+    () =>
+      categoryQuery ||
+      storedCategory ||
+      user?.membershipCategory ||
+      user?.membership_category ||
+      null
   )
 
   const [file, setFile] = useState<File | null>(null)
@@ -65,17 +71,31 @@ export default function PaymentReceiverPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Synchronize category ID if query param updates
+  // Synchronize category ID if query param updates or from user's registered category
   useEffect(() => {
     if (categoryQuery && categoryQuery !== selectedCategoryId) {
       setSelectedCategoryId(categoryQuery)
       sessionStorage.setItem("kbn_selected_category", categoryQuery)
+    } else if (!selectedCategoryId && (user?.membershipCategory || user?.membership_category)) {
+      const userCat = user.membershipCategory || user.membership_category
+      if (userCat) {
+        setSelectedCategoryId(userCat)
+      }
     }
-  }, [categoryQuery, selectedCategoryId])
+  }, [categoryQuery, selectedCategoryId, user])
 
-  // Resolve matching category object
+  // Resolve matching category object (matches by id or code)
   const selectedCategory = useMemo(() => {
-    return categories.find((c) => c.id === selectedCategoryId) || null
+    if (!selectedCategoryId) return null
+    return (
+      categories.find(
+        (c) =>
+          c.id === selectedCategoryId ||
+          c.code === selectedCategoryId ||
+          c.id.toLowerCase() === selectedCategoryId.toLowerCase() ||
+          (c.code && c.code.toLowerCase() === selectedCategoryId.toLowerCase())
+      ) || null
+    )
   }, [categories, selectedCategoryId])
 
   // Determine active flow step

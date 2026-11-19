@@ -11,6 +11,7 @@ import {
   mapUserToProfileData,
 } from "../api/userApi"
 import UserAvatar from "../components/common/UserAvatar"
+import MembershipBadge from "../components/common/MembershipBadge"
 import type { UserProfileData } from "../data/userDataStore"
 
 const knbLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
@@ -245,20 +246,28 @@ export default function HomePage() {
                     className="card-hover bg-[var(--surface-alt)] rounded-2xl border border-[var(--border-light)] p-6 cursor-pointer flex flex-col justify-between"
                   >
                     <div>
-                      <div className="flex items-center gap-4 mb-4">
+                      <div className="flex items-start gap-3.5 mb-4">
                         <UserAvatar
                           src={person.profilePhoto}
                           name={person.fullName}
                           size="lg"
                           allowEnlarge={true}
-                          className="w-16 h-16 rounded-2xl shrink-0"
+                          className="w-14 h-14 rounded-2xl shrink-0 mt-0.5 shadow-xs"
                         />
-                        <div className="min-w-0">
-                          <h3 className="font-serif text-xl text-[var(--text-primary)] truncate">
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-serif text-lg font-bold text-[var(--text-primary)] truncate">
                             {person.fullName}
                           </h3>
+                          {person.membershipCategory && (
+                            <div className="mt-1 mb-1.5">
+                              <MembershipBadge
+                                category={person.membershipCategory}
+                                size="xs"
+                              />
+                            </div>
+                          )}
                           {person.professionalTitle && (
-                            <p className="text-sm text-[var(--accent-dark)] truncate">
+                            <p className="text-xs text-[var(--text-secondary)] truncate">
                               {person.professionalTitle}
                             </p>
                           )}

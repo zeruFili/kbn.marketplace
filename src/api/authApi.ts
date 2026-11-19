@@ -40,6 +40,10 @@ export interface RegisterPayload {
   phone?: string
   website?: string
   profileImage?: File | string | null
+  membershipCategory?: string
+  membership_category?: string
+  membershipCategoryId?: string
+  membership_category_id?: string
   otp?: string
   otpMethod?: "sms" | "email"
 }
@@ -91,6 +95,9 @@ export async function registerApi(
     return baseApi.post<any>("/auth/register", payload)
   }
 
+  const catCode = payload.membershipCategory || payload.membership_category
+  const catId = payload.membershipCategoryId || payload.membership_category_id
+
   if (payload.profileImage instanceof File) {
     const formData = new FormData()
     formData.append("full_name", payload.name.trim())
@@ -100,6 +107,14 @@ export async function registerApi(
     if (payload.business?.trim()) formData.append("business", payload.business.trim())
     if (payload.phone?.trim()) formData.append("phone", payload.phone.trim())
     if (payload.website?.trim()) formData.append("website", payload.website.trim())
+    if (catCode?.trim()) {
+      formData.append("membershipCategory", catCode.trim())
+      formData.append("membership_category", catCode.trim())
+    }
+    if (catId?.trim()) {
+      formData.append("membershipCategoryId", catId.trim())
+      formData.append("membership_category_id", catId.trim())
+    }
     if (payload.otp?.trim()) formData.append("otp", payload.otp.trim())
     if (payload.otpMethod) formData.append("otpMethod", payload.otpMethod)
     formData.append("profileImage", payload.profileImage)
@@ -115,6 +130,10 @@ export async function registerApi(
     phone: payload.phone?.trim() || undefined,
     website: payload.website?.trim() || undefined,
     profileImage: payload.profileImage || undefined,
+    membershipCategory: catCode?.trim() || undefined,
+    membership_category: catCode?.trim() || undefined,
+    membershipCategoryId: catId?.trim() || undefined,
+    membership_category_id: catId?.trim() || undefined,
     otp: payload.otp?.trim() || undefined,
     otpMethod: payload.otpMethod || undefined,
   })

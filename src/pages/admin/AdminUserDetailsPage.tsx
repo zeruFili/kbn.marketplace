@@ -13,6 +13,7 @@ import {
   type CompanyApiResponse,
 } from "../../api/companyApi"
 import UserAvatar from "../../components/common/UserAvatar"
+import MembershipBadge from "../../components/common/MembershipBadge"
 import { resolveAssetUrl } from "../../api/baseApi"
 
 export default function AdminUserDetailsPage() {
@@ -233,6 +234,19 @@ export default function AdminUserDetailsPage() {
   const regDate = user.created_at || user.createdAt || user.registeredAt
   const updateDate = user.updated_at || user.updatedAt
   const userStatus = (user.status || (user.is_active ? "active" : "inactive")).toLowerCase()
+  const acceptedPayment = payments.find(
+    (p) => (p.status || "").toLowerCase() === "accepted"
+  )
+  const isPaid =
+    Boolean(user.membershipCategory || user.membership_category) ||
+    Boolean(acceptedPayment)
+  const userMembershipCategory = isPaid
+    ? user.membershipCategory ||
+      user.membership_category ||
+      acceptedPayment?.membershipCategory ||
+      acceptedPayment?.membership_category ||
+      null
+    : null
 
   const achievementsList = user.achievement
     ? user.achievement
@@ -293,6 +307,13 @@ export default function AdminUserDetailsPage() {
             <span className="text-xs font-semibold px-3 py-1 rounded-full bg-white/10 text-white capitalize border border-white/10">
               Role: {user.role || "user"}
             </span>
+            {userMembershipCategory && (
+              <MembershipBadge
+                category={userMembershipCategory}
+                variant="onDark"
+                size="sm"
+              />
+            )}
           </div>
 
           <div className="flex items-center gap-2 mt-2 text-xs text-white/60 font-mono">

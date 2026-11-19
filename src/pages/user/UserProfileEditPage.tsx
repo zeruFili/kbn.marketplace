@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { useAuth } from "../../auth/AuthContext"
 import { fetchUserById, updateUserApi, resolveAssetUrl } from "../../api"
 import UserAvatar from "../../components/common/UserAvatar"
+import MembershipBadge from "../../components/common/MembershipBadge"
 
 interface ProfileFormState {
   fullName: string
@@ -275,7 +276,16 @@ export default function UserProfileEditPage() {
           </svg>
           Back to Profile
         </button>
-        <span className="text-sm font-semibold text-white">Edit Profile</span>
+        <div className="flex items-center gap-2.5">
+          <span className="text-sm font-semibold text-white">Edit Profile</span>
+          {(user?.membershipCategory || user?.membership_category) && (
+            <MembershipBadge
+              category={user?.membershipCategory || user?.membership_category}
+              variant="onDark"
+              size="xs"
+            />
+          )}
+        </div>
       </div>
 
       <form onSubmit={handleSave} className="p-6 md:p-8 space-y-6">

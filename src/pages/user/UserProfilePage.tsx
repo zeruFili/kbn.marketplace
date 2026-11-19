@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from "react"
 import { useAuth } from "../../auth/AuthContext"
 import { fetchUserById, updateUserApi, resolveAssetUrl, type UserProfileResponse } from "../../api"
+import { fetchUserPaymentValidity } from "../../api/paymentApi"
 import UserAvatar from "../../components/common/UserAvatar"
+import MembershipBadge from "../../components/common/MembershipBadge"
 
 interface LiveProfileForm {
   fullName: string
@@ -73,6 +75,10 @@ export default function UserProfilePage() {
     profilePhoto: "",
   })
 
+  const [membershipCategory, setMembershipCategory] = useState<string | null>(
+    () => user?.membershipCategory || user?.membership_category || null
+  )
+
   // File upload state for inline edit
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
@@ -84,7 +90,34 @@ export default function UserProfilePage() {
     setLoading(true)
     setError(null)
     try {
-      const fresh = await fetchUserById(user.id)
+      const [fresh, validity] = await Promise.all([
+        fetchUserById(user.id),
+        fetchUserPaymentValidity(user.id).catch(() => null),
+      ])
+
+      const isPaid =
+        Boolean(validity?.isValid) ||
+        (Boolean(validity?.hasPayment) &&
+          validity?.latestPayment?.status?.toLowerCase() !== "rejected" &&
+          validity?.latestPayment?.status?.toLowerCase() !== "pending") ||
+        validity?.latestPayment?.status?.toLowerCase() === "accepted" ||
+        validity?.latestPayment?.status?.toLowerCase() === "verified" ||
+        validity?.latestPayment?.status?.toLowerCase() === "active" ||
+        Boolean(fresh?.membershipCategory || fresh?.membership_category)
+
+      const paidCat = isPaid
+        ? fresh?.membershipCategory ||
+          fresh?.membership_category ||
+          validity?.latestPayment?.membershipCategory ||
+          validity?.latestPayment?.membership_category ||
+          (validity?.latestPayment as any)?.membershipCategoryLabel ||
+          user?.membershipCategory ||
+          user?.membership_category ||
+          null
+        : null
+
+      setMembershipCategory(paidCat)
+
       if (fresh) {
         populateFromUser(fresh)
       } else {
@@ -366,9 +399,14 @@ export default function UserProfilePage() {
                 className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover shadow-sm border border-[var(--border-light)] shrink-0"
               />
               <div className="min-w-0">
-                <h1 className="font-serif text-2xl sm:text-3xl font-bold text-[var(--brand)] dark:text-[var(--text-primary)] leading-tight">
-                  {form.fullName || user.name}
-                </h1>
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <h1 className="font-serif text-2xl sm:text-3xl font-bold text-[var(--brand)] dark:text-[var(--text-primary)] leading-tight">
+                    {form.fullName || user.name}
+                  </h1>
+                  {membershipCategory && (
+                    <MembershipBadge category={membershipCategory} size="sm" showIcon={true} />
+                  )}
+                </div>
                 <p className="text-sm text-[var(--text-secondary)] mt-1.5 flex items-center gap-2">
                   <svg className="w-4 h-4 text-[var(--text-tertiary)] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -694,9 +732,14 @@ export default function UserProfilePage() {
         /* INLINE EDIT MODE */
         <form onSubmit={handleSave} className="space-y-6">
           <div className="flex items-center justify-between pb-4 border-b border-[var(--border-light)]">
-            <h2 className="font-serif text-2xl font-bold text-[var(--text-primary)]">
-              Edit Profile
-            </h2>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h2 className="font-serif text-2xl font-bold text-[var(--text-primary)]">
+                Edit Profile
+              </h2>
+              {membershipCategory && (
+                <MembershipBadge category={membershipCategory} size="xs" showIcon={true} />
+              )}
+            </div>
             <div className="flex items-center gap-2">
               <button
                 type="button"

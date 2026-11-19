@@ -8,6 +8,7 @@ import {
   type PaymentItem,
   getMembershipCategoryLabel,
 } from "../../api/paymentApi"
+import MembershipBadge from "../../components/common/MembershipBadge"
 
 export default function UserPaymentPage() {
   const { user } = useAuth()
@@ -66,6 +67,22 @@ export default function UserPaymentPage() {
 
   // Resolve active membership package category
   const userMembershipCategory = useMemo(() => {
+    const latestStatus = (
+      latestPayment?.status ||
+      validity?.latestPayment?.status ||
+      ""
+    ).toLowerCase()
+
+    const isPaid =
+      Boolean(validity?.isValid) ||
+      (Boolean(validity?.hasPayment) && latestStatus !== "pending" && latestStatus !== "rejected") ||
+      latestStatus === "accepted" ||
+      latestStatus === "verified" ||
+      latestStatus === "active" ||
+      Boolean(user?.membershipCategory || user?.membership_category)
+
+    if (!isPaid) return null
+
     return (
       latestPayment?.membershipCategory ||
       latestPayment?.membership_category ||
@@ -74,7 +91,7 @@ export default function UserPaymentPage() {
       user?.membership_category ||
       null
     )
-  }, [latestPayment, user])
+  }, [latestPayment, user, validity])
 
   const membershipCategoryLabel = useMemo(() => {
     return userMembershipCategory
@@ -162,10 +179,13 @@ export default function UserPaymentPage() {
       {/* Next Payment Due Banner */}
       <div className="bg-[var(--brand)] rounded-2xl p-6 md:p-8 text-white overflow-hidden relative shadow-md">
         <div className="relative z-10 max-w-2xl">
-          {membershipCategoryLabel && (
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white/15 text-[var(--accent)] border border-white/10 mb-3 backdrop-blur-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />
-              <span>{membershipCategoryLabel}</span>
+          {userMembershipCategory && (
+            <div className="mb-3">
+              <MembershipBadge
+                category={userMembershipCategory}
+                variant="onDark"
+                size="sm"
+              />
             </div>
           )}
           <p className="text-sm text-white/65 mb-2">Next payment due</p>
@@ -283,13 +303,15 @@ export default function UserPaymentPage() {
             <p className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)] mb-1">
               Membership package
             </p>
-            <p className="text-sm font-semibold text-[var(--text-primary)] truncate" title={membershipCategoryLabel || "Standard"}>
-              {loading
-                ? "—"
-                : !hasPaymentRecord
-                ? "None"
-                : membershipCategoryLabel || "Standard"}
-            </p>
+            {loading ? (
+              <p className="text-sm font-semibold text-[var(--text-primary)]">—</p>
+            ) : userMembershipCategory ? (
+              <div className="mt-0.5">
+                <MembershipBadge category={userMembershipCategory} size="xs" />
+              </div>
+            ) : (
+              <p className="text-sm font-semibold text-[var(--text-secondary)]">Standard</p>
+            )}
           </div>
           <div className="bg-[var(--surface-alt)] rounded-xl border border-[var(--border-light)] p-4">
             <p className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)] mb-1">
