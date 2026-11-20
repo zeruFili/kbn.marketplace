@@ -128,6 +128,26 @@ export default function AdminOverview() {
 
   return (
     <div className="animate-fade-in">
+      {/* Featured Management Spotlight Banner */}
+      <div className="mb-6 p-5 rounded-2xl bg-gradient-to-r from-[var(--brand)] via-[#162746] to-[var(--brand-dark)] text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+        <div className="space-y-1">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-400/20 text-amber-200 border border-amber-300/30">
+            <span>✦</span> Homepage Curation
+          </div>
+          <h3 className="font-serif text-lg font-bold">Featured Members & Companies</h3>
+          <p className="text-xs text-slate-300 max-w-xl">
+            Select and order the 5–7 members and 5–7 businesses spotlighted on the public landing page.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => navigate("/admin/featured")}
+          className="px-4 py-2.5 rounded-xl bg-amber-400 text-slate-900 text-xs font-bold hover:bg-amber-300 transition-colors shadow-sm cursor-pointer shrink-0"
+        >
+          Manage Featured &rarr;
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
         {cards.map((card) => (
           <div

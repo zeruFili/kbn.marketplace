@@ -40,6 +40,46 @@ function formatDateOnly(dateStr?: string | Date | null): string {
   }
 }
 
+type PaymentStatusType = "accepted" | "pending" | "rejected"
+
+interface PaymentStatusOption {
+  value: PaymentStatusType
+  label: string
+  dotColor: string
+  buttonClasses: string
+}
+
+const PAYMENT_STATUS_OPTIONS: PaymentStatusOption[] = [
+  {
+    value: "accepted",
+    label: "Accepted",
+    dotColor: "bg-emerald-500",
+    buttonClasses:
+      "border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40",
+  },
+  {
+    value: "pending",
+    label: "Pending",
+    dotColor: "bg-amber-500",
+    buttonClasses:
+      "border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40",
+  },
+  {
+    value: "rejected",
+    label: "Rejected",
+    dotColor: "bg-red-500",
+    buttonClasses:
+      "border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/40 text-red-800 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40",
+  },
+]
+
+function normalizePaymentStatus(status?: string): PaymentStatusType {
+  const norm = (status || "").toLowerCase().trim()
+  if (norm === "accepted" || norm === "paid" || norm === "active") return "accepted"
+  if (norm === "rejected" || norm === "declined" || norm === "deactivated") return "rejected"
+  return "pending"
+}
+
 export default function AdminPayments() {
   const [viewDate, setViewDate] = useState<Date>(() => new Date())
   const [payments, setPayments] = useState<PaymentItem[]>([])
@@ -50,6 +90,12 @@ export default function AdminPayments() {
   const [statusFilter, setStatusFilter] = useState<
     "all" | "accepted" | "pending" | "rejected"
   >("all")
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
+  const [updatingPaymentId, setUpdatingPaymentId] = useState<string | null>(null)
+  const [toastMessage, setToastMessage] = useState<{
+    text: string
+    type: "success" | "error"
+  } | null>(null)
 
   // Current real-world date to enforce the boundary
   const now = useMemo(() => new Date(), [])
@@ -162,6 +208,96 @@ export default function AdminPayments() {
       prev.map((item) => (item.id === updated.id ? updated : item)),
     )
     setSelected(updated)
+  }
+
+  // Auto-dismiss toast notification
+  useEffect(() => {
+    if (!toastMessage) return
+    const timer = setTimeout(() => setToastMessage(null), 4000)
+    return () => clearTimeout(timer)
+  }, [toastMessage])
+
+  // Click outside & Escape key handling for dropdown
+  useEffect(() => {
+    if (!openDropdownId) return
+
+    function handleDocumentClick(e: MouseEvent) {
+      const target = e.target as HTMLElement | null
+      if (!target?.closest("[data-payment-status-dropdown]")) {
+        setOpenDropdownId(null)
+      }
+    }
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setOpenDropdownId(null)
+      }
+    }
+
+    document.addEventListener("mousedown", handleDocumentClick)
+    document.addEventListener("keydown", handleKeyDown)
+    return () => {
+      document.removeEventListener("mousedown", handleDocumentClick)
+      document.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [openDropdownId])
+
+  async function handleInlineStatusChange(
+    item: PaymentItem,
+    newStatus: PaymentStatusType,
+  ) {
+    const previousStatus = item.status
+    setUpdatingPaymentId(item.id)
+    setOpenDropdownId(null)
+    setToastMessage(null)
+
+    // Optimistically update local payment status
+    setPayments((prev) =>
+      prev.map((p) =>
+        p.id === item.id ? { ...p, status: newStatus } : p,
+      ),
+    )
+
+    try {
+      const res = await updateAdminPaymentStatus(item.id, newStatus)
+      setPayments((prev) =>
+        prev.map((p) =>
+          p.id === item.id
+            ? {
+                ...p,
+                ...(res || {}),
+                user: p.user,
+                status: newStatus,
+              }
+            : p,
+        ),
+      )
+
+      const opt = PAYMENT_STATUS_OPTIONS.find((s) => s.value === newStatus)
+      const label = opt ? opt.label : newStatus
+      const userName = item.user?.full_name || item.user?.name || "User"
+      setToastMessage({
+        text: `${userName}'s payment status has been updated to "${label}".`,
+        type: "success",
+      })
+    } catch (err: unknown) {
+      // Revert optimistic update on failure
+      setPayments((prev) =>
+        prev.map((p) =>
+          p.id === item.id ? { ...p, status: previousStatus } : p,
+        ),
+      )
+      const errorMsg =
+        err instanceof Error
+          ? err.message
+          : "Failed to update payment status. Please try again."
+      setToastMessage({
+        text: errorMsg,
+        type: "error",
+      })
+    } finally {
+      setUpdatingPaymentId(null)
+    }
   }
 
   if (selected) {
@@ -442,7 +578,7 @@ export default function AdminPayments() {
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto min-h-[380px]">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-[var(--border-light)] bg-[var(--surface-alt)]">
@@ -462,14 +598,22 @@ export default function AdminPayments() {
                     Reference / Method
                   </th>
                   <th className="text-right text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider px-4 sm:px-5 py-3">
-                    Action
+                    Actions
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border-light)]">
-                {filtered.map((item) => {
+                {filtered.map((item, index) => {
                   const userName =
                     item.user?.full_name || item.user?.name || "Unknown User"
+                  const normStatus = normalizePaymentStatus(item.status)
+                  const currentOption =
+                    PAYMENT_STATUS_OPTIONS.find((o) => o.value === normStatus) ||
+                    PAYMENT_STATUS_OPTIONS[1]
+                  const isOpen = openDropdownId === item.id
+                  const isUpdating = updatingPaymentId === item.id
+                  const isNearBottom = index >= Math.max(1, filtered.length - 2)
+
                   return (
                     <tr
                       key={item.id}
@@ -501,29 +645,144 @@ export default function AdminPayments() {
                           "—"
                         )}
                       </td>
-                      <td className="px-4 sm:px-5 py-3.5 text-right">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setSelected(item)
-                          }}
-                          className="text-xs font-semibold text-[var(--brand)] hover:underline inline-flex items-center gap-1 cursor-pointer"
-                        >
-                          <span>View</span>
-                          <svg
-                            className="w-3.5 h-3.5"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
+                      <td
+                        className="px-4 sm:px-5 py-3.5 text-right relative"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="inline-flex items-center justify-end gap-2">
+                          {/* Update Payment Status Dropdown */}
+                          <div
+                            className="relative inline-block text-left"
+                            data-payment-status-dropdown
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M9 5l7 7-7 7"
-                            />
-                          </svg>
-                        </button>
+                            <button
+                              type="button"
+                              title="Update Payment Status"
+                              aria-label={`Update payment status (Current: ${currentOption.label})`}
+                              aria-haspopup="listbox"
+                              aria-expanded={isOpen}
+                              disabled={isUpdating}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setOpenDropdownId(isOpen ? null : item.id)
+                              }}
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer select-none disabled:opacity-60 disabled:cursor-not-allowed ${currentOption.buttonClasses}`}
+                            >
+                              {isUpdating ? (
+                                <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" />
+                              ) : (
+                                <span
+                                  className={`w-2 h-2 rounded-full shrink-0 ${currentOption.dotColor}`}
+                                />
+                              )}
+                              <span className="capitalize">{currentOption.label}</span>
+                              <svg
+                                className={`w-3.5 h-3.5 transition-transform duration-200 shrink-0 ${
+                                  isOpen ? "rotate-180" : ""
+                                }`}
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 9l-7 7-7-7"
+                                />
+                              </svg>
+                            </button>
+
+                            {/* Floating Status Options Menu */}
+                            {isOpen && (
+                              <div
+                                role="listbox"
+                                aria-label="Payment status options"
+                                className={`absolute right-0 w-44 rounded-xl bg-[var(--surface)] border border-[var(--border-default)] shadow-xl py-1.5 z-50 text-left animate-scale-in ${
+                                  isNearBottom ? "bottom-full mb-1.5" : "top-full mt-1.5"
+                                }`}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <div className="px-3 py-1 text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider border-b border-[var(--border-light)] mb-1">
+                                  Update Payment Status
+                                </div>
+                                {PAYMENT_STATUS_OPTIONS.map((opt) => {
+                                  const isSelected = normStatus === opt.value
+                                  return (
+                                    <button
+                                      key={opt.value}
+                                      type="button"
+                                      role="option"
+                                      aria-selected={isSelected}
+                                      disabled={isUpdating}
+                                      onClick={async (e) => {
+                                        e.stopPropagation()
+                                        if (isSelected) {
+                                          setOpenDropdownId(null)
+                                          return
+                                        }
+                                        await handleInlineStatusChange(item, opt.value)
+                                      }}
+                                      className={`w-full flex items-center justify-between px-3 py-2 text-xs font-medium transition-colors cursor-pointer ${
+                                        isSelected
+                                          ? "bg-[var(--brand)]/10 text-[var(--brand)] font-semibold"
+                                          : "text-[var(--text-primary)] hover:bg-[var(--surface-alt)]"
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <span
+                                          className={`w-2 h-2 rounded-full shrink-0 ${opt.dotColor}`}
+                                        />
+                                        <span>{opt.label}</span>
+                                      </div>
+                                      {isSelected && (
+                                        <svg
+                                          className="w-4 h-4 text-[var(--brand)] shrink-0"
+                                          fill="none"
+                                          viewBox="0 0 24 24"
+                                          stroke="currentColor"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M5 13l4 4L19 7"
+                                          />
+                                        </svg>
+                                      )}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* View Details Button */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelected(item)
+                            }}
+                            className="text-xs font-semibold px-2.5 py-1.5 rounded-xl border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-alt)] transition-colors inline-flex items-center gap-1 cursor-pointer shrink-0"
+                            title="View complete payment and user details"
+                          >
+                            <span>View</span>
+                            <svg
+                              className="w-3.5 h-3.5"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 5l7 7-7 7"
+                              />
+                            </svg>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -533,6 +792,62 @@ export default function AdminPayments() {
           </div>
         )}
       </div>
+
+      {/* Toast Notification Banner */}
+      {toastMessage && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`fixed bottom-6 right-6 z-50 max-w-md p-4 rounded-2xl shadow-xl border flex items-center justify-between gap-3 animate-fade-in ${
+            toastMessage.type === "success"
+              ? "bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-200"
+              : "bg-red-50 border-red-200 text-red-800 dark:bg-red-950 dark:border-red-800 dark:text-red-200"
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            {toastMessage.type === "success" ? (
+              <svg
+                className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            ) : (
+              <svg
+                className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            )}
+            <span className="text-xs font-semibold leading-relaxed">
+              {toastMessage.text}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setToastMessage(null)}
+            className="text-xs opacity-60 hover:opacity-100 font-bold p-1 cursor-pointer shrink-0"
+            aria-label="Dismiss notification"
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </div>
   )
 }

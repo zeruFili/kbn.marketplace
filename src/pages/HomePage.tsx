@@ -4,12 +4,17 @@ import Navbar from "../components/Navbar"
 import { CompanyCard } from "../components/CompanyProfile"
 import {
   fetchCompanies,
+  resolveFileUrl,
   type Company,
 } from "../api/companyApi"
 import {
   fetchUsersApi,
   mapUserToProfileData,
 } from "../api/userApi"
+import {
+  fetchFeaturedMembers,
+  fetchFeaturedCompanies,
+} from "../api/featuredApi"
 import UserAvatar from "../components/common/UserAvatar"
 import MembershipBadge from "../components/common/MembershipBadge"
 import type { UserProfileData } from "../data/userDataStore"
@@ -158,8 +163,16 @@ export default function HomePage() {
     setLoadingPeople(true)
     setPeopleError(null)
     try {
-      const apiUsers = await fetchUsersApi({ limit: 12 })
-      setPeople((apiUsers || []).map(mapUserToProfileData))
+      const featured = await fetchFeaturedMembers()
+      if (featured && featured.length > 0) {
+        const mapped = featured
+          .filter((fm) => Boolean(fm.user))
+          .map((fm) => mapUserToProfileData(fm.user))
+        setPeople(mapped)
+      } else {
+        const apiUsers = await fetchUsersApi({ limit: 7 })
+        setPeople((apiUsers || []).map(mapUserToProfileData))
+      }
     } catch (err: unknown) {
       setPeopleError(
         err instanceof Error ? err.message : "Unable to load community members."
@@ -173,8 +186,37 @@ export default function HomePage() {
     setLoadingCompanies(true)
     setCompaniesError(null)
     try {
-      const res = await fetchCompanies({ limit: 12, is_active: true })
-      setCompanies(res.companies)
+      const featured = await fetchFeaturedCompanies()
+      if (featured && featured.length > 0) {
+        const mapped: Company[] = featured
+          .filter((fc) => Boolean(fc.company))
+          .map((fc) => {
+            const c = fc.company
+            return {
+              id: c.id,
+              name: c.company_name,
+              tagline: c.description?.slice(0, 80) || "",
+              description: c.description,
+              logo: c.company_logo ? resolveFileUrl(c.company_logo) : undefined,
+              coverImage: c.cover_image ? resolveFileUrl(c.cover_image) : undefined,
+              businessCategory: c.business_category?.name || "General",
+              categoryId: c.business_category_id,
+              industry: c.business_category?.name || "Business",
+              location: c.physical_address,
+              phone: c.phone_number,
+              email: c.email,
+              website: c.website || "",
+              status: c.status || "active",
+              is_active: c.is_active,
+              featured: true,
+              created_at: c.created_at,
+            }
+          })
+        setCompanies(mapped)
+      } else {
+        const res = await fetchCompanies({ limit: 7, is_active: true })
+        setCompanies(res.companies)
+      }
     } catch (err: unknown) {
       setCompaniesError(
         err instanceof Error
@@ -191,11 +233,9 @@ export default function HomePage() {
     loadCompaniesData()
   }, [loadPeopleData, loadCompaniesData])
 
-  // Featured members (people) and companies from database (strictly maximum 6 each)
-  const displayPeople = people.slice(0, 6)
-  const featuredCompanies = companies.filter((c) => c.featured)
-  const nonFeaturedCompanies = companies.filter((c) => !c.featured)
-  const displayCompanies = [...featuredCompanies, ...nonFeaturedCompanies].slice(0, 6)
+  // Featured members (people) and companies from database (5 to 7 selections)
+  const displayPeople = people
+  const displayCompanies = companies
 
   return (
     <div className="min-h-screen bg-[var(--surface-alt)]">

@@ -36,6 +36,7 @@ import AdminEventDetailsPage from "./pages/admin/AdminEventDetailsPage"
 import AdminEventEditPage from "./pages/admin/AdminEventEditPage"
 import AdminArticleDetailsPage from "./pages/admin/AdminArticleDetailsPage"
 import AdminArticleEditPage from "./pages/admin/AdminArticleEditPage"
+import AdminFeatured from "./components/admin/AdminFeatured"
 import UserLayout from "./pages/user/UserLayout"
 import UserProfilePage from "./pages/user/UserProfilePage"
 import UserProfileEditPage from "./pages/user/UserProfileEditPage"
@@ -1622,6 +1623,7 @@ export default function App() {
           <Route path="articles" element={<AdminContent kind="articles" />} />
           <Route path="articles/:id" element={<AdminArticleDetailsPage />} />
           <Route path="articles/:id/edit" element={<AdminArticleEditPage />} />
+          <Route path="featured" element={<AdminFeatured />} />
         </Route>
 
         {/* Catch-all 404 */}
