@@ -309,10 +309,15 @@ export default function PaymentReceiverPage() {
     setStatusCheckFeedback(null)
 
     try {
-      const response = await verifyPaymentReceipt(file, {
-        membershipCategory: selectedCategory.id,
-        paymentAmount: selectedCategory.amount,
-      })
+      // Simulate submission process for approximately 7 seconds
+      const minLoadingDuration = new Promise((resolve) => setTimeout(resolve, 7000))
+      const [response] = await Promise.all([
+        verifyPaymentReceipt(file, {
+          membershipCategory: selectedCategory.id,
+          paymentAmount: selectedCategory.amount,
+        }),
+        minLoadingDuration,
+      ])
 
       if (!response.success && response.message && !response.duplicate && !response.data) {
         setClientError(response.message)
@@ -451,14 +456,14 @@ export default function PaymentReceiverPage() {
                   {isPaymentStep && isUnderVerification
                     ? "Payment Verification Status"
                     : isPaymentStep
-                    ? "Step 2 of 2 • Payment & Verification"
+                    ? "Step 2 of 2 • Upload & Verify Payment Receipt"
                     : "Step 1 of 2 • Category Selection"}
                 </div>
                 <h1 className="font-serif text-3xl sm:text-4xl text-[var(--text-primary)]">
                   {isPaymentStep && isUnderVerification
                     ? "Submission Under Review"
                     : isPaymentStep
-                    ? "Payment Receiver & Verification"
+                    ? "Upload & Verify Payment Receipt"
                     : "Choose Your Membership Package"}
                 </h1>
                 <p className="text-sm text-[var(--text-secondary)] mt-1 max-w-2xl">
@@ -534,7 +539,7 @@ export default function PaymentReceiverPage() {
                     >
                       2
                     </span>
-                    <span>2. Credentials & Upload</span>
+                    <span>2. Upload & Verify Payment Receipt</span>
                   </div>
                 </div>
 
@@ -832,10 +837,10 @@ export default function PaymentReceiverPage() {
                         <div className="w-12 h-12 border-3 border-[var(--brand)]/20 border-t-[var(--brand)] rounded-full animate-spin mx-auto" />
                         <div>
                           <p className="text-sm font-semibold text-[var(--text-primary)]">
-                            Submitting & Verifying Receipt...
+                            Submitting Payment Receipt...
                           </p>
                           <p className="text-xs text-[var(--text-tertiary)] mt-1 max-w-sm mx-auto">
-                            Please wait while we securely process your payment receipt.
+                            Your receipt is being submitted and will be reviewed by our administration team. Please wait a moment...
                           </p>
                         </div>
                       </div>
@@ -922,13 +927,13 @@ export default function PaymentReceiverPage() {
                       {loading ? (
                         <>
                           <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          <span>Submitting Receipt...</span>
+                          <span>Submitting Receipt for Review...</span>
                         </>
                       ) : !file ? (
-                        <span>Attach Receipt to Verify ({selectedCategory.formattedPrice})</span>
+                        <span>Attach Receipt to Submit ({selectedCategory.formattedPrice})</span>
                       ) : (
                         <>
-                          <span>Submit Receipt & Verify ({selectedCategory.formattedPrice})</span>
+                          <span>Submit Receipt for Review ({selectedCategory.formattedPrice})</span>
                           <span aria-hidden="true">→</span>
                         </>
                       )}

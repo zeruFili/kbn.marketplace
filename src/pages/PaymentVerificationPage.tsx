@@ -111,7 +111,12 @@ export default function PaymentVerificationPage() {
     setErrorMessage(null)
 
     try {
-      const res = await verifyPaymentReceipt(file)
+      // Simulate submission process for approximately 7 seconds
+      const minLoadingDuration = new Promise((resolve) => setTimeout(resolve, 7000))
+      const [res] = await Promise.all([
+        verifyPaymentReceipt(file),
+        minLoadingDuration,
+      ])
 
       // 1. After successful submission: Display under verification message
       // 2. Prevent duplicate submissions: Hide the upload form
@@ -284,7 +289,7 @@ export default function PaymentVerificationPage() {
             <section className="bg-[var(--surface-alt)] rounded-2xl p-6 border border-[var(--border-light)] space-y-6">
               <div>
                 <h2 className="text-base font-semibold text-[var(--text-primary)] mb-1">
-                  Upload Payment Receipt
+                  Upload & Verify Payment Receipt
                 </h2>
                 <p className="text-xs text-[var(--text-tertiary)]">
                   Accepted formats: PNG, JPG, JPEG, PDF (max 10MB).
@@ -355,10 +360,10 @@ export default function PaymentVerificationPage() {
                     {uploading ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Submitting Receipt...
+                        Submitting Receipt for Review...
                       </>
                     ) : (
-                      "Submit Receipt for Verification"
+                      "Submit Receipt for Review"
                     )}
                   </button>
 
