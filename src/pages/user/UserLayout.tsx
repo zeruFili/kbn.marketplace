@@ -22,6 +22,12 @@ const USER_NAV_ITEMS = [
     label: "Payment",
     icon: "M2 7h20M5 11h2m-2 4h5m10-8v10a2 2 0 01-2 2H4a2 2 0 01-2-2V7a2 2 0 012-2h14a3 3 0 013 3z",
   },
+  {
+    id: "love-gifts",
+    path: "/dashboard/love-gifts",
+    label: "Love Gifts",
+    icon: "M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z",
+  },
 ]
 
 export default function UserLayout() {

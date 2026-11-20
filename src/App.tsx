@@ -41,6 +41,9 @@ import UserProfilePage from "./pages/user/UserProfilePage"
 import UserProfileEditPage from "./pages/user/UserProfileEditPage"
 import UserBusinessesPage from "./pages/user/UserBusinessesPage"
 import UserPaymentPage from "./pages/user/UserPaymentPage"
+import UserLoveGiftsPage from "./pages/user/UserLoveGiftsPage"
+import LoveGiftPage from "./pages/LoveGiftPage"
+import AdminLoveGifts from "./components/admin/AdminLoveGifts"
 import PaymentVerificationPage from "./pages/PaymentVerificationPage"
 import PaymentReceiverPage from "./pages/PaymentReceiverPage"
 import AccountStatusPage from "./components/AccountStatusPage"
@@ -1365,6 +1368,9 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ForgotPasswordPage />} />
 
+        {/* Voluntary Love Gift Payment Gateway (accessible to members & visitors) */}
+        <Route path="/love-gift" element={<LoveGiftPage />} />
+
         {/* Payment Verification & Receiver Gateway */}
         <Route
           path="/payment"
@@ -1554,6 +1560,7 @@ export default function App() {
           <Route path="businesses/:companyId" element={<UserBusinessesPage />} />
           <Route path="payment" element={<UserPaymentPage />} />
           <Route path="billing" element={<UserPaymentPage />} />
+          <Route path="love-gifts" element={<UserLoveGiftsPage />} />
         </Route>
 
         {/* User profile aliases */}
@@ -1607,6 +1614,7 @@ export default function App() {
           <Route path="users/:id" element={<AdminUserDetailsPage />} />
           <Route path="users/:id/edit" element={<AdminUserEditPage />} />
           <Route path="payments" element={<AdminPayments />} />
+          <Route path="love-gifts" element={<AdminLoveGifts />} />
           <Route path="categories" element={<AdminCategories />} />
           <Route path="events" element={<AdminContent kind="events" />} />
           <Route path="events/:id" element={<AdminEventDetailsPage />} />

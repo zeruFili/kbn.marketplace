@@ -201,6 +201,37 @@ export default function HomePage() {
     <div className="min-h-screen bg-[var(--surface-alt)]">
       <Navbar showRegisterButton={false} />
 
+      {/* Love Gift Call-To-Action Banner */}
+      <section className="bg-gradient-to-r from-[var(--brand-dark)] via-[#162746] to-[var(--brand)] text-white py-8 md:py-12 border-b border-white/10 shadow-sm animate-fade-in">
+        <div className="max-w-7xl mx-auto px-4 md:px-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white/5 border border-white/10 rounded-3xl p-6 sm:p-8 backdrop-blur-sm">
+            <div className="max-w-2xl space-y-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30">
+                <span>❤️</span> Kingdom Voluntary Giving
+              </div>
+              <h2 className="font-serif text-2xl sm:text-3xl md:text-4xl text-white font-bold leading-tight">
+                Support Our Mission with a Love Gift
+              </h2>
+              <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
+                Send a voluntary Love Gift to empower Ethiopian Christian businesses, mentorship programs, and kingdom initiatives. No membership package required.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => navigate("/love-gift")}
+                className="inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-2xl text-sm font-bold text-[var(--brand-dark)] bg-gradient-to-r from-[var(--accent)] to-amber-300 hover:brightness-105 shadow-lg shadow-[var(--accent)]/20 transition-all cursor-pointer transform hover:-translate-y-0.5"
+              >
+                <span>❤️</span>
+                <span>Send a Love Gift</span>
+                <span aria-hidden="true">&rarr;</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Featured Members */}
       <section className="py-8 sm:py-10 md:py-14 bg-[var(--surface)] animate-fade-in-up">
         <div className="max-w-7xl mx-auto px-4 md:px-8">

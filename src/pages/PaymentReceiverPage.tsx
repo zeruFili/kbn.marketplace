@@ -183,16 +183,17 @@ export default function PaymentReceiverPage() {
   const validateAndSetFile = (selected: File) => {
     setClientError(null)
 
-    const validTypes = [
-      "image/png",
-      "image/jpeg",
-      "image/jpg",
-      "image/webp",
-      "application/pdf",
-    ]
+    const isImage =
+      selected.type.startsWith("image/") ||
+      /\.(jpe?g|png|webp|gif|bmp|svg|tiff?|heic|heif|avif|ico|jfif|pjpeg|pjp|raw|cr2|nef|dng)$/i.test(
+        selected.name
+      )
+    const isPdf =
+      selected.type === "application/pdf" ||
+      /\.pdf$/i.test(selected.name)
 
-    if (!validTypes.includes(selected.type) && !/\.(png|jpe?g|webp|pdf)$/i.test(selected.name)) {
-      setClientError("Please select a valid receipt image (PNG, JPG, WEBP) or PDF file.")
+    if (!isImage && !isPdf) {
+      setClientError("Please select a valid receipt image (JPG, PNG, WEBP, GIF, BMP, HEIC, TIFF, AVIF, SVG, etc.) or PDF file.")
       return
     }
 
@@ -801,7 +802,7 @@ export default function PaymentReceiverPage() {
                     type="file"
                     ref={fileInputRef}
                     onChange={handleFileChange}
-                    accept="image/png,image/jpeg,image/jpg,image/webp,application/pdf"
+                    accept="image/*,application/pdf"
                     className="hidden"
                     disabled={loading}
                   />
@@ -901,7 +902,7 @@ export default function PaymentReceiverPage() {
                             </span>
                           </p>
                           <p className="text-xs text-[var(--text-tertiary)] mt-1">
-                            Accepts PNG, JPG, JPEG, WEBP, or PDF (up to 10MB) • For {selectedCategory.formattedPrice}
+                            Accepts all image formats (PNG, JPG, WEBP, HEIC, GIF, BMP, SVG, TIFF, AVIF) or PDF (up to 10MB) • For {selectedCategory.formattedPrice}
                           </p>
                         </div>
                         <div className="inline-flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] bg-white px-3 py-1 rounded-full border border-[var(--border-light)] shadow-2xs">
