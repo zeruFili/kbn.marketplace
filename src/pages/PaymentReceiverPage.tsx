@@ -15,14 +15,38 @@ import { getMe } from "../auth/auth"
 import Navbar from "../components/Navbar"
 import MembershipBadge from "../components/common/MembershipBadge"
 
+import dashenBankLogo from "../assets/dashen bank logo.jpg"
+import birhanBankLogo from "../assets/birhan bank logo.jpg"
+
 const knbLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
 
-// Official receiver payment credentials
-const OFFICIAL_RECEIVER = {
-  accountName: "KINGDOM BUILDERS MINISTRY",
-  accountNumber: "0012521619011",
-  bankName: "Dashen Bank",
+export interface BankAccountInfo {
+  id: string
+  bankName: string
+  accountName: string
+  accountNumber: string
+  logo: string
 }
+
+export const OFFICIAL_BANK_ACCOUNTS: BankAccountInfo[] = [
+  {
+    id: "dashen",
+    bankName: "Dashen Bank",
+    accountName: "KINGDOM BUILDERS MINISTRY",
+    accountNumber: "0012521619011",
+    logo: dashenBankLogo,
+  },
+  {
+    id: "birhan",
+    bankName: "Birhan Bank",
+    accountName: "KINGDOM BUILDERS MINISTRY",
+    accountNumber: "2500010189648",
+    logo: birhanBankLogo,
+  },
+]
+
+// Official receiver payment credentials
+const OFFICIAL_RECEIVER = OFFICIAL_BANK_ACCOUNTS[0]
 
 const DEFAULT_UNDER_REVIEW_MESSAGE =
   "Your payment has been submitted successfully and is currently under verification. Please wait while the admin reviews your payment."
@@ -706,7 +730,7 @@ export default function PaymentReceiverPage() {
                       Official Receiver Payment Credentials
                     </h2>
                     <p className="text-sm font-semibold text-[var(--text-primary)] mt-0.5">
-                      Please make your bank or mobile transfer to this verified account:
+                      Please make your bank or mobile transfer to one of our verified accounts:
                     </p>
                   </div>
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs text-[var(--accent-dark)] font-semibold bg-amber-50 border border-amber-200 self-start sm:self-auto">
@@ -714,38 +738,23 @@ export default function PaymentReceiverPage() {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Beneficiary Name */}
-                  <div className="bg-[var(--surface-alt)] rounded-2xl border border-[var(--border-light)] p-4 flex flex-col justify-center">
-                    <p className="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)] font-semibold">
-                      Receiver / Beneficiary Name
-                    </p>
-                    <p className="text-base font-bold text-[var(--text-primary)] truncate mt-0.5">
-                      {OFFICIAL_RECEIVER.accountName}
-                    </p>
-                  </div>
-
-                  {/* Account Number */}
                   <div className="bg-[var(--surface-alt)] rounded-2xl border border-[var(--border-light)] p-4 flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)] font-semibold">
-                        Receiver Account Number ({OFFICIAL_RECEIVER.bankName})
+                        Receiver / Beneficiary Name
                       </p>
-                      <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                        <p className="text-base font-mono font-bold text-[var(--text-primary)] tracking-wider">
-                          {OFFICIAL_RECEIVER.accountNumber}
-                        </p>
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[var(--brand)]/10 text-[var(--brand)] border border-[var(--brand)]/15">
-                          {OFFICIAL_RECEIVER.bankName}
-                        </span>
-                      </div>
+                      <p className="text-base font-bold text-[var(--text-primary)] truncate mt-0.5">
+                        {OFFICIAL_RECEIVER.accountName}
+                      </p>
                     </div>
                     <button
                       type="button"
-                      onClick={() => copyToClipboard(OFFICIAL_RECEIVER.accountNumber, "account")}
+                      onClick={() => copyToClipboard(OFFICIAL_RECEIVER.accountName, "beneficiary")}
                       className="flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-[var(--border-default)] hover:bg-[var(--brand)] hover:text-white transition-colors cursor-pointer shadow-xs"
                     >
-                      {copiedField === "account" ? "✓ Copied" : "Copy Number"}
+                      {copiedField === "beneficiary" ? "✓ Copied" : "Copy Name"}
                     </button>
                   </div>
 
@@ -771,6 +780,58 @@ export default function PaymentReceiverPage() {
                     >
                       {copiedField === "amount" ? "✓ Copied" : "Copy Amount"}
                     </button>
+                  </div>
+                </div>
+
+                {/* Bank Accounts Grid */}
+                <div className="space-y-3 pt-1">
+                  <p className="text-xs font-bold uppercase tracking-wide text-[var(--text-tertiary)]">
+                    Available Official Bank Accounts
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {OFFICIAL_BANK_ACCOUNTS.map((bank) => (
+                      <div
+                        key={bank.id}
+                        className="bg-[var(--surface-alt)] rounded-2xl border border-[var(--border-light)] p-5 hover:border-[var(--brand)]/40 transition-all shadow-xs flex flex-col justify-between gap-4"
+                      >
+                        <div className="flex items-center gap-3.5">
+                          <img
+                            src={bank.logo}
+                            alt={bank.bankName}
+                            className="w-12 h-12 object-contain rounded-xl bg-white border border-[var(--border-light)] p-1.5 shadow-xs shrink-0"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <h3 className="text-base font-bold text-[var(--text-primary)] truncate">
+                                {bank.bankName}
+                              </h3>
+                              
+                            </div>
+                            <p className="text-xs text-[var(--text-tertiary)] truncate mt-0.5">
+                              {bank.accountName}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl border border-[var(--border-light)] p-3 flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-bold">
+                              Account Number
+                            </p>
+                            <p className="text-base font-mono font-bold text-[var(--text-primary)] tracking-wider truncate mt-0.5">
+                              {bank.accountNumber}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(bank.accountNumber, bank.id)}
+                            className="flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[var(--surface-alt)] hover:bg-[var(--brand)] hover:text-white border border-[var(--border-default)] transition-colors cursor-pointer shadow-xs"
+                          >
+                            {copiedField === bank.id ? "✓ Copied" : "Copy"}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
