@@ -96,7 +96,7 @@ export default function LoginPage({
           navigate(fromPath, { replace: true })
         } else {
           const role = loggedUser.role?.toLowerCase()
-          if (role === "admin") navigate("/admin/overview", { replace: true })
+          if (role === "admin") navigate("/admin/companies", { replace: true })
           else if (role === "company") navigate("/dashboard/company", { replace: true })
           else navigate("/", { replace: true })
         }
@@ -341,7 +341,7 @@ export default function LoginPage({
                   navigate(fromPath, { replace: true })
                 } else {
                   const role = loggedUser.role?.toLowerCase()
-                  if (role === "admin") navigate("/admin/overview", { replace: true })
+                  if (role === "admin") navigate("/admin/companies", { replace: true })
                   else if (role === "company") navigate("/dashboard/company", { replace: true })
                   else navigate("/", { replace: true })
                 }

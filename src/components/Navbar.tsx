@@ -71,7 +71,7 @@ export default function Navbar({
         return
       }
       const role = user?.role?.toLowerCase()
-      if (role === "admin") navigate("/admin/overview")
+      if (role === "admin") navigate("/admin/companies")
       else if (role === "company") navigate("/dashboard/company")
       else navigate("/dashboard/profile")
     }

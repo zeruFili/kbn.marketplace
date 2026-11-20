@@ -1591,15 +1591,15 @@ export default function App() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<Navigate to="/admin/overview" replace />} />
-          <Route path="overview" element={<AdminOverview />} />
+          <Route index element={<Navigate to="/admin/companies" replace />} />
+          <Route path="overview" element={<Navigate to="/admin/companies" replace />} />
           <Route
             path="applications"
-            element={<Navigate to="/admin/overview" replace />}
+            element={<Navigate to="/admin/companies" replace />}
           />
           <Route
             path="applications/*"
-            element={<Navigate to="/admin/overview" replace />}
+            element={<Navigate to="/admin/companies" replace />}
           />
           <Route path="companies" element={<AdminCompanies />} />
           <Route

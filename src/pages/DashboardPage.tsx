@@ -6,7 +6,7 @@ export default function DashboardPage() {
   const role = user?.role?.toLowerCase()
 
   if (role === "admin") {
-    return <Navigate to="/admin/overview" replace />
+    return <Navigate to="/admin/companies" replace />
   }
 
   if (role === "company") {
