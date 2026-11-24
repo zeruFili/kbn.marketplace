@@ -40,6 +40,7 @@ export default function UserLayout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const activeItem =
@@ -54,8 +55,8 @@ export default function UserLayout() {
 
   const sidebarContent = (
     <>
-      <div className="p-6 border-b border-white/10">
-        <div className="flex items-center gap-3">
+      <div className="p-6 border-b border-white/10 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <UserAvatar
             src={user?.profileImage || user?.avatar}
             name={user?.name}
@@ -69,6 +70,29 @@ export default function UserLayout() {
             </p>
           </div>
         </div>
+        <button
+          onClick={() => {
+            setMobileOpen(false)
+            setSidebarOpen(false)
+          }}
+          className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-[#94A3B8] hover:text-white transition-colors cursor-pointer flex-shrink-0"
+          aria-label="Close sidebar"
+          title="Close sidebar"
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
       </div>
       <nav className="flex-1 p-4 space-y-1">
         {USER_NAV_ITEMS.map((item) => {
@@ -138,9 +162,11 @@ export default function UserLayout() {
 
   return (
     <div className="min-h-screen bg-[var(--surface-alt)] flex">
-      <aside className="hidden md:flex w-64 bg-[var(--brand-dark)] text-white flex-col flex-shrink-0 min-h-screen">
-        {sidebarContent}
-      </aside>
+      {sidebarOpen && (
+        <aside className="hidden md:flex w-64 bg-[var(--brand-dark)] text-white flex-col flex-shrink-0 min-h-screen">
+          {sidebarContent}
+        </aside>
+      )}
 
       {mobileOpen && (
         <div className="md:hidden fixed inset-0 z-50">
@@ -159,8 +185,16 @@ export default function UserLayout() {
         <header className="bg-[var(--brand-dark)] text-white px-4 py-5 md:px-8 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setMobileOpen(true)}
-              className="md:hidden w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white cursor-pointer"
+              onClick={() => {
+                if (window.innerWidth < 768) {
+                  setMobileOpen(true)
+                } else {
+                  setSidebarOpen(true)
+                }
+              }}
+              className={`${
+                sidebarOpen ? "md:hidden" : "md:flex"
+              } w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white cursor-pointer`}
               aria-label="Open menu"
             >
               <svg
