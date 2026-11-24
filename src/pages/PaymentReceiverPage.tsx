@@ -69,13 +69,32 @@ export default function PaymentReceiverPage() {
       ? sessionStorage.getItem("kbn_selected_category")
       : null
 
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
-    () =>
-      categoryQuery ||
-      storedCategory ||
-      user?.membershipCategory ||
-      user?.membership_category ||
-      null
+  const DEFAULT_CATEGORY_ID = "established_professionals_business_owners"
+
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>(
+    () => {
+      if (categoryQuery) return categoryQuery
+      if (
+        storedCategory &&
+        storedCategory !== "developing_professionals_business_owners"
+      ) {
+        return storedCategory
+      }
+      if (
+        typeof window !== "undefined" &&
+        storedCategory === "developing_professionals_business_owners"
+      ) {
+        sessionStorage.removeItem("kbn_selected_category")
+      }
+      const userCat = user?.membershipCategory || user?.membership_category
+      if (
+        userCat &&
+        userCat !== "developing_professionals_business_owners"
+      ) {
+        return userCat
+      }
+      return DEFAULT_CATEGORY_ID
+    }
   )
 
   const [file, setFile] = useState<File | null>(null)
@@ -97,15 +116,17 @@ export default function PaymentReceiverPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Synchronize category ID if query param updates or from user's registered category
+  // Synchronize category ID if query param updates or ensure default category is set
   useEffect(() => {
     if (categoryQuery && categoryQuery !== selectedCategoryId) {
       setSelectedCategoryId(categoryQuery)
       sessionStorage.setItem("kbn_selected_category", categoryQuery)
-    } else if (!selectedCategoryId && (user?.membershipCategory || user?.membership_category)) {
-      const userCat = user.membershipCategory || user.membership_category
-      if (userCat) {
+    } else if (!selectedCategoryId) {
+      const userCat = user?.membershipCategory || user?.membership_category
+      if (userCat && userCat !== "developing_professionals_business_owners") {
         setSelectedCategoryId(userCat)
+      } else {
+        setSelectedCategoryId(DEFAULT_CATEGORY_ID)
       }
     }
   }, [categoryQuery, selectedCategoryId, user])
@@ -495,7 +516,7 @@ export default function PaymentReceiverPage() {
                     ? "Your payment details have been submitted and are currently being reviewed by the administrative team."
                     : isPaymentStep && selectedCategory
                     ? `Transfer your membership fee for ${selectedCategory.name} (${selectedCategory.formattedPrice}) to the official receiver details below, then upload your receipt.`
-                    : "Select one of the 4 membership categories below. Once chosen, you will be redirected to the official payment credentials and receipt upload page."}
+                    : "Select your membership package below. Once chosen, you will be redirected to the official payment credentials and receipt upload page."}
                 </p>
               </div>
 
@@ -1021,7 +1042,7 @@ export default function PaymentReceiverPage() {
                       Choose Your Membership Package
                     </h2>
                     <p className="text-xs text-[var(--text-secondary)] mt-1 max-w-2xl">
-                      Select one of the 4 membership categories below. Once chosen, you will be redirected to the official payment credentials and receipt upload page.
+                      Select your membership package below. Once chosen, you will be redirected to the official payment credentials and receipt upload page.
                     </p>
                   </div>
 
@@ -1080,14 +1101,20 @@ export default function PaymentReceiverPage() {
                   </div>
                 )}
 
-                {/* 4 Category Selection Cards */}
+                {/* 5 Category Selection Cards */}
                 <div
                   role="radiogroup"
                   aria-label="Membership Category Selection"
-                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4"
                 >
                   {categories.map((cat) => {
-                    const isSelected = selectedCategoryId === cat.id
+                    const isSelected =
+                      selectedCategoryId === cat.id ||
+                      selectedCategoryId === cat.code ||
+                      (Boolean(cat.id) &&
+                        selectedCategoryId?.toLowerCase() === cat.id.toLowerCase()) ||
+                      (Boolean(cat.code) &&
+                        selectedCategoryId?.toLowerCase() === cat.code.toLowerCase())
                     return (
                       <div
                         key={cat.id}
@@ -1122,6 +1149,8 @@ export default function PaymentReceiverPage() {
                                   ? "bg-amber-100 text-amber-900 border border-amber-200"
                                   : cat.tier === 3
                                   ? "bg-blue-50 text-[var(--brand)] border border-blue-100"
+                                  : cat.tier === 4
+                                  ? "bg-purple-50 text-purple-800 border border-purple-200"
                                   : "bg-emerald-50 text-emerald-800 border border-emerald-200"
                               }`}
                             >

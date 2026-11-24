@@ -27,9 +27,9 @@ export const DEFAULT_MEMBERSHIP_CATEGORIES: MembershipCategoryOption[] = [
     id: "beginner_professionals_business_owners",
     code: "beginner_professionals_business_owners",
     name: "Beginner Professionals & Business Owners",
-    amount: 250,
+    amount: 100,
     currency: "ETB",
-    formattedPrice: "ETB 250",
+    formattedPrice: "ETB 100",
     tier: 1,
     description: "Ideal for emerging professionals, startups, and small business owners.",
   },
@@ -37,22 +37,32 @@ export const DEFAULT_MEMBERSHIP_CATEGORIES: MembershipCategoryOption[] = [
     id: "developing_professionals_business_owners",
     code: "developing_professionals_business_owners",
     name: "Developing Professionals & Business Owners",
-    amount: 500,
+    amount: 200,
     currency: "ETB",
-    formattedPrice: "ETB 500",
+    formattedPrice: "ETB 200",
     tier: 2,
-    popular: true,
     description: "For growing professionals and established businesses scaling operations and networking.",
   },
   {
     id: "established_professionals_business_owners",
     code: "established_professionals_business_owners",
     name: "Established Professionals & Business Owners",
-    amount: 750,
+    amount: 400,
     currency: "ETB",
-    formattedPrice: "ETB 750",
+    formattedPrice: "ETB 400",
     tier: 3,
+    popular: true,
     description: "For experienced professionals and business owners expanding their influence and partnerships.",
+  },
+  {
+    id: "senior_professionals_business_owners",
+    code: "senior_professionals_business_owners",
+    name: "Senior Professionals & Business Owners",
+    amount: 650,
+    currency: "ETB",
+    formattedPrice: "ETB 650",
+    tier: 4,
+    description: "For seasoned executives, senior leaders, and high-impact enterprise builders.",
   },
   {
     id: "investors_strategic_partners",
@@ -61,7 +71,7 @@ export const DEFAULT_MEMBERSHIP_CATEGORIES: MembershipCategoryOption[] = [
     amount: 1000,
     currency: "ETB",
     formattedPrice: "ETB 1,000",
-    tier: 4,
+    tier: 5,
     description: "For investors and strategic partners seeking meaningful connections and opportunities.",
   },
 ]
@@ -97,6 +107,9 @@ export function getMembershipCategoryInfo(
     normalized.includes("strategic") ||
     normalized.includes("partner")
   ) {
+    return DEFAULT_MEMBERSHIP_CATEGORIES[4]
+  }
+  if (normalized.includes("senior")) {
     return DEFAULT_MEMBERSHIP_CATEGORIES[3]
   }
   if (normalized.includes("established")) {
@@ -319,7 +332,14 @@ export async function fetchMembershipCategories(): Promise<MembershipCategoryOpt
   try {
     const res = await baseApi.get<MembershipCategoryOption[]>("/payments/membership-categories")
     if (res.success && Array.isArray(res.data) && res.data.length > 0) {
-      return res.data
+      return res.data.map((cat) => ({
+        ...cat,
+        popular:
+          cat.id === "established_professionals_business_owners" ||
+          cat.code === "established_professionals_business_owners" ||
+          cat.tier === 3 ||
+          (typeof cat.name === "string" && cat.name.toLowerCase().includes("established")),
+      }))
     }
     return DEFAULT_MEMBERSHIP_CATEGORIES
   } catch {

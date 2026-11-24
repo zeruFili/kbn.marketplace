@@ -107,7 +107,32 @@ const TIER_VISUALS: Record<number, TierVisuals> = {
     microPillDark: "bg-white/15 text-white",
   },
   4: {
-    // Tier 4: Sovereign Capital Partner Faceted Diamond Seal
+    // Tier 4: Senior Executive & Enterprise Builder Seal
+    renderIcon: (cls = "w-3.5 h-3.5") => (
+      <svg className={cls} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1" strokeOpacity="0.35" />
+        <path
+          d="M8 2.5L10 6L14 6.8L11 9.8L11.8 13.8L8 11.8L4.2 13.8L5 9.8L2 6.8L6 6L8 2.5Z"
+          stroke="currentColor"
+          strokeWidth="1.15"
+          strokeLinejoin="round"
+          fill="currentColor"
+          fillOpacity="0.20"
+        />
+      </svg>
+    ),
+    lightClasses:
+      "bg-purple-50/90 text-purple-950 border border-purple-200/90 shadow-2xs",
+    onDarkClasses:
+      "bg-purple-500/15 text-purple-100 border border-purple-400/30 backdrop-blur-xs",
+    iconColor: "text-purple-600",
+    iconColorDark: "text-purple-300",
+    tierLabel: "Tier 4",
+    microPillLight: "bg-purple-100 text-purple-900",
+    microPillDark: "bg-purple-500/25 text-purple-200",
+  },
+  5: {
+    // Tier 5: Sovereign Capital Partner Faceted Diamond Seal
     renderIcon: (cls = "w-3.5 h-3.5") => (
       <svg className={cls} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
         <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1" strokeOpacity="0.35" />
@@ -133,7 +158,7 @@ const TIER_VISUALS: Record<number, TierVisuals> = {
       "bg-emerald-500/15 text-emerald-100 border border-emerald-400/30 backdrop-blur-xs",
     iconColor: "text-emerald-700",
     iconColorDark: "text-emerald-300",
-    tierLabel: "Tier 4",
+    tierLabel: "Tier 5",
     microPillLight: "bg-emerald-100 text-emerald-900",
     microPillDark: "bg-emerald-500/25 text-emerald-200",
   },
