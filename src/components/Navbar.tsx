@@ -5,11 +5,19 @@ import UserAvatar from "./common/UserAvatar"
 
 const knbLogo = `${import.meta.env.BASE_URL}kbn-logo.jpg`
 
-export type PublicPage = "companies" | "people" | "events" | "articles"
+export type PublicPage = "home" | "people" | "companies" | "events" | "articles"
+export type PublicNavId = "home" | "people" | "companies" | "events" | "articles"
 
-const NAV_ITEMS: { id: PublicPage; label: string; path: string }[] = [
-  { id: "companies", label: "Companies", path: "/companies" },
+export interface NavItemType {
+  id: PublicNavId
+  label: string
+  path: string
+}
+
+export const NAV_ITEMS: NavItemType[] = [
+  { id: "home", label: "Home", path: "/" },
   { id: "people", label: "People", path: "/people" },
+  { id: "companies", label: "Companies", path: "/companies" },
   { id: "events", label: "Events", path: "/events" },
   { id: "articles", label: "Articles", path: "/articles" },
 ]
@@ -20,8 +28,6 @@ export default function Navbar({
   onHome,
   onPublicPage,
   onDashboard,
-  onCreateBusiness,
-  showRegisterButton,
 }: {
   onLogin?: () => void
   onSignUp?: () => void
@@ -34,23 +40,16 @@ export default function Navbar({
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const [menuOpen, setMenuOpen] = useState(false)
+  const isLandingPage = location.pathname === "/"
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [mobileAuthOpen, setMobileAuthOpen] = useState(false)
 
   const currentStatus = user ? (user.status || "pending").toLowerCase() : null
   const isActiveUser = currentStatus === "active"
-  const isLandingPage = location.pathname === "/"
-  const canShowRegisterBusiness =
-    showRegisterButton !== undefined ? showRegisterButton : !isLandingPage
 
   const handleHome = () => {
     if (onHome) onHome()
-    else {
-      if (!user) navigate("/login")
-      else if (currentStatus === "suspended") navigate("/account-status")
-      else if (currentStatus === "pending" || currentStatus === "inactive") navigate("/payment")
-      else navigate("/")
-    }
+    else navigate("/")
   }
 
   const handleLogin = () => {
@@ -77,205 +76,186 @@ export default function Navbar({
     }
   }
 
-  const handleCreateBusiness = () => {
-    if (onCreateBusiness) onCreateBusiness()
-    else navigate("/companies/new")
-  }
-
-  const handleNavigatePage = (item: (typeof NAV_ITEMS)[0]) => {
+  const handleNavigatePage = (item: NavItemType) => {
+    if (item.path === "/") {
+      handleHome()
+      return
+    }
+    if (!user) {
+      navigate("/login")
+      return
+    }
     if (!isActiveUser) {
       navigate(currentStatus === "suspended" ? "/account-status" : "/payment")
       return
     }
-    if (onPublicPage) onPublicPage(item.id)
+    if (onPublicPage && item.id !== "home") onPublicPage(item.id as PublicPage)
     else navigate(item.path)
   }
 
   const handleSignOut = async () => {
     await logout()
     setUserMenuOpen(false)
-    setMenuOpen(false)
+    setMobileAuthOpen(false)
     navigate("/login")
   }
 
+  const isItemActive = (item: NavItemType) => {
+    if (item.path === "/") {
+      return location.pathname === "/"
+    }
+    return (
+      location.pathname === item.path ||
+      location.pathname.startsWith(item.path + "/")
+    )
+  }
+
   return (
-    <header className="glass sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between gap-4">
-        <button
-          onClick={handleHome}
-          className="flex items-center gap-2.5 flex-shrink-0 group cursor-pointer"
-        >
-          <img
-            src={knbLogo}
-            alt="KBN Logo"
-            className="w-9 h-9 rounded-xl object-cover group-hover:scale-105 transition-transform shadow-lg shadow-[var(--brand)]/20"
-          />
-          <span className="font-serif text-lg sm:text-xl text-[var(--text-primary)] tracking-tight">
-            KBN
-          </span>
-        </button>
+    <header className="sticky top-0 z-50 bg-white dark:bg-[#0A1628] border-b border-[var(--border-default)] dark:border-[#1A335C] shadow-xs backdrop-blur-md">
+      <div className="max-w-7xl mx-auto px-4 md:px-8 py-2.5">
+        {/* Top Row: Logo on the left, controls (desktop auth + mobile hamburger) on the right */}
+        <div className="flex items-center justify-between gap-4">
+          {/* Logo on the left (always) */}
+          <button
+            onClick={handleHome}
+            className="flex items-center gap-2.5 flex-shrink-0 group cursor-pointer"
+            title="KBN Home"
+          >
+            <img
+              src={knbLogo}
+              alt="KBN Logo"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl object-cover group-hover:scale-105 transition-transform shadow-xs ring-1 ring-[var(--border-default)] dark:ring-white/10"
+            />
+            <span className="font-serif text-lg sm:text-xl font-bold text-[#0F1D3A] dark:text-white tracking-tight">
+              KBN
+            </span>
+          </button>
 
-        {/* Navigation links only for ACTIVE users */}
-        {isActiveUser && (
-          <nav className="hidden lg:flex items-center gap-1">
-            {NAV_ITEMS.map((item) => {
-              const isActive =
-                location.pathname === item.path ||
-                (item.path !== "/" &&
-                  location.pathname.startsWith(item.path + "/"))
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => handleNavigatePage(item)}
-                  className={`text-sm font-medium px-3 py-2 rounded-xl transition-all cursor-pointer ${
-                    isActive
-                      ? "text-[var(--brand)] bg-[var(--surface-alt)] font-semibold"
-                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-alt)]"
-                  }`}
+          {/* Right Section: Auth / Dashboard / User Dropdown + Mobile Hamburger */}
+          <div className="flex items-center gap-2.5 flex-shrink-0">
+            {/* If pending or inactive, show Payment Verification badge */}
+            {user && !isActiveUser && (
+              <div className="hidden sm:flex items-center gap-2">
+                <Link
+                  to={
+                    currentStatus === "suspended"
+                      ? "/account-status"
+                      : "/payment"
+                  }
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200"
                 >
-                  {item.label}
-                </button>
-              )
-            })}
-          </nav>
-        )}
-
-        {/* If pending or inactive, show Payment Verification badge */}
-        {user && !isActiveUser && (
-          <div className="hidden sm:flex items-center gap-2">
-            <Link
-              to={currentStatus === "suspended" ? "/account-status" : "/payment"}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-              {currentStatus === "suspended" ? "Account Suspended" : "Payment Verification Required"}
-            </Link>
-          </div>
-        )}
-
-        <div className="flex items-center gap-2">
-          {user ? (
-            <>
-              <button
-                onClick={handleDashboard}
-                className="hidden sm:inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand)] border border-[var(--brand)] px-3 py-2 rounded-xl hover:bg-[var(--brand)] hover:text-white transition-colors cursor-pointer"
-              >
-                Back to Dashboard
-              </button>
-              <div className="relative">
-                <button
-                  onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-2 py-1.5 rounded-xl hover:bg-[var(--surface-alt)] transition-all cursor-pointer"
-                >
-                  <UserAvatar
-                    src={user.profileImage || user.avatar}
-                    name={user.name}
-                    size="xs"
-                    className="w-7 h-7 rounded-lg ring-2 ring-[var(--border-light)]"
-                  />
-                  <span className="hidden sm:inline">
-                    {user.name.split(" ")[0]}
-                  </span>
-                  <span
-                    className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-                      user.role === "admin"
-                        ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
-                        : user.role === "company"
-                          ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
-                          : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
-                    }`}
-                  >
-                    {user.role}
-                  </span>
-                  <svg
-                    className="w-4 h-4 hidden sm:block"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </button>
-                {userMenuOpen && (
-                  <div className="absolute right-0 top-12 z-50 w-56 bg-[var(--surface)] rounded-xl border border-[var(--border-light)] shadow-xl p-2 animate-slide-down">
-                    <div className="px-3 py-2.5 border-b border-[var(--border-light)] mb-1">
-                      <p className="text-sm font-semibold text-[var(--text-primary)]">
-                        {user.name}
-                      </p>
-                      <p className="text-xs text-[var(--text-tertiary)] truncate">
-                        {user.email}
-                      </p>
-                      {user.business && (
-                        <p className="text-xs text-[var(--accent-dark)] mt-0.5">
-                          {user.business}
-                        </p>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => {
-                        setUserMenuOpen(false)
-                        handleDashboard()
-                      }}
-                      className="w-full text-left text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-alt)] px-3 py-2 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-                        />
-                      </svg>
-                      Dashboard
-                    </button>
-                    <button
-                      onClick={handleSignOut}
-                      className="w-full text-left text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-alt)] px-3 py-2 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                        />
-                      </svg>
-                      Sign Out
-                    </button>
-                  </div>
-                )}
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  {currentStatus === "suspended"
+                    ? "Account Suspended"
+                    : "Payment Verification Required"}
+                </Link>
               </div>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={handleLogin}
-                className="text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-2 sm:px-3 py-2 rounded-xl transition-colors cursor-pointer"
-              >
-                Login
-              </button>
-              <button
-                onClick={handleSignUp}
-                className="text-sm font-semibold text-white bg-[var(--brand)] px-3 sm:px-4 py-2 rounded-xl hover:bg-[var(--brand-light)] transition-colors shadow-lg shadow-[var(--brand)]/20 flex items-center gap-2 cursor-pointer"
-              >
-                <span className="hidden xs:inline">Sign Up</span>
+            )}
+
+            {/* Desktop Auth Controls */}
+            {user ? (
+              <div className="hidden sm:flex items-center gap-2.5">
+                <button
+                  onClick={handleDashboard}
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand)] border border-[var(--brand)] px-3.5 py-1.5 rounded-xl hover:bg-[var(--brand)] hover:text-white transition-colors cursor-pointer"
+                >
+                  Dashboard
+                </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setUserMenuOpen(!userMenuOpen)}
+                    className="flex items-center gap-2 text-sm font-medium text-[#0F1D3A] dark:text-slate-200 hover:text-black dark:hover:text-white px-2.5 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 transition-all cursor-pointer"
+                  >
+                    <UserAvatar
+                      src={user.profileImage || user.avatar}
+                      name={user.name}
+                      size="xs"
+                      className="w-7 h-7 rounded-lg ring-2 ring-[var(--border-light)]"
+                    />
+                    <span>{user.name.split(" ")[0]}</span>
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
+                  {userMenuOpen && (
+                    <div className="absolute right-0 top-11 z-50 w-56 bg-white dark:bg-[#0A1628] rounded-xl border border-[var(--border-default)] dark:border-[#1A335C] shadow-xl p-2 animate-slide-down">
+                      <div className="px-3 py-2.5 border-b border-slate-100 dark:border-white/5 mb-1">
+                        <p className="text-sm font-semibold text-[#0F1D3A] dark:text-white">
+                          {user.name}
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                          {user.email}
+                        </p>
+                        {user.business && (
+                          <p className="text-xs text-[var(--accent)] font-medium mt-0.5">
+                            {user.business}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => {
+                          setUserMenuOpen(false)
+                          handleDashboard()
+                        }}
+                        className="w-full text-left text-sm text-slate-700 dark:text-slate-200 hover:text-black dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 px-3 py-2 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
+                      >
+                        Dashboard
+                      </button>
+                      <button
+                        onClick={handleSignOut}
+                        className="w-full text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 px-3 py-2 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
+                      >
+                        Sign Out
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="hidden sm:flex items-center gap-2">
+                <button
+                  onClick={handleLogin}
+                  className="text-sm font-medium text-[#0F1D3A] dark:text-slate-200 hover:text-black dark:hover:text-white px-3 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                >
+                  Login
+                </button>
+                <button
+                  onClick={handleSignUp}
+                  className="text-sm font-semibold text-white bg-[var(--brand)] px-4 py-1.5 rounded-xl hover:bg-[var(--brand-light)] transition-colors shadow-xs flex items-center gap-2 cursor-pointer"
+                >
+                  Sign Up
+                </button>
+              </div>
+            )}
+
+            {/* Mobile hamburger / sidebar toggle (always on the right) */}
+            <button
+              onClick={() => setMobileAuthOpen(!mobileAuthOpen)}
+              className="sm:hidden w-8 h-8 rounded-xl border border-[var(--border-default)] dark:border-[#1A335C] flex items-center justify-center text-[#0F1D3A] dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
+              aria-label={
+                mobileAuthOpen
+                  ? "Close menu"
+                  : isLandingPage
+                  ? "Open navigation sidebar"
+                  : "Open user options"
+              }
+              aria-expanded={mobileAuthOpen}
+              title="Toggle menu"
+            >
+              {mobileAuthOpen ? (
+                // X icon when menu is open
                 <svg
-                  className="w-4 h-4 xs:hidden"
+                  className="w-4 h-4"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -284,121 +264,105 @@ export default function Navbar({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+                    d="M6 18L18 6M6 6l12 12"
                   />
                 </svg>
-              </button>
-            </>
-          )}
-
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            className="lg:hidden w-10 h-10 rounded-xl border border-[var(--border-default)] flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-alt)] transition-colors cursor-pointer"
-            aria-label="Toggle Menu"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d={
-                  menuOpen
-                    ? "M6 18L18 6M6 6l12 12"
-                    : "M4 6h16M4 12h16M4 18h16"
-                }
-              />
-            </svg>
-          </button>
+              ) : (
+                // Hamburger icon when menu is closed
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
-      </div>
 
-      {menuOpen && (
-        <div className="lg:hidden border-t border-[var(--border-light)] bg-[var(--surface)] px-4 py-4 space-y-2 animate-slide-down">
-          {isActiveUser && (
-            <>
-              {NAV_ITEMS.map((item) => {
-                const isActive =
-                  location.pathname === item.path ||
-                  (item.path !== "/" &&
-                    location.pathname.startsWith(item.path + "/"))
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      handleNavigatePage(item)
-                      setMenuOpen(false)
-                    }}
-                    className={`block w-full text-left text-sm font-medium px-3 py-2.5 rounded-xl transition-colors cursor-pointer ${
-                      isActive
-                        ? "text-[var(--brand)] bg-[var(--surface-alt)] font-semibold"
-                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-alt)]"
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                )
-              })}
-            </>
-          )}
-
-          {user && !isActiveUser && (
-            <Link
-              to={currentStatus === "suspended" ? "/account-status" : "/payment"}
-              onClick={() => setMenuOpen(false)}
-              className="block w-full text-left text-sm font-semibold text-amber-700 bg-amber-50 px-3 py-2.5 rounded-xl hover:bg-amber-100 transition-colors"
-            >
-              {currentStatus === "suspended" ? "⚠️ Account Suspended" : "🧾 Payment Verification"}
-            </Link>
-          )}
-          <div className="pt-2 border-t border-[var(--border-light)] space-y-2">
+        {/* ✅ Mobile dropdown — no horizontal line, rendered ABOVE the nav bar */}
+        {mobileAuthOpen && (
+          <div className="sm:hidden bg-white dark:bg-[#0A1628] px-4 py-3 space-y-2 animate-slide-down">
             {user ? (
               <>
+                <div className="px-2 py-1.5 border-b border-slate-100 dark:border-white/5">
+                  <p className="text-sm font-semibold text-[#0F1D3A] dark:text-white">
+                    {user.name}
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                    {user.email}
+                  </p>
+                </div>
                 <button
                   onClick={() => {
+                    setMobileAuthOpen(false)
                     handleDashboard()
-                    setMenuOpen(false)
                   }}
-                  className="block w-full text-center text-sm font-semibold text-[var(--brand)] border border-[var(--brand)] px-3 py-2.5 rounded-xl hover:bg-[var(--brand)] hover:text-white transition-colors cursor-pointer"
+                  className="w-full text-left text-sm font-medium text-[#0F1D3A] dark:text-white px-2 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
                 >
-                  Back to Dashboard
+                  Dashboard
                 </button>
                 <button
                   onClick={handleSignOut}
-                  className="block w-full text-center text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-3 py-2.5 rounded-xl hover:bg-[var(--surface-alt)] transition-colors cursor-pointer"
+                  className="w-full text-left text-sm font-medium text-red-600 px-2 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors cursor-pointer"
                 >
                   Sign Out
                 </button>
               </>
             ) : (
-              <>
+              <div className="grid grid-cols-2 gap-2 pt-1">
                 <button
                   onClick={() => {
+                    setMobileAuthOpen(false)
                     handleLogin()
-                    setMenuOpen(false)
                   }}
-                  className="block w-full text-center text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-3 py-2.5 rounded-xl hover:bg-[var(--surface-alt)] transition-colors cursor-pointer"
+                  className="w-full text-center text-sm font-medium text-[#0F1D3A] border border-[var(--border-default)] py-2 rounded-xl hover:bg-slate-100 cursor-pointer"
                 >
                   Login
                 </button>
                 <button
                   onClick={() => {
+                    setMobileAuthOpen(false)
                     handleSignUp()
-                    setMenuOpen(false)
                   }}
-                  className="block w-full text-center text-sm font-semibold text-white bg-[var(--brand)] py-2.5 rounded-xl hover:bg-[var(--brand-light)] transition-colors cursor-pointer"
+                  className="w-full text-center text-sm font-semibold text-white bg-[var(--brand)] py-2 rounded-xl hover:bg-[var(--brand-light)] cursor-pointer"
                 >
                   Sign Up
                 </button>
-              </>
+              </div>
             )}
           </div>
+        )}
+
+        {/* Directly below the logo on the left side: Home, People, Companies, Events, Articles on the same line, NOT scrollable, all displayed at once */}
+        <div className="pt-4 flex items-center">
+          <nav className="flex items-center gap-1 sm:gap-2">
+            {NAV_ITEMS.map((item) => {
+              const isActive = isItemActive(item)
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleNavigatePage(item)}
+                  className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                    isActive
+                      ? "bg-[#FDF6E8] text-[#0F1D3A] font-bold border border-[var(--accent)]/40 shadow-xs dark:bg-[#D4A853]/15 dark:text-[var(--accent)]"
+                      : "text-[#0F1D3A] hover:text-black hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/5 dark:hover:text-white"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              )
+            })}
+          </nav>
         </div>
-      )}
+      </div>
     </header>
   )
 }

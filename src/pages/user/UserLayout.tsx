@@ -5,6 +5,12 @@ import UserAvatar from "../../components/common/UserAvatar"
 
 const USER_NAV_ITEMS = [
   {
+    id: "home",
+    path: "/",
+    label: "Home",
+    icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
+  },
+  {
     id: "profile",
     path: "/dashboard/profile",
     label: "Profile",
@@ -36,11 +42,15 @@ export default function UserLayout() {
   const location = useLocation()
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  const activeItem = USER_NAV_ITEMS.find(
-    (item) =>
-      location.pathname === item.path ||
-      location.pathname.startsWith(item.path + "/"),
-  ) || USER_NAV_ITEMS[0]
+  const activeItem =
+    USER_NAV_ITEMS.find(
+      (item) =>
+        item.path !== "/" &&
+        (location.pathname === item.path ||
+          location.pathname.startsWith(item.path + "/")),
+    ) ||
+    USER_NAV_ITEMS.find((item) => item.id === "profile") ||
+    USER_NAV_ITEMS[0]
 
   const sidebarContent = (
     <>
@@ -63,8 +73,10 @@ export default function UserLayout() {
       <nav className="flex-1 p-4 space-y-1">
         {USER_NAV_ITEMS.map((item) => {
           const isActive =
-            location.pathname === item.path ||
-            location.pathname.startsWith(item.path + "/")
+            item.path === "/"
+              ? location.pathname === "/"
+              : location.pathname === item.path ||
+                location.pathname.startsWith(item.path + "/")
           return (
             <button
               key={item.id}
@@ -119,25 +131,6 @@ export default function UserLayout() {
             />
           </svg>
           Log out
-        </button>
-        <button
-          onClick={() => navigate("/")}
-          className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-[#94A3B8] hover:bg-white/5 hover:text-white transition-all text-left cursor-pointer"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M10 19l-7-7m0 0l7-7m-7 7h18"
-            />
-          </svg>
-          Back to Site
         </button>
       </div>
     </>

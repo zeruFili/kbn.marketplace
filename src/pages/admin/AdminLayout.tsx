@@ -16,6 +16,12 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   {
+    id: "home",
+    path: "/",
+    label: "Home",
+    icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
+  },
+  {
     id: "overview",
     path: "/admin/overview",
     label: "Overview",
@@ -74,6 +80,9 @@ const NAV_ITEMS: NavItem[] = [
 ]
 
 function isNavItemActive(item: NavItem, pathname: string): boolean {
+  if (item.path === "/") {
+    return pathname === "/"
+  }
   const paths = item.matchPaths ?? [item.path]
   return paths.some((p) => pathname === p || pathname.startsWith(p + "/"))
 }
@@ -86,9 +95,9 @@ export default function AdminLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const activeItem =
-    NAV_ITEMS.find((item) => !item.hidden && isNavItemActive(item, location.pathname)) ||
-    NAV_ITEMS.find((item) => isNavItemActive(item, location.pathname)) ||
-    NAV_ITEMS.find((item) => !item.hidden) ||
+    NAV_ITEMS.find((item) => !item.hidden && item.path !== "/" && isNavItemActive(item, location.pathname)) ||
+    NAV_ITEMS.find((item) => item.path !== "/" && isNavItemActive(item, location.pathname)) ||
+    NAV_ITEMS.find((item) => !item.hidden && item.path !== "/") ||
     NAV_ITEMS[0]
 
   const sidebar = (
@@ -195,25 +204,6 @@ export default function AdminLayout() {
             />
           </svg>
           {!collapsed && "Collapse"}
-        </button>
-        <button
-          onClick={() => navigate("/")}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[#94A3B8] hover:bg-white/5 hover:text-white transition-all cursor-pointer"
-        >
-          <svg
-            className="w-5 h-5 flex-shrink-0"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M10 19l-7-7m0 0l7-7m-7 7h18"
-            />
-          </svg>
-          {!collapsed && "Back to Site"}
         </button>
       </div>
     </aside>
