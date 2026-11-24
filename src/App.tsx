@@ -1176,7 +1176,6 @@ function CompanyDashboardWrapper() {
   const navigate = useNavigate()
   return (
     <div className="min-h-screen bg-[var(--surface-alt)]">
-      <Navbar />
       <CompanyDashboard onBack={() => navigate("/")} />
     </div>
   )

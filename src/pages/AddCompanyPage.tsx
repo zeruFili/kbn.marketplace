@@ -1,5 +1,4 @@
 import { useNavigate, useLocation } from "react-router-dom"
-import Navbar from "../components/Navbar"
 import CreateBusinessPage from "../components/CreateBusinessPage"
 import { type CompanyApiResponse } from "../api/companyApi"
 
@@ -26,7 +25,6 @@ export default function AddCompanyPage() {
 
   return (
     <div className="min-h-screen bg-[var(--surface-alt)]">
-      <Navbar />
       <CreateBusinessPage
         onBack={handleBack}
         onSuccess={handleSuccess}

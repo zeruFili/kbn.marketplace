@@ -44,6 +44,18 @@ export default function Navbar({
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [mobileAuthOpen, setMobileAuthOpen] = useState(false)
 
+  const isDashboardPage =
+    location.pathname === "/dashboard" ||
+    location.pathname.startsWith("/dashboard/") ||
+    location.pathname === "/admin" ||
+    location.pathname.startsWith("/admin/") ||
+    location.pathname === "/companies/new" ||
+    location.pathname === "/companies/add"
+
+  if (isDashboardPage) {
+    return null
+  }
+
   const currentStatus = user ? (user.status || "pending").toLowerCase() : null
   const isActiveUser = currentStatus === "active"
 
