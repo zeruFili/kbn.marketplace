@@ -177,12 +177,6 @@ export default function Navbar({
             {/* Desktop Auth Controls */}
             {user ? (
               <div className="hidden sm:flex items-center gap-2.5">
-                <button
-                  onClick={handleDashboard}
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--brand)] border border-[var(--brand)] px-3.5 py-1.5 rounded-xl hover:bg-[var(--brand)] hover:text-white transition-colors cursor-pointer"
-                >
-                  Dashboard
-                </button>
                 <div className="relative">
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
