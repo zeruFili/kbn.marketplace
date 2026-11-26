@@ -14,6 +14,7 @@ import ForgotPasswordPage from "./components/ForgotPasswordPage"
 import ProtectedRoute from "./components/ProtectedRoute"
 import Navbar from "./components/Navbar"
 import HomePage from "./pages/HomePage"
+import MemberSelectionPage from "./pages/MemberSelectionPage"
 import CompaniesPage from "./pages/CompaniesPage"
 import CompanyDetailsPage from "./pages/CompanyDetailsPage"
 import AddCompanyPage from "./pages/AddCompanyPage"
@@ -1363,6 +1364,7 @@ export default function App() {
     <BrowserRouter basename={basename}>
       <Routes>
         {/* Authentication */}
+        <Route path="/membership" element={<MemberSelectionPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignUpPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />

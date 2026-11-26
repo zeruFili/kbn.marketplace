@@ -43,9 +43,9 @@ export default function ProtectedRoute({
     )
   }
 
-  // 1. Unauthenticated users are redirected to login
+  // 1. Unauthenticated users choose their member path before authentication
   if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />
+    return <Navigate to="/membership" state={{ from: location }} replace />
   }
 
   const currentStatus = (user.status || "pending").toLowerCase() as UserStatus
