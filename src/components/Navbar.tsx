@@ -28,6 +28,7 @@ export default function Navbar({
   onHome,
   onPublicPage,
   onDashboard,
+  onCreateBusiness,
 }: {
   onLogin?: () => void
   onSignUp?: () => void

@@ -11,9 +11,12 @@ import type { Company } from "../data/companies"
 export default function CompanyDetailsPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const [company, setCompany] = useState<Company | undefined>(undefined)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
+
+  const isFromDashboard = Boolean(location.state?.fromDashboard)
 
   useEffect(() => {
     if (!id) return
@@ -84,9 +87,6 @@ export default function CompanyDetailsPage() {
       </div>
     )
   }
-
-  const location = useLocation()
-  const isFromDashboard = Boolean(location.state?.fromDashboard)
 
   return (
     <div className="min-h-screen bg-[var(--surface-alt)]">
