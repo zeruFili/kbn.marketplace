@@ -1424,7 +1424,7 @@ export default function PaymentReceiverPage() {
                       (Boolean(cat.id) &&
                         selectedCategoryId?.toLowerCase() === cat.id.toLowerCase()) ||
                       (Boolean(cat.code) &&
-                        selectedCategoryId?.toLowerCase() === cat.code.toLowerCase())
+                        selectedCategoryId?.toLowerCase() === cat.code?.toLowerCase())
                     const catPrice = calculatePlanPrice(cat.amount, billingCycle)
 
                     return (
