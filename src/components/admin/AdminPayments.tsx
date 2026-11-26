@@ -4,6 +4,7 @@ import { resolveAssetUrl } from "../../api/baseApi"
 import {
   fetchAdminPayments,
   updateAdminPaymentStatus,
+  updateAdminPaymentExpirationDate,
   getMembershipCategoryLabel,
   type PaymentItem,
 } from "../../api/paymentApi"
@@ -890,6 +891,412 @@ function StatusBadge({ status }: { status?: string }) {
   )
 }
 
+function formatDateToYMD(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, "0")
+  const d = String(date.getDate()).padStart(2, "0")
+  return `${y}-${m}-${d}`
+}
+
+function parseYMDToDate(ymd: string): Date | null {
+  if (!ymd) return null
+  const parts = ymd.split("-")
+  if (parts.length !== 3) return null
+  const y = parseInt(parts[0], 10)
+  const m = parseInt(parts[1], 10) - 1
+  const d = parseInt(parts[2], 10)
+  const dt = new Date(y, m, d)
+  return isNaN(dt.getTime()) ? null : dt
+}
+
+interface PaymentExpirationDatePickerProps {
+  currentDate?: string | Date | null
+  onSave: (newDate: Date) => Promise<void>
+  onCancel: () => void
+  loading?: boolean
+  error?: string | null
+}
+
+function PaymentExpirationDatePicker({
+  currentDate,
+  onSave,
+  onCancel,
+  loading = false,
+  error = null,
+}: PaymentExpirationDatePickerProps) {
+  const initialDate = useMemo(() => {
+    if (currentDate) {
+      const d = new Date(currentDate)
+      if (!isNaN(d.getTime())) return d
+    }
+    const fallback = new Date()
+    fallback.setMonth(fallback.getMonth() + 1)
+    return fallback
+  }, [currentDate])
+
+  const [selectedDate, setSelectedDate] = useState<Date>(initialDate)
+  const [calendarView, setCalendarView] = useState<Date>(
+    () => new Date(initialDate.getFullYear(), initialDate.getMonth(), 1),
+  )
+
+  const viewYear = calendarView.getFullYear()
+  const viewMonth = calendarView.getMonth()
+
+  const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ]
+
+  const daysOfWeek = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
+
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
+  const firstDayOfWeek = new Date(viewYear, viewMonth, 1).getDay()
+  const prevMonthDays = new Date(viewYear, viewMonth, 0).getDate()
+
+  const today = new Date()
+  const isToday = (day: number) =>
+    today.getFullYear() === viewYear &&
+    today.getMonth() === viewMonth &&
+    today.getDate() === day
+
+  const isSelected = (day: number) =>
+    selectedDate.getFullYear() === viewYear &&
+    selectedDate.getMonth() === viewMonth &&
+    selectedDate.getDate() === day
+
+  const handlePrevMonth = () => {
+    setCalendarView(new Date(viewYear, viewMonth - 1, 1))
+  }
+
+  const handleNextMonth = () => {
+    setCalendarView(new Date(viewYear, viewMonth + 1, 1))
+  }
+
+  const handleSelectDay = (day: number) => {
+    const next = new Date(viewYear, viewMonth, day)
+    setSelectedDate(next)
+  }
+
+  const handleSelectPrevMonthDay = (day: number) => {
+    const prevMonthDate = new Date(viewYear, viewMonth - 1, day)
+    setSelectedDate(prevMonthDate)
+    setCalendarView(new Date(viewYear, viewMonth - 1, 1))
+  }
+
+  const handleSelectNextMonthDay = (day: number) => {
+    const nextMonthDate = new Date(viewYear, viewMonth + 1, day)
+    setSelectedDate(nextMonthDate)
+    setCalendarView(new Date(viewYear, viewMonth + 1, 1))
+  }
+
+  const handleAddMonths = (monthsToAdd: number) => {
+    const base = new Date()
+    const next = new Date(base.getFullYear(), base.getMonth() + monthsToAdd, base.getDate())
+    setSelectedDate(next)
+    setCalendarView(new Date(next.getFullYear(), next.getMonth(), 1))
+  }
+
+  const handleSetToday = () => {
+    const now = new Date()
+    setSelectedDate(now)
+    setCalendarView(new Date(now.getFullYear(), now.getMonth(), 1))
+  }
+
+  const handleDirectDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value
+    if (!val) return
+    const parsed = parseYMDToDate(val)
+    if (parsed) {
+      setSelectedDate(parsed)
+      setCalendarView(new Date(parsed.getFullYear(), parsed.getMonth(), 1))
+    }
+  }
+
+  const nowMidnight = new Date()
+  nowMidnight.setHours(0, 0, 0, 0)
+  const selMidnight = new Date(selectedDate)
+  selMidnight.setHours(0, 0, 0, 0)
+  const diffDays = Math.round(
+    (selMidnight.getTime() - nowMidnight.getTime()) / (1000 * 60 * 60 * 24),
+  )
+
+  const currentYear = new Date().getFullYear()
+  const yearOptions: number[] = []
+  for (let y = currentYear - 3; y <= currentYear + 10; y++) {
+    yearOptions.push(y)
+  }
+
+  return (
+    <div className="space-y-4 animate-scale-in">
+      {error && (
+        <div className="p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/40 text-red-700 dark:text-red-300 text-xs rounded-xl">
+          {error}
+        </div>
+      )}
+
+      {/* Calendar Header with Navigation and Month/Year Quick Selectors */}
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[var(--border-light)]">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handlePrevMonth}
+            className="w-7 h-7 rounded-lg border border-[var(--border-default)] flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+            title="Previous month"
+          >
+            &larr;
+          </button>
+          <button
+            type="button"
+            onClick={handleNextMonth}
+            className="w-7 h-7 rounded-lg border border-[var(--border-default)] flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+            title="Next month"
+          >
+            &rarr;
+          </button>
+          <span className="font-serif text-sm font-bold text-[var(--text-primary)] ml-1">
+            {monthNames[viewMonth]} {viewYear}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <select
+            value={viewMonth}
+            onChange={(e) =>
+              setCalendarView(new Date(viewYear, parseInt(e.target.value, 10), 1))
+            }
+            aria-label="Select calendar month"
+            className="bg-[var(--surface)] border border-[var(--border-default)] rounded-lg py-1 px-2 text-xs text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-[var(--brand)] cursor-pointer"
+          >
+            {monthNames.map((name, idx) => (
+              <option key={name} value={idx}>
+                {name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={viewYear}
+            onChange={(e) =>
+              setCalendarView(new Date(parseInt(e.target.value, 10), viewMonth, 1))
+            }
+            aria-label="Select calendar year"
+            className="bg-[var(--surface)] border border-[var(--border-default)] rounded-lg py-1 px-2 text-xs text-[var(--text-primary)] outline-none focus:ring-1 focus:ring-[var(--brand)] cursor-pointer"
+          >
+            {yearOptions.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Interactive Calendar Days Grid */}
+      <div className="grid grid-cols-7 gap-1 text-center select-none">
+        {daysOfWeek.map((dow) => (
+          <div
+            key={dow}
+            className="text-[11px] font-bold text-[var(--text-tertiary)] py-1 uppercase tracking-wider"
+          >
+            {dow}
+          </div>
+        ))}
+
+        {/* Previous month trailing days */}
+        {Array.from({ length: firstDayOfWeek }).map((_, i) => {
+          const day = prevMonthDays - firstDayOfWeek + 1 + i
+          return (
+            <button
+              key={`prev-${day}`}
+              type="button"
+              onClick={() => handleSelectPrevMonthDay(day)}
+              className="text-xs text-[var(--text-tertiary)]/40 hover:bg-[var(--surface)] hover:text-[var(--text-secondary)] rounded-lg py-2 transition-colors cursor-pointer"
+            >
+              {day}
+            </button>
+          )
+        })}
+
+        {/* Current month days */}
+        {Array.from({ length: daysInMonth }).map((_, i) => {
+          const day = i + 1
+          const selected = isSelected(day)
+          const todayMatch = isToday(day)
+
+          return (
+            <button
+              key={`curr-${day}`}
+              type="button"
+              onClick={() => handleSelectDay(day)}
+              className={`text-xs font-semibold py-2 rounded-xl transition-all cursor-pointer relative ${
+                selected
+                  ? "bg-[var(--brand)] text-white shadow-sm ring-2 ring-[var(--brand)]/30 scale-105 z-10"
+                  : todayMatch
+                    ? "border border-[var(--brand)] text-[var(--brand)] hover:bg-[var(--brand)]/10"
+                    : "text-[var(--text-primary)] hover:bg-[var(--surface)]"
+              }`}
+            >
+              {day}
+            </button>
+          )
+        })}
+
+        {/* Next month leading days */}
+        {(() => {
+          const totalCells = firstDayOfWeek + daysInMonth
+          const remaining = (7 - (totalCells % 7)) % 7
+          return Array.from({ length: remaining }).map((_, i) => {
+            const day = i + 1
+            return (
+              <button
+                key={`next-${day}`}
+                type="button"
+                onClick={() => handleSelectNextMonthDay(day)}
+                className="text-xs text-[var(--text-tertiary)]/40 hover:bg-[var(--surface)] hover:text-[var(--text-secondary)] rounded-lg py-2 transition-colors cursor-pointer"
+              >
+                {day}
+              </button>
+            )
+          })
+        })()}
+      </div>
+
+      {/* Quick Extension Presets */}
+      <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-[var(--border-light)]">
+        <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mr-1">
+          Quick Presets:
+        </span>
+        <button
+          type="button"
+          onClick={() => handleAddMonths(1)}
+          className="px-2.5 py-1 rounded-lg text-xs font-medium bg-[var(--surface)] hover:bg-[var(--border-light)] text-[var(--text-secondary)] border border-[var(--border-light)] transition-colors cursor-pointer"
+        >
+          +1 Month
+        </button>
+        <button
+          type="button"
+          onClick={() => handleAddMonths(3)}
+          className="px-2.5 py-1 rounded-lg text-xs font-medium bg-[var(--surface)] hover:bg-[var(--border-light)] text-[var(--text-secondary)] border border-[var(--border-light)] transition-colors cursor-pointer"
+        >
+          +3 Months
+        </button>
+        <button
+          type="button"
+          onClick={() => handleAddMonths(6)}
+          className="px-2.5 py-1 rounded-lg text-xs font-medium bg-[var(--surface)] hover:bg-[var(--border-light)] text-[var(--text-secondary)] border border-[var(--border-light)] transition-colors cursor-pointer"
+        >
+          +6 Months
+        </button>
+        <button
+          type="button"
+          onClick={() => handleAddMonths(12)}
+          className="px-2.5 py-1 rounded-lg text-xs font-medium bg-[var(--surface)] hover:bg-[var(--border-light)] text-[var(--text-secondary)] border border-[var(--border-light)] transition-colors cursor-pointer"
+        >
+          +1 Year
+        </button>
+        <button
+          type="button"
+          onClick={handleSetToday}
+          className="px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-900/40 hover:bg-amber-100 transition-colors cursor-pointer sm:ml-auto"
+        >
+          Today
+        </button>
+      </div>
+
+      {/* Selected Date Summary & Direct Date Input */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-[var(--border-light)]">
+        <div>
+          <span className="text-[10px] text-[var(--text-tertiary)] uppercase block font-semibold mb-0.5">
+            Selected Expiration Date
+          </span>
+          <div className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2 flex-wrap">
+            <span>{formatDateOnly(selectedDate)}</span>
+            <span
+              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                diffDays < 0
+                  ? "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300"
+                  : diffDays === 0
+                    ? "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                    : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+              }`}
+            >
+              {diffDays < 0
+                ? `Expired ${Math.abs(diffDays)} day${Math.abs(diffDays) === 1 ? "" : "s"} ago`
+                : diffDays === 0
+                  ? "Expires Today"
+                  : `Active for ${diffDays} day${diffDays === 1 ? "" : "s"}`}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <label className="text-[10px] text-[var(--text-tertiary)] font-medium">
+            Direct Entry:
+          </label>
+          <input
+            type="date"
+            value={formatDateToYMD(selectedDate)}
+            onChange={handleDirectDateChange}
+            aria-label="Direct date selection"
+            className="bg-[var(--surface)] border border-[var(--border-default)] rounded-xl py-1 px-2.5 text-xs text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--brand)]/20 cursor-pointer"
+          />
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center justify-end gap-2 pt-3 border-t border-[var(--border-light)]">
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={loading}
+          className="px-4 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface)] hover:text-[var(--text-primary)] transition-colors cursor-pointer disabled:opacity-50"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={() => onSave(selectedDate)}
+          disabled={loading}
+          className="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-semibold text-white bg-[var(--brand)] hover:bg-[var(--brand-light)] transition-colors shadow-sm cursor-pointer disabled:opacity-50"
+        >
+          {loading ? (
+            <>
+              <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <span>Saving...</span>
+            </>
+          ) : (
+            <>
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+              <span>Save Expiration Date</span>
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 /**
  * Payment Details Component
  * Displays full user profile details (avatar, name, email, phone, role, status),
@@ -908,10 +1315,54 @@ function PaymentDetail({
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [updateError, setUpdateError] = useState<string | null>(null)
 
+  const [isEditingExpiration, setIsEditingExpiration] = useState(false)
+  const [updatingExpiration, setUpdatingExpiration] = useState(false)
+  const [expirationUpdateError, setExpirationUpdateError] = useState<string | null>(null)
+  const [expirationSuccessMessage, setExpirationSuccessMessage] = useState<string | null>(null)
+
   const user = payment.user
   const userName = user?.full_name || user?.name || "Unknown User"
   const userPhoto = user?.profileImage || user?.avatar
   const receiptUrl = payment.image ? resolveAssetUrl(payment.image) : payment.url
+
+  async function handleUpdateExpiration(newDate: Date) {
+    setUpdatingExpiration(true)
+    setExpirationUpdateError(null)
+    setExpirationSuccessMessage(null)
+    try {
+      const chosenDate = new Date(newDate)
+      chosenDate.setHours(23, 59, 59, 999)
+
+      const res = await updateAdminPaymentExpirationDate(payment.id, chosenDate)
+      const isNowExpired = new Date() > chosenDate
+      const isNowValid = payment.status === "accepted" && !isNowExpired
+
+      const updatedPayment: PaymentItem = {
+        ...payment,
+        ...(res || {}),
+        expirationDate: res?.expirationDate || chosenDate.toISOString(),
+        expiration_date: res?.expiration_date || chosenDate.toISOString(),
+        isExpired: res?.isExpired !== undefined ? res.isExpired : isNowExpired,
+        is_expired: res?.is_expired !== undefined ? res.is_expired : isNowExpired,
+        isValid: res?.isValid !== undefined ? res.isValid : isNowValid,
+        is_valid: res?.is_valid !== undefined ? res.is_valid : isNowValid,
+      }
+
+      onStatusChange(updatedPayment)
+      setIsEditingExpiration(false)
+      setExpirationSuccessMessage(
+        `Expiration date updated to ${formatDateOnly(chosenDate)} successfully.`
+      )
+    } catch (err: unknown) {
+      setExpirationUpdateError(
+        err instanceof Error
+          ? err.message
+          : "Failed to update expiration date on server."
+      )
+    } finally {
+      setUpdatingExpiration(false)
+    }
+  }
 
   async function handleSetStatus(newStatus: "accepted" | "pending" | "rejected") {
     setUpdating(true)
@@ -1044,9 +1495,48 @@ function PaymentDetail({
 
       {/* Payment Details Card */}
       <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-light)] p-5 sm:p-6 shadow-xs">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)] mb-4">
-          Payment Information
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+            Payment Information
+          </h2>
+          {!isEditingExpiration && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsEditingExpiration(true)
+                setExpirationUpdateError(null)
+                setExpirationSuccessMessage(null)
+              }}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--brand)] hover:underline cursor-pointer"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+              <span>Edit Expiration Date</span>
+            </button>
+          )}
+        </div>
+
+        {expirationSuccessMessage && (
+          <div className="mb-4 p-3.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 text-emerald-800 dark:text-emerald-200 text-xs rounded-xl flex items-center justify-between animate-scale-in">
+            <div className="flex items-center gap-2">
+              <span className="font-bold">✓</span>
+              <span>{expirationSuccessMessage}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setExpirationSuccessMessage(null)}
+              className="text-emerald-600 hover:text-emerald-800 font-bold ml-2 cursor-pointer"
+            >
+              ×
+            </button>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <InfoItem label="Payment Status" value={<StatusBadge status={payment.status} />} />
@@ -1106,10 +1596,76 @@ function PaymentDetail({
               )
             }
           />
-          <InfoItem
-            label="Expiration Date"
-            value={formatDateOnly(payment.expirationDate || payment.expiration_date)}
-          />
+
+          {/* Expiration Date Field with Calendar Editor */}
+          <div className="sm:col-span-2 p-4 rounded-xl bg-[var(--surface-alt)] border border-[var(--border-light)]">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider">
+                Expiration Date
+              </span>
+              {!isEditingExpiration && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditingExpiration(true)
+                    setExpirationUpdateError(null)
+                    setExpirationSuccessMessage(null)
+                  }}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-[var(--brand)] text-white hover:bg-[var(--brand-light)] transition-colors shadow-xs cursor-pointer"
+                >
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
+                  </svg>
+                  <span>Edit Expiration Date</span>
+                </button>
+              )}
+            </div>
+
+            {!isEditingExpiration ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-sm font-semibold text-[var(--text-primary)]">
+                  {formatDateOnly(payment.expirationDate || payment.expiration_date)}
+                </span>
+                {payment.expirationDate || payment.expiration_date ? (
+                  <span
+                    className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                      payment.isExpired
+                        ? "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300"
+                        : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+                    }`}
+                  >
+                    {payment.isExpired ? "Expired" : "Active & Valid"}
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                    Not Set
+                  </span>
+                )}
+              </div>
+            ) : (
+              <PaymentExpirationDatePicker
+                currentDate={payment.expirationDate || payment.expiration_date}
+                onSave={handleUpdateExpiration}
+                onCancel={() => {
+                  setIsEditingExpiration(false)
+                  setExpirationUpdateError(null)
+                }}
+                loading={updatingExpiration}
+                error={expirationUpdateError}
+              />
+            )}
+          </div>
+
           <InfoItem
             label="Subscription Validity"
             value={

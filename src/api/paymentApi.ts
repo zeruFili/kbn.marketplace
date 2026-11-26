@@ -571,6 +571,27 @@ export async function updateAdminPaymentStatus(
 }
 
 /**
+ * Update payment expiration date (admin) via PATCH /api/v1/payments/:id
+ */
+export async function updateAdminPaymentExpirationDate(
+  id: string,
+  expirationDate: string | Date
+): Promise<PaymentItem | null> {
+  const dateStr =
+    expirationDate instanceof Date
+      ? expirationDate.toISOString()
+      : new Date(expirationDate).toISOString()
+  const res = await baseApi.patch<PaymentItem>(`/payments/${id}`, {
+    expirationDate: dateStr,
+    expiration_date: dateStr,
+  })
+  if (res.success && res.data) {
+    return res.data
+  }
+  return null
+}
+
+/**
  * Persist selected membership category to backend for authenticated user
  */
 export async function selectMembershipCategoryApi(
