@@ -8,6 +8,11 @@ import {
   selectMembershipCategoryApi,
   getMembershipCategoryLabel,
   DEFAULT_MEMBERSHIP_CATEGORIES,
+  calculatePlanPrice,
+  getStoredBillingCycle,
+  setStoredBillingCycle,
+  YEARLY_DISCOUNT_PERCENT,
+  type BillingCycle,
   type VerifiedPayment,
   type MembershipCategoryOption,
 } from "../api/paymentApi"
@@ -62,8 +67,17 @@ export default function PaymentReceiverPage() {
     DEFAULT_MEMBERSHIP_CATEGORIES
   )
 
-  // Retrieve category from URL search params or sessionStorage
+  // Retrieve category and billing cycle from URL search params or sessionStorage
   const categoryQuery = searchParams.get("category")
+  const billingQuery = searchParams.get("billing")
+
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>(() => {
+    if (billingQuery === "yearly" || billingQuery === "monthly") {
+      return billingQuery
+    }
+    return getStoredBillingCycle()
+  })
+
   const storedCategory =
     typeof window !== "undefined"
       ? sessionStorage.getItem("kbn_selected_category")
@@ -116,6 +130,21 @@ export default function PaymentReceiverPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Synchronize billingCycle when query param updates
+  useEffect(() => {
+    if (billingQuery === "yearly" || billingQuery === "monthly") {
+      if (billingQuery !== billingCycle) {
+        setBillingCycle(billingQuery)
+        setStoredBillingCycle(billingQuery)
+      }
+    }
+  }, [billingQuery])
+
+  const handleBillingCycleChange = (newCycle: BillingCycle) => {
+    setBillingCycle(newCycle)
+    setStoredBillingCycle(newCycle)
+  }
+
   // Synchronize category ID if query param updates or ensure default category is set
   useEffect(() => {
     if (categoryQuery && categoryQuery !== selectedCategoryId) {
@@ -144,6 +173,12 @@ export default function PaymentReceiverPage() {
       ) || null
     )
   }, [categories, selectedCategoryId])
+
+  // Computed pricing details for the selected category based on current billingCycle
+  const selectedPlanPrice = useMemo(() => {
+    if (!selectedCategory) return null
+    return calculatePlanPrice(selectedCategory.amount, billingCycle)
+  }, [selectedCategory, billingCycle])
 
   // Determine active flow step
   // Step 1: Category selection (/payment)
@@ -297,8 +332,9 @@ export default function PaymentReceiverPage() {
 
   // STEP NAVIGATION:
   // Persist selected membership category to backend and redirect to payment credentials and upload page
-  const handleProceedToPayment = async (catId?: string) => {
+  const handleProceedToPayment = async (catId?: string, cycleToUse?: BillingCycle) => {
     const targetId = catId || selectedCategoryId
+    const targetCycle = cycleToUse || billingCycle
     if (!targetId) {
       setClientError("Please select a membership category first.")
       return
@@ -312,6 +348,7 @@ export default function PaymentReceiverPage() {
     const resolvedId = cat.id || cat.code || targetId
     setSelectedCategoryId(resolvedId)
     sessionStorage.setItem("kbn_selected_category", resolvedId)
+    setStoredBillingCycle(targetCycle)
     setClientError(null)
     setSavingCategory(true)
 
@@ -326,19 +363,21 @@ export default function PaymentReceiverPage() {
       // Non-blocking: allow user to continue to payment credentials
     } finally {
       setSavingCategory(false)
-      navigate(`/payment/verify?category=${encodeURIComponent(resolvedId)}`)
+      navigate(
+        `/payment/verify?category=${encodeURIComponent(resolvedId)}&billing=${encodeURIComponent(targetCycle)}`
+      )
     }
   }
 
   // Back to category selection (Step 1)
   const handleBackToCategories = () => {
     setClientError(null)
-    navigate("/payment")
+    navigate(`/payment?billing=${encodeURIComponent(billingCycle)}`)
   }
 
   const handleSubmitVerification = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedCategory) {
+    if (!selectedCategory || !selectedPlanPrice) {
       setClientError("Please select a membership category first.")
       navigate("/payment", { replace: true })
       return
@@ -359,7 +398,9 @@ export default function PaymentReceiverPage() {
       const [response] = await Promise.all([
         verifyPaymentReceipt(file, {
           membershipCategory: selectedCategory.id,
-          paymentAmount: selectedCategory.amount,
+          paymentAmount: selectedPlanPrice.amount,
+          expectedAmount: selectedPlanPrice.amount,
+          billingCycle: billingCycle,
         }),
         minLoadingDuration,
       ])
@@ -378,9 +419,9 @@ export default function PaymentReceiverPage() {
         setSubmittedPayment(response.data)
       } else {
         setSubmittedPayment({
-          amount: selectedCategory.amount,
+          amount: selectedPlanPrice.amount,
           membershipCategory: selectedCategory.id,
-          membershipCategoryLabel: selectedCategory.name,
+          membershipCategoryLabel: `${selectedCategory.name} (${billingCycle === "yearly" ? "Yearly Plan - 10% Discount" : "Monthly Plan"})`,
           status: "pending",
         })
       }
@@ -660,7 +701,7 @@ export default function PaymentReceiverPage() {
                 <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)] mb-3">
                   Submission Summary
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <p className="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)] font-semibold">
                       Membership Package
@@ -674,13 +715,26 @@ export default function PaymentReceiverPage() {
                   </div>
                   <div>
                     <p className="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)] font-semibold">
+                      Billing Plan
+                    </p>
+                    <p className="text-sm font-bold text-[var(--text-primary)] mt-0.5 flex items-center gap-1.5">
+                      <span>{billingCycle === "yearly" ? "Yearly Subscription" : "Monthly Subscription"}</span>
+                      {billingCycle === "yearly" && (
+                        <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-300">
+                          10% OFF
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)] font-semibold">
                       Payment Amount
                     </p>
                     <p className="text-sm font-bold text-[var(--brand)] mt-0.5">
                       {submittedPayment?.amount && Number(submittedPayment.amount) > 0
                         ? `ETB ${Number(submittedPayment.amount).toLocaleString()}`
-                        : selectedCategory
-                        ? selectedCategory.formattedPrice
+                        : selectedPlanPrice
+                        ? selectedPlanPrice.formattedPrice
                         : "Under Review"}
                     </p>
                   </div>
@@ -715,8 +769,15 @@ export default function PaymentReceiverPage() {
               {/* Selected Category Summary Card */}
               <div className="bg-gradient-to-r from-[var(--brand)] to-[var(--brand-dark)] text-white rounded-3xl p-6 sm:p-7 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/15 text-amber-300 mb-2">
-                    Tier {selectedCategory.tier} • Selected Package
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
+                    <span className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/15 text-amber-300">
+                      Tier {selectedCategory.tier} • Selected Package
+                    </span>
+                    {billingCycle === "yearly" && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/30 text-emerald-300 border border-emerald-400/40">
+                        ✨ 10% Discount Applied
+                      </span>
+                    )}
                   </div>
                   <h2 className="font-serif text-2xl font-bold text-white">
                     {selectedCategory.name}
@@ -724,19 +785,81 @@ export default function PaymentReceiverPage() {
                   <p className="text-xs text-slate-300 mt-1 max-w-xl">
                     {selectedCategory.description}
                   </p>
+
+                  {/* Inline billing cycle toggle on step 2 */}
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <span className="text-xs font-semibold text-slate-200">
+                      Billing Plan:
+                    </span>
+                    <div className="inline-flex items-center p-1 rounded-2xl bg-black/40 border border-white/20 shadow-inner">
+                      <button
+                        type="button"
+                        onClick={() => handleBillingCycleChange("monthly")}
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                          billingCycle === "monthly"
+                            ? "bg-white text-slate-900 shadow-md ring-2 ring-white/60"
+                            : "text-slate-300 hover:text-white hover:bg-white/10"
+                        }`}
+                      >
+                        <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[10px] ${
+                          billingCycle === "monthly" ? "bg-slate-900 text-white font-black" : "border border-slate-400"
+                        }`}>
+                          {billingCycle === "monthly" && "✓"}
+                        </span>
+                        <span>Monthly Plan</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleBillingCycleChange("yearly")}
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                          billingCycle === "yearly"
+                            ? "bg-amber-400 text-amber-950 shadow-md ring-2 ring-amber-300"
+                            : "text-slate-300 hover:text-white hover:bg-white/10"
+                        }`}
+                      >
+                        <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[10px] ${
+                          billingCycle === "yearly" ? "bg-amber-950 text-amber-300 font-black" : "border border-slate-400"
+                        }`}>
+                          {billingCycle === "yearly" && "✓"}
+                        </span>
+                        <span>Yearly Plan</span>
+                        <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black uppercase ${
+                          billingCycle === "yearly" ? "bg-emerald-800 text-white" : "bg-emerald-600 text-white"
+                        }`}>
+                          -10%
+                        </span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 sm:border-l border-white/15 pt-3 sm:pt-0 sm:pl-6 shrink-0">
                   <span className="text-[10px] uppercase tracking-wider text-slate-300 font-semibold block">
                     Required Transfer Fee
                   </span>
-                  <span className="text-2xl font-serif font-black text-amber-400">
-                    ETB {selectedCategory.amount.toLocaleString()}
-                  </span>
+                  <div className="text-right">
+                    {billingCycle === "yearly" && selectedPlanPrice?.originalAmount && (
+                      <p className="text-xs text-slate-300/80 line-through">
+                        ETB {selectedPlanPrice.originalAmount.toLocaleString()}
+                      </p>
+                    )}
+                    <span className="text-2xl font-serif font-black text-amber-400 block">
+                      ETB {selectedPlanPrice?.amount.toLocaleString()}
+                    </span>
+                    {billingCycle === "yearly" ? (
+                      <span className="text-[11px] text-emerald-300 font-semibold block mt-0.5">
+                        Saved ETB {selectedPlanPrice?.discountAmount?.toLocaleString()} (10% off)
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-slate-300 font-normal block mt-0.5">
+                        Billed monthly
+                      </span>
+                    )}
+                  </div>
                   <button
                     type="button"
                     onClick={handleBackToCategories}
-                    className="mt-2 text-xs font-semibold text-white/80 hover:text-white underline underline-offset-2 cursor-pointer"
+                    className="mt-3 text-xs font-semibold text-white/80 hover:text-white underline underline-offset-2 cursor-pointer"
                   >
                     Change Package
                   </button>
@@ -782,21 +905,43 @@ export default function PaymentReceiverPage() {
                   {/* Required Transfer Amount */}
                   <div className="rounded-2xl border p-4 flex items-center justify-between gap-3 bg-amber-50/70 border-[var(--accent)] shadow-xs">
                     <div className="min-w-0">
-                      <p className="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)] font-semibold">
-                        Required Transfer Amount
-                      </p>
-                      <div className="mt-0.5">
-                        <p className="text-lg font-serif font-black text-[var(--brand)]">
-                          ETB {selectedCategory.amount.toLocaleString()}
+                      <div className="flex items-center gap-2">
+                        <p className="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)] font-semibold">
+                          Required Transfer Amount
                         </p>
+                        {billingCycle === "yearly" && (
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
+                            10% Discount Applied
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-0.5">
+                        <div className="flex items-baseline gap-2">
+                          <p className="text-lg font-serif font-black text-[var(--brand)]">
+                            ETB {selectedPlanPrice?.amount.toLocaleString()}
+                          </p>
+                          {billingCycle === "yearly" && selectedPlanPrice?.originalAmount && (
+                            <span className="text-xs text-slate-400 line-through">
+                              ETB {selectedPlanPrice.originalAmount.toLocaleString()}
+                            </span>
+                          )}
+                          <span className="text-xs text-[var(--text-tertiary)] font-medium">
+                            / {selectedPlanPrice?.cycleLabel}
+                          </span>
+                        </div>
                         <p className="text-[11px] text-[var(--accent-dark)] font-medium truncate">
-                          {selectedCategory.name}
+                          {selectedCategory.name} • {billingCycle === "yearly" ? "Yearly Subscription (Save 10%)" : "Monthly Subscription"}
                         </p>
                       </div>
                     </div>
                     <button
                       type="button"
-                      onClick={() => copyToClipboard(String(selectedCategory.amount), "amount")}
+                      onClick={() =>
+                        copyToClipboard(
+                          String(selectedPlanPrice?.amount || selectedCategory.amount),
+                          "amount"
+                        )
+                      }
                       className="flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-[var(--border-default)] hover:bg-[var(--brand)] hover:text-white transition-colors cursor-pointer shadow-xs"
                     >
                       {copiedField === "amount" ? "✓ Copied" : "Copy Amount"}
@@ -866,7 +1011,7 @@ export default function PaymentReceiverPage() {
                   <p className="text-xs text-[var(--text-secondary)] mt-1">
                     Attach your bank or mobile payment confirmation receipt for{" "}
                     <span className="font-semibold text-[var(--text-primary)]">
-                      {selectedCategory.name} (ETB {selectedCategory.amount.toLocaleString()})
+                      {selectedCategory.name} (ETB {selectedPlanPrice?.amount.toLocaleString()} • {billingCycle === "yearly" ? "Yearly Subscription with 10% Discount" : "Monthly Subscription"})
                     </span>
                     .
                   </p>
@@ -989,7 +1134,7 @@ export default function PaymentReceiverPage() {
                             </span>
                           </p>
                           <p className="text-xs text-[var(--text-tertiary)] mt-1">
-                            Accepts all image formats (PNG, JPG, WEBP, HEIC, GIF, BMP, SVG, TIFF, AVIF) or PDF (up to 10MB) • For {selectedCategory.formattedPrice}
+                            Accepts all image formats (PNG, JPG, WEBP, HEIC, GIF, BMP, SVG, TIFF, AVIF) or PDF (up to 10MB) • For {selectedPlanPrice?.formattedPrice} ({billingCycle === "yearly" ? "Yearly Subscription - 10% Discount" : "Monthly Subscription"})
                           </p>
                         </div>
                         <div className="inline-flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] bg-white px-3 py-1 rounded-full border border-[var(--border-light)] shadow-2xs">
@@ -1012,10 +1157,14 @@ export default function PaymentReceiverPage() {
                           <span>Submitting Receipt for Review...</span>
                         </>
                       ) : !file ? (
-                        <span>Attach Receipt to Submit ({selectedCategory.formattedPrice})</span>
+                        <span>
+                          Attach Receipt to Submit ({selectedPlanPrice?.formattedPrice} - {billingCycle === "yearly" ? "Yearly Subscription" : "Monthly Subscription"})
+                        </span>
                       ) : (
                         <>
-                          <span>Submit Receipt for Review ({selectedCategory.formattedPrice})</span>
+                          <span>
+                            Submit Receipt for Review ({selectedPlanPrice?.formattedPrice} - {billingCycle === "yearly" ? "Yearly Subscription" : "Monthly Subscription"})
+                          </span>
                           <span aria-hidden="true">→</span>
                         </>
                       )}
@@ -1042,17 +1191,178 @@ export default function PaymentReceiverPage() {
                       Choose Your Membership Package
                     </h2>
                     <p className="text-xs text-[var(--text-secondary)] mt-1 max-w-2xl">
-                      Select your membership package below. Once chosen, you will be redirected to the official payment credentials and receipt upload page.
+                      Select your membership package and preferred subscription billing cycle below. Once chosen, you will be redirected to the official payment credentials and receipt upload page.
                     </p>
                   </div>
 
-                  {selectedCategory && (
+                  {selectedCategory && selectedPlanPrice && (
                     <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold self-start sm:self-auto">
                       <span>✓ Selected:</span>
-                      <span className="font-bold">{selectedCategory.formattedPrice}</span>
+                      <span className="font-bold">
+                        {selectedPlanPrice.formattedPrice} / {selectedPlanPrice.cycleLabel}
+                      </span>
+                      {billingCycle === "yearly" && (
+                        <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black uppercase bg-emerald-600 text-white">
+                          10% OFF
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
+
+                {/* Billing Cycle Switcher: Monthly vs Yearly with 10% Discount */}
+               <div className="bg-gradient-to-b from-slate-50 via-amber-50/30 to-amber-100/40 rounded-3xl border-2 border-amber-300/80 p-5 sm:p-6 shadow-sm space-y-4">
+  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div className="min-w-0">
+      <div className="flex flex-wrap items-center gap-2.5">
+        <span className="text-xl">💳</span>
+        <h3 className="text-base sm:text-lg font-bold text-slate-900">
+          Select Billing Option
+        </h3>
+        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-600 text-white shadow-xs whitespace-nowrap">
+          ✨ 10% Yearly Discount
+        </span>
+      </div>
+      <p className="text-xs text-slate-600 mt-1 max-w-xl">
+        Switch between monthly billing or lock in a <strong className="text-emerald-700">10% discount</strong> with yearly billing. Click an option below to update all package prices instantly.
+      </p>
+    </div>
+
+    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-amber-200 text-xs font-bold text-slate-800 shadow-2xs self-start sm:self-auto shrink-0">
+      <span className="text-slate-400">Active Choice:</span>
+      <span className={billingCycle === "yearly" ? "text-amber-700 uppercase" : "text-slate-900 uppercase"}>
+        {billingCycle === "yearly" ? "⭐ Yearly (10% Off)" : "📅 Monthly"}
+      </span>
+    </div>
+  </div>
+
+  {/* Two Large High-Contrast Selectable Buttons */}
+  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    {/* Monthly Option Button */}
+    <button
+      type="button"
+      role="tab"
+      aria-selected={billingCycle === "monthly"}
+      onClick={() => handleBillingCycleChange("monthly")}
+      className={`relative w-full p-4 sm:p-5 rounded-2xl border-2 text-left transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 ${
+        billingCycle === "monthly"
+          ? "border-[#0F1D3A] bg-[#0F1D3A] text-white shadow-lg ring-4 ring-[#0F1D3A]/20 scale-[1.01]"
+          : "border-slate-300 bg-white text-slate-800 hover:border-slate-400 hover:bg-slate-50/90 shadow-xs"
+      }`}
+    >
+      <div className="flex items-start gap-3.5 min-w-0 flex-1">
+        {/* Radio Check Circle */}
+        <div
+          className={`mt-0.5 w-7 h-7 rounded-full flex items-center justify-center border-2 shrink-0 transition-all ${
+            billingCycle === "monthly"
+              ? "border-white bg-white text-[#0F1D3A] shadow-xs"
+              : "border-slate-400 bg-white text-transparent"
+          }`}
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="font-bold text-sm sm:text-base tracking-tight">
+              Monthly Subscription
+            </span>
+            {billingCycle === "monthly" && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-white/20 text-white border border-white/30 whitespace-nowrap">
+                Selected
+              </span>
+            )}
+          </div>
+          <span
+            className={`text-xs block mt-1 leading-snug ${
+              billingCycle === "monthly" ? "text-slate-300" : "text-slate-500"
+            }`}
+          >
+            Standard month-to-month billing
+          </span>
+        </div>
+      </div>
+
+      <div className="shrink-0 self-start sm:self-auto pl-10.5 sm:pl-0 sm:text-right">
+        <span
+          className={`inline-block text-xs font-bold px-3 py-1.5 rounded-xl whitespace-nowrap ${
+            billingCycle === "monthly"
+              ? "bg-white/15 text-white border border-white/25"
+              : "bg-slate-100 text-slate-700 border border-slate-200"
+          }`}
+        >
+          Regular Rate
+        </span>
+      </div>
+    </button>
+
+    {/* Yearly Option Button (10% Discount) */}
+    <button
+      type="button"
+      role="tab"
+      aria-selected={billingCycle === "yearly"}
+      onClick={() => handleBillingCycleChange("yearly")}
+      className={`relative w-full p-4 sm:p-5 rounded-2xl border-2 text-left transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 ${
+        billingCycle === "yearly"
+          ? "border-amber-500 bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 text-white shadow-xl ring-4 ring-amber-400/40 scale-[1.01]"
+          : "border-emerald-400 bg-emerald-50/60 text-slate-900 hover:border-emerald-500 hover:bg-emerald-50 shadow-xs"
+      }`}
+    >
+      <div className="flex items-start gap-3.5 min-w-0 flex-1">
+        {/* Radio Check Circle */}
+        <div
+          className={`mt-0.5 w-7 h-7 rounded-full flex items-center justify-center border-2 shrink-0 transition-all ${
+            billingCycle === "yearly"
+              ? "border-white bg-white text-amber-700 shadow-xs"
+              : "border-emerald-600 bg-white text-transparent"
+          }`}
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="font-bold text-sm sm:text-base tracking-tight">
+              Yearly Subscription
+            </span>
+            <span
+              className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider whitespace-nowrap ${
+                billingCycle === "yearly"
+                  ? "bg-amber-950/40 text-amber-100 border border-amber-300/40"
+                  : "bg-emerald-600 text-white"
+              }`}
+            >
+              10% Discount
+            </span>
+          </div>
+          <span
+            className={`text-xs block mt-1 leading-snug ${
+              billingCycle === "yearly" ? "text-amber-100 font-medium" : "text-emerald-800 font-semibold"
+            }`}
+          >
+            Pay annually &amp; get 10% off
+          </span>
+        </div>
+      </div>
+
+      <div className="shrink-0 self-start sm:self-auto pl-10.5 sm:pl-0 sm:text-right">
+        <span
+          className={`inline-block text-xs font-black px-3 py-1.5 rounded-xl uppercase tracking-wider shadow-sm whitespace-nowrap ${
+            billingCycle === "yearly"
+              ? "bg-white text-amber-900"
+              : "bg-emerald-600 text-white"
+          }`}
+        >
+          Save 10%
+        </span>
+      </div>
+    </button>
+  </div>
+</div>
 
                 {/* Under Review Notice Banner if user already submitted a payment */}
                 {isUnderVerification && (
@@ -1115,6 +1425,8 @@ export default function PaymentReceiverPage() {
                         selectedCategoryId?.toLowerCase() === cat.id.toLowerCase()) ||
                       (Boolean(cat.code) &&
                         selectedCategoryId?.toLowerCase() === cat.code.toLowerCase())
+                    const catPrice = calculatePlanPrice(cat.amount, billingCycle)
+
                     return (
                       <div
                         key={cat.id}
@@ -1140,7 +1452,7 @@ export default function PaymentReceiverPage() {
                       >
                         {/* Top Badges & Custom Radio Indicator */}
                         <div>
-                          <div className="flex items-center justify-between gap-2 mb-3">
+                          <div className="flex items-center justify-between gap-1.5 mb-3">
                             <span
                               className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                                 cat.tier === 1
@@ -1157,15 +1469,23 @@ export default function PaymentReceiverPage() {
                               Tier {cat.tier}
                             </span>
 
-                            {cat.popular && (
-                              <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-[var(--accent)] text-white shadow-2xs">
-                                Popular
-                              </span>
-                            )}
+                            <div className="flex items-center gap-1">
+                              {cat.popular && (
+                                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-[var(--accent)] text-white shadow-2xs">
+                                  Popular
+                                </span>
+                              )}
+
+                              {billingCycle === "yearly" && (
+                                <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                  -10%
+                                </span>
+                              )}
+                            </div>
 
                             {/* Radio Circle */}
                             <div
-                              className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
+                              className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all shrink-0 ${
                                 isSelected
                                   ? "border-[var(--accent)] bg-[var(--accent)] text-white"
                                   : "border-slate-300 bg-white"
@@ -1203,12 +1523,41 @@ export default function PaymentReceiverPage() {
                         {/* Price & Action Section */}
                         <div className="pt-5 mt-4 border-t border-[var(--border-light)]/60 space-y-3">
                           <div>
-                            <p className="text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-bold">
-                              Price (ETB)
-                            </p>
-                            <p className="text-2xl font-serif font-black text-[var(--brand)]">
-                              ETB {cat.amount.toLocaleString()}
-                            </p>
+                            <div className="flex items-center justify-between">
+                              <p className="text-[10px] uppercase tracking-wider text-[var(--text-tertiary)] font-bold">
+                                {billingCycle === "yearly" ? "Annual Price (ETB)" : "Monthly Price (ETB)"}
+                              </p>
+                              {billingCycle === "yearly" && catPrice.originalAmount && (
+                                <span className="text-xs text-slate-400 line-through font-medium">
+                                  ETB {catPrice.originalAmount.toLocaleString()}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-baseline gap-1 mt-0.5">
+                              <p className="text-2xl font-serif font-black text-[var(--brand)]">
+                                ETB {catPrice.amount.toLocaleString()}
+                              </p>
+                              <span className="text-xs text-[var(--text-tertiary)] font-semibold">
+                                / {catPrice.cycleLabel}
+                              </span>
+                            </div>
+
+                            {billingCycle === "yearly" ? (
+                              <div className="mt-1.5 space-y-0.5">
+                                <p className="text-[11px] font-bold text-emerald-700 flex items-center gap-1">
+                                  <span>✓</span>
+                                  <span>Save ETB {catPrice.discountAmount?.toLocaleString()} (10% off)</span>
+                                </p>
+                                <p className="text-[10px] text-[var(--text-tertiary)]">
+                                  Equivalent to ETB {catPrice.monthlyEquivalent.toLocaleString()} / month
+                                </p>
+                              </div>
+                            ) : (
+                              <p className="text-[10px] text-[var(--text-tertiary)] mt-1">
+                                Billed monthly • Switch to yearly to save 10%
+                              </p>
+                            )}
                           </div>
 
                           <button
@@ -1218,10 +1567,14 @@ export default function PaymentReceiverPage() {
                               e.stopPropagation()
                               handleProceedToPayment(cat.id)
                             }}
-                            className={`w-full py-2.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs ${
+                            className={`w-full py-2.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-xs ${
                               isSelected
-                                ? "bg-[var(--accent)] hover:bg-[var(--accent-dark)] text-white shadow-xs"
-                                : "bg-[var(--brand)] hover:bg-[var(--brand-light)] text-white"
+                                ? billingCycle === "yearly"
+                                  ? "bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-md ring-2 ring-amber-300 font-bold"
+                                  : "bg-[var(--accent)] hover:bg-[var(--accent-dark)] text-white shadow-xs ring-2 ring-[var(--accent)]/30 font-bold"
+                                : billingCycle === "yearly"
+                                ? "bg-amber-800 hover:bg-amber-900 text-white font-medium"
+                                : "bg-[var(--brand)] hover:bg-[var(--brand-light)] text-white font-medium"
                             } ${savingCategory ? "opacity-70 cursor-not-allowed" : ""}`}
                           >
                             {savingCategory && selectedCategoryId === cat.id ? (
@@ -1231,7 +1584,11 @@ export default function PaymentReceiverPage() {
                               </>
                             ) : (
                               <>
-                                <span>Select & Continue</span>
+                                <span>
+                                  {billingCycle === "yearly"
+                                    ? "Select Yearly Plan (Save 10%)"
+                                    : "Select Monthly Plan"}
+                                </span>
                                 <span aria-hidden="true">→</span>
                               </>
                             )}
@@ -1244,17 +1601,34 @@ export default function PaymentReceiverPage() {
 
                 {/* Primary Proceed Action Bar */}
                 <div className="pt-4 border-t border-[var(--border-light)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <p className="text-xs text-[var(--text-tertiary)]">
-                    {selectedCategory
-                      ? `Selected: ${selectedCategory.name} (${selectedCategory.formattedPrice})`
-                      : "Please select a membership category above to continue to the payment instructions."}
-                  </p>
+                  <div className="text-xs text-[var(--text-tertiary)] space-y-0.5">
+                    {selectedCategory && selectedPlanPrice ? (
+                      <p>
+                        Selected:{" "}
+                        <strong className="text-[var(--text-primary)]">
+                          {selectedCategory.name}
+                        </strong>{" "}
+                        — {selectedPlanPrice.formattedPrice} / {selectedPlanPrice.cycleLabel}
+                        {billingCycle === "yearly" && (
+                          <span className="ml-1 text-emerald-700 font-semibold">
+                            (Includes 10% Yearly Discount)
+                          </span>
+                        )}
+                      </p>
+                    ) : (
+                      <p>Please select a membership category above to continue to the payment instructions.</p>
+                    )}
+                  </div>
 
                   <button
                     type="button"
                     onClick={() => handleProceedToPayment()}
                     disabled={!selectedCategory || savingCategory}
-                    className="py-3.5 px-7 rounded-2xl font-semibold text-sm text-white bg-[var(--brand)] hover:bg-[var(--brand-light)] transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-sm flex items-center justify-center gap-2"
+                    className={`py-3.5 px-7 rounded-2xl font-bold text-sm text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-md flex items-center justify-center gap-2 ${
+                      billingCycle === "yearly"
+                        ? "bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 hover:from-amber-600 hover:to-amber-800 ring-2 ring-amber-300/60"
+                        : "bg-[var(--brand)] hover:bg-[var(--brand-light)]"
+                    }`}
                   >
                     {savingCategory ? (
                       <>
@@ -1264,8 +1638,8 @@ export default function PaymentReceiverPage() {
                     ) : (
                       <>
                         <span>
-                          {selectedCategory
-                            ? `Proceed to Payment (${selectedCategory.formattedPrice})`
+                          {selectedCategory && selectedPlanPrice
+                            ? `Proceed to Payment (${selectedPlanPrice.formattedPrice} • ${billingCycle === "yearly" ? "Yearly with 10% Discount" : "Monthly Plan"})`
                             : "Select a Category to Proceed"}
                         </span>
                         <span aria-hidden="true">→</span>

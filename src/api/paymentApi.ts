@@ -8,6 +8,77 @@
 import { baseApi, ApiError } from "./baseApi"
 import type { ApiResponse } from "./types"
 
+export type BillingCycle = "monthly" | "yearly"
+
+export const YEARLY_DISCOUNT_PERCENT = 10
+
+export interface PlanPriceDetails {
+  amount: number
+  originalAmount?: number
+  discountAmount?: number
+  discountPercent?: number
+  monthlyEquivalent: number
+  formattedPrice: string
+  formattedOriginalPrice?: string
+  formattedDiscount?: string
+  cycleLabel: "month" | "year"
+  billingNote: string
+}
+
+/**
+ * Calculate pricing for monthly or yearly billing cycles.
+ * Yearly subscription offers a 10% discount on the full 12-month amount.
+ */
+export function calculatePlanPrice(
+  monthlyAmount: number,
+  cycle: BillingCycle = "monthly"
+): PlanPriceDetails {
+  if (cycle === "yearly") {
+    const regularAnnual = monthlyAmount * 12
+    const discount = Math.round(regularAnnual * (YEARLY_DISCOUNT_PERCENT / 100))
+    const discountedTotal = regularAnnual - discount
+    const monthlyEquiv = Math.round(discountedTotal / 12)
+
+    return {
+      amount: discountedTotal,
+      originalAmount: regularAnnual,
+      discountAmount: discount,
+      discountPercent: YEARLY_DISCOUNT_PERCENT,
+      monthlyEquivalent: monthlyEquiv,
+      formattedPrice: `ETB ${discountedTotal.toLocaleString()}`,
+      formattedOriginalPrice: `ETB ${regularAnnual.toLocaleString()}`,
+      formattedDiscount: `Save ETB ${discount.toLocaleString()} (10% off)`,
+      cycleLabel: "year",
+      billingNote: `Billed annually (ETB ${monthlyEquiv.toLocaleString()}/mo)`,
+    }
+  }
+
+  return {
+    amount: monthlyAmount,
+    originalAmount: monthlyAmount,
+    discountAmount: 0,
+    discountPercent: 0,
+    monthlyEquivalent: monthlyAmount,
+    formattedPrice: `ETB ${monthlyAmount.toLocaleString()}`,
+    cycleLabel: "month",
+    billingNote: "Billed monthly",
+  }
+}
+
+export const BILLING_CYCLE_STORAGE_KEY = "kbn_selected_billing_cycle"
+
+export function getStoredBillingCycle(): BillingCycle {
+  if (typeof window === "undefined") return "monthly"
+  const stored = sessionStorage.getItem(BILLING_CYCLE_STORAGE_KEY)
+  if (stored === "yearly" || stored === "monthly") return stored
+  return "monthly"
+}
+
+export function setStoredBillingCycle(cycle: BillingCycle): void {
+  if (typeof window === "undefined") return
+  sessionStorage.setItem(BILLING_CYCLE_STORAGE_KEY, cycle)
+}
+
 export interface MembershipCategoryOption {
   id: string
   code?: string
@@ -322,6 +393,7 @@ export interface VerifyPaymentOptions {
   membershipCategory?: string
   paymentAmount?: number
   expectedAmount?: number
+  billingCycle?: BillingCycle
 }
 
 /**
@@ -364,6 +436,11 @@ export async function verifyPaymentReceipt(
   if (options?.membershipCategory) {
     formData.append("membershipCategory", options.membershipCategory)
     formData.append("membership_category", options.membershipCategory)
+  }
+
+  if (options?.billingCycle) {
+    formData.append("billingCycle", options.billingCycle)
+    formData.append("billing_cycle", options.billingCycle)
   }
 
   const amt = options?.paymentAmount ?? options?.expectedAmount

@@ -230,14 +230,27 @@ export default function UserPaymentPage() {
               "Your membership is active with no expiration date set."
             )}
           </p>
-          <div className="mt-4 pt-2">
+          <div className="mt-4 pt-2 flex flex-wrap items-center gap-3">
             <Link
-              to="/payment"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-white text-[var(--brand)] hover:bg-white/90 transition-colors shadow-sm"
+              to="/payment?billing=yearly"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 hover:from-amber-300 hover:to-amber-400 transition-all shadow-md ring-2 ring-amber-300/60"
             >
               <span>
-                {!hasPaymentRecord || isExpired ? "Renew Membership" : "Verify Payment Receipt"}
+                {!hasPaymentRecord || isExpired ? "Renew Yearly (Save 10%)" : "Switch to Yearly (Save 10%)"}
               </span>
+              <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-800 text-white shadow-2xs">
+                10% OFF
+              </span>
+              <span aria-hidden="true">→</span>
+            </Link>
+            <Link
+              to="/payment?billing=monthly"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-white text-[#0F1D3A] hover:bg-slate-100 transition-all shadow-sm border border-slate-200"
+            >
+              <span>
+                {!hasPaymentRecord || isExpired ? "Renew Monthly" : "Verify Payment Receipt"}
+              </span>
+              <span className="text-[10px] text-slate-500 font-semibold">(Standard)</span>
               <span aria-hidden="true">→</span>
             </Link>
           </div>
@@ -258,6 +271,36 @@ export default function UserPaymentPage() {
             />
           </svg>
         </div>
+      </div>
+
+      {/* Annual Subscription Discount Callout */}
+      <div className="bg-gradient-to-r from-amber-50 via-amber-50/50 to-emerald-50 rounded-2xl border border-amber-200 p-5 md:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
+        <div className="flex items-start sm:items-center gap-3.5">
+          <div className="w-11 h-11 rounded-2xl bg-white border border-amber-300 flex items-center justify-center text-xl shadow-xs shrink-0">
+            ✨
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-bold text-[var(--text-primary)]">
+                Save 10% With Annual Subscriptions
+              </h3>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
+                Special Offer
+              </span>
+            </div>
+            <p className="text-xs text-[var(--text-secondary)] mt-0.5 max-w-xl">
+              Switching from monthly to yearly billing applies a full 10% discount across all membership packages, ensuring uninterrupted access with lower overall fees.
+            </p>
+          </div>
+        </div>
+
+        <Link
+          to="/payment?billing=yearly"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-[var(--brand)] hover:bg-[var(--brand-light)] text-white transition-colors shadow-xs shrink-0"
+        >
+          <span>Choose Yearly Plan (10% OFF)</span>
+          <span aria-hidden="true">→</span>
+        </Link>
       </div>
 
       {/* Current Billing Period */}
