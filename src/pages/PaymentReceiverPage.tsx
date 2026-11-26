@@ -54,7 +54,7 @@ export const OFFICIAL_BANK_ACCOUNTS: BankAccountInfo[] = [
 const OFFICIAL_RECEIVER = OFFICIAL_BANK_ACCOUNTS[0]
 
 const DEFAULT_UNDER_REVIEW_MESSAGE =
-  "Your payment has been submitted successfully and is currently under verification. Please wait while the admin reviews your payment."
+  "Your payment receipt has been successfully submitted and is awaiting admin review. You will be notified once your payment has been verified."
 
 export default function PaymentReceiverPage() {
   const { user, logout, updateUser } = useAuth()
@@ -129,6 +129,22 @@ export default function PaymentReceiverPage() {
   const [clientError, setClientError] = useState<string | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const redirectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (redirectTimeoutRef.current) {
+        clearTimeout(redirectTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  const handleBackToDashboard = () => {
+    if (redirectTimeoutRef.current) {
+      clearTimeout(redirectTimeoutRef.current)
+    }
+    navigate("/dashboard/payment")
+  }
 
   // Synchronize billingCycle when query param updates
   useEffect(() => {
@@ -216,10 +232,10 @@ export default function PaymentReceiverPage() {
         if (!active || !validity) return
 
         const latestStatus = validity.latestPayment?.status?.toLowerCase()
-        if (latestStatus === "pending" || (!validity.isValid && validity.hasPayment)) {
+        if (latestStatus === "pending" || validity.hasPendingPayment || (!validity.isValid && validity.hasPayment)) {
           setIsUnderVerification(true)
           setVerificationMessage(
-            "Your payment is under verification. Please wait while the admin reviews your payment."
+            DEFAULT_UNDER_REVIEW_MESSAGE
           )
           if (validity.latestPayment) {
             setSubmittedPayment(validity.latestPayment)
@@ -412,7 +428,7 @@ export default function PaymentReceiverPage() {
 
       setIsUnderVerification(true)
       setVerificationMessage(
-        response.message || DEFAULT_UNDER_REVIEW_MESSAGE
+        "Your payment receipt has been successfully submitted and is awaiting admin review. You will be notified once your payment has been verified."
       )
 
       if (response.data) {
@@ -426,15 +442,15 @@ export default function PaymentReceiverPage() {
         })
       }
 
-      // Check if user account was immediately activated
+      // Allow user to remain on page to view confirmation, with redirect after 3600ms if active
       try {
         const freshUser = await getMe()
         if (freshUser) {
           updateUser(freshUser)
           if (freshUser.status === "active") {
-            setTimeout(() => {
-              navigate("/", { replace: true })
-            }, 1200)
+            redirectTimeoutRef.current = setTimeout(() => {
+              navigate("/")
+            }, 3600)
           }
         }
       } catch {
@@ -442,7 +458,9 @@ export default function PaymentReceiverPage() {
       }
     } catch {
       setIsUnderVerification(true)
-      setVerificationMessage(DEFAULT_UNDER_REVIEW_MESSAGE)
+      setVerificationMessage(
+        "Your payment receipt has been successfully submitted and is awaiting admin review. You will be notified once your payment has been verified."
+      )
     } finally {
       setLoading(false)
       handleClearFile()
@@ -540,21 +558,21 @@ export default function PaymentReceiverPage() {
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider bg-[var(--brand)]/10 text-[var(--brand)] mb-2">
                   <span className="w-2 h-2 rounded-full bg-[var(--brand)] animate-pulse" />
                   {isPaymentStep && isUnderVerification
-                    ? "Payment Verification Status"
+                    ? "Successfully Paid • Under Verification"
                     : isPaymentStep
                     ? "Step 2 of 2 • Upload & Verify Payment Receipt"
                     : "Step 1 of 2 • Category Selection"}
                 </div>
                 <h1 className="font-serif text-3xl sm:text-4xl text-[var(--text-primary)]">
                   {isPaymentStep && isUnderVerification
-                    ? "Submission Under Review"
+                    ? "Successfully Paid"
                     : isPaymentStep
                     ? "Upload & Verify Payment Receipt"
                     : "Choose Your Membership Package"}
                 </h1>
                 <p className="text-sm text-[var(--text-secondary)] mt-1 max-w-2xl">
                   {isPaymentStep && isUnderVerification
-                    ? "Your payment details have been submitted and are currently being reviewed by the administrative team."
+                    ? "Your payment receipt has been successfully submitted and is awaiting admin review. You will be notified once your payment has been verified."
                     : isPaymentStep && selectedCategory
                     ? `Transfer your membership fee for ${selectedCategory.name} (${selectedCategory.formattedPrice}) to the official receiver details below, then upload your receipt.`
                     : "Select your membership package below. Once chosen, you will be redirected to the official payment credentials and receipt upload page."}
@@ -642,51 +660,63 @@ export default function PaymentReceiverPage() {
             )}
           </div>
 
-          {/* VIEW MODE 1: UNDER VERIFICATION (When on verify step and submission is pending) */}
+          {/* VIEW MODE 1: UNDER VERIFICATION / SUCCESSFULLY PAID CONFIRMATION */}
           {isPaymentStep && isUnderVerification ? (
-            <div className="bg-white rounded-3xl border border-amber-200 p-6 sm:p-10 shadow-sm space-y-6 animate-fade-in">
+            <div className="bg-white rounded-3xl border border-emerald-200/80 p-6 sm:p-10 shadow-sm space-y-6 animate-fade-in">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--border-light)] pb-6">
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center text-2xl flex-shrink-0 shadow-2xs">
-                    ⏳
+                  <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center text-3xl flex-shrink-0 shadow-2xs">
+                    ✓
                   </div>
                   <div>
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider bg-amber-50 text-amber-800 border border-amber-200 mb-2">
-                      <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                      Payment Under Verification
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300 mb-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                      Successfully Paid
                     </div>
-                    <h2 className="font-serif text-2xl text-[var(--text-primary)]">
-                      Submission Under Review
+                    <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[var(--text-primary)]">
+                      Successfully Paid
                     </h2>
+                    <p className="text-xs text-[var(--text-secondary)] mt-1">
+                      Your payment receipt has been submitted and is awaiting verification.
+                    </p>
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleRefreshStatus}
-                  disabled={checkingStatus}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-xs text-[var(--text-primary)] bg-white border border-[var(--border-default)] hover:bg-[var(--surface-alt)] transition-colors cursor-pointer shadow-xs disabled:opacity-60"
-                >
-                  {checkingStatus ? (
-                    <>
-                      <div className="w-3.5 h-3.5 border-2 border-[var(--brand)]/30 border-t-[var(--brand)] rounded-full animate-spin" />
-                      <span>Checking Status...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>↻ Check Verification Status</span>
-                    </>
-                  )}
-                </button>
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={handleBackToDashboard}
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] transition-colors cursor-pointer shadow-xs"
+                  >
+                    ← Back to Dashboard
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRefreshStatus}
+                    disabled={checkingStatus}
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-xs text-[var(--text-primary)] bg-white border border-[var(--border-default)] hover:bg-[var(--surface-alt)] transition-colors cursor-pointer shadow-xs disabled:opacity-60"
+                  >
+                    {checkingStatus ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-[var(--brand)]/30 border-t-[var(--brand)] rounded-full animate-spin" />
+                        <span>Checking Status...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>↻ Check Status</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
 
               {/* Primary Under Verification Alert */}
-              <div className="p-5 rounded-2xl bg-amber-50/80 border border-amber-200 text-amber-900 space-y-2">
-                <p className="font-semibold text-sm leading-relaxed">
+              <div className="p-5 rounded-2xl bg-emerald-50/70 border border-emerald-200 text-emerald-950 space-y-2">
+                <p className="font-bold text-sm leading-relaxed text-emerald-900">
                   {verificationMessage}
                 </p>
-                <p className="text-xs text-amber-800 leading-relaxed">
-                  Our administrative team has received your payment details and is reviewing them. Your account will automatically activate as soon as review is completed.
+                <p className="text-xs text-emerald-800 leading-relaxed">
+                  Your payment receipt has been submitted and is currently pending verification. When you return to your dashboard, your payment status will show as <strong className="text-amber-700">Pending</strong> until approved by the administration.
                 </p>
               </div>
 
@@ -744,7 +774,7 @@ export default function PaymentReceiverPage() {
                     </p>
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-900 border border-amber-200 mt-0.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                      Under Verification
+                      Pending
                     </span>
                   </div>
                 </div>
@@ -761,6 +791,21 @@ export default function PaymentReceiverPage() {
                     The payment upload form has been disabled while your current submission is under verification. You will be notified once the administrator completes verification.
                   </p>
                 </div>
+              </div>
+
+              {/* Back to Dashboard Action Bar */}
+              <div className="pt-4 border-t border-[var(--border-light)] flex flex-wrap items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={handleBackToDashboard}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-bold text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] transition-all cursor-pointer shadow-sm"
+                >
+                  <span>← Back to Dashboard Payment</span>
+                </button>
+
+                <p className="text-xs text-[var(--text-tertiary)]">
+                  Payment will display as <span className="font-bold text-amber-600">Pending</span> on your dashboard until verified.
+                </p>
               </div>
             </div>
           ) : isPaymentStep && selectedCategory ? (

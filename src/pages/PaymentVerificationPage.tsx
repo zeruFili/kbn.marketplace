@@ -23,7 +23,7 @@ interface PaymentValidity {
 }
 
 const DEFAULT_UNDER_REVIEW_MSG =
-  "Your payment has been submitted successfully and is currently under verification. Please wait while the admin reviews your payment."
+  "Your payment receipt has been successfully submitted and is awaiting admin review. You will be notified once your payment has been verified."
 
 export default function PaymentVerificationPage() {
   const { user, logout, updateUser } = useAuth()
@@ -38,13 +38,15 @@ export default function PaymentVerificationPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [validity, setValidity] = useState<PaymentValidity | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Redirect if already active
   useEffect(() => {
-    if (user && user.status === "active") {
-      navigate("/", { replace: true })
+    return () => {
+      if (redirectTimerRef.current) {
+        clearTimeout(redirectTimerRef.current)
+      }
     }
-  }, [user, navigate])
+  }, [])
 
   // Load existing validity status if available
   useEffect(() => {
@@ -133,9 +135,9 @@ export default function PaymentVerificationPage() {
       if (freshUser) {
         updateUser(freshUser)
         if (freshUser.status === "active") {
-          setTimeout(() => {
-            navigate("/", { replace: true })
-          }, 1200)
+          redirectTimerRef.current = setTimeout(() => {
+            navigate("/")
+          }, 3600)
           return
         }
       }
@@ -243,35 +245,62 @@ export default function PaymentVerificationPage() {
 
           {/* Under Verification State (Hides the form to prevent duplicate submissions) */}
           {isUnderVerification ? (
-            <section className="bg-amber-50/70 rounded-2xl p-6 sm:p-8 border border-amber-200 space-y-5 animate-fade-in">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 border border-amber-300 flex items-center justify-center text-xl flex-shrink-0">
-                  ⏳
+            <section className="bg-emerald-50/60 rounded-2xl p-6 sm:p-8 border border-emerald-200 space-y-5 animate-fade-in">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-emerald-200/60 pb-5">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 border border-emerald-300 flex items-center justify-center text-2xl flex-shrink-0">
+                    ✓
+                  </div>
+                  <div className="space-y-1">
+                    <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      Successfully Paid
+                    </div>
+                    <h2 className="text-xl font-bold text-slate-900">
+                      Successfully Paid
+                    </h2>
+                    <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                      {underVerificationMessage}
+                    </p>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <h2 className="text-sm font-bold text-amber-900 uppercase tracking-wide">
-                    Verification In Progress
-                  </h2>
-                  <p className="text-sm text-amber-800 font-medium leading-relaxed">
-                    {underVerificationMessage}
-                  </p>
-                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current)
+                    navigate("/dashboard/payment")
+                  }}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] transition-colors cursor-pointer shadow-xs self-start sm:self-auto shrink-0"
+                >
+                  ← Back to Dashboard
+                </button>
               </div>
 
               {/* Duplicate Prevention Notice */}
-              <div className="p-4 rounded-xl bg-white/80 border border-amber-200/80 text-xs text-amber-900 flex items-center gap-3">
+              <div className="p-4 rounded-xl bg-white/80 border border-emerald-200/80 text-xs text-slate-700 flex items-center gap-3">
                 <span className="text-base">🔒</span>
                 <span>
                   The payment submission form is disabled while your current submission is under verification. Duplicate submissions are not allowed while an existing payment is being reviewed.
                 </span>
               </div>
 
-              <div className="pt-2">
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current)
+                    navigate("/dashboard/payment")
+                  }}
+                  className="py-2.5 px-5 rounded-xl font-bold text-xs text-white bg-[var(--brand)] hover:bg-[var(--brand-dark)] transition-colors cursor-pointer shadow-xs"
+                >
+                  ← Back to Payment
+                </button>
                 <button
                   type="button"
                   onClick={handleRefreshStatus}
                   disabled={checking}
-                  className="w-full sm:w-auto py-2.5 px-5 rounded-xl font-semibold text-xs text-[var(--text-primary)] bg-white border border-[var(--border-default)] hover:bg-[var(--surface-alt)] transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-xs"
+                  className="py-2.5 px-5 rounded-xl font-semibold text-xs text-[var(--text-primary)] bg-white border border-[var(--border-default)] hover:bg-[var(--surface-alt)] transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-xs"
                 >
                   {checking ? (
                     <>

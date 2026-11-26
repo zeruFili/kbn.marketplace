@@ -18,14 +18,12 @@ export default defineConfig(() => {
       strictPort: true,
       proxy: {
         "/api": {
-          target: "https://back.kbnep.com",
+          target: "http://localhost:3002",
           changeOrigin: true,
-          secure: false,
         },
         "/uploads": {
-          target: "https://back.kbnep.com",
+          target: "http://localhost:3002",
           changeOrigin: true,
-          secure: false,
         },
       },
     },
@@ -34,14 +32,12 @@ export default defineConfig(() => {
       port: parseInt(process.env.PORT || "8443"),
       proxy: {
         "/api": {
-          target: "https://back.kbnep.com",
+          target: "http://localhost:3002",
           changeOrigin: true,
-          secure: false,
         },
         "/uploads": {
-          target: "https://back.kbnep.com",
+          target: "http://localhost:3002",
           changeOrigin: true,
-          secure: false,
         },
       },
     },

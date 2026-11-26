@@ -244,6 +244,9 @@ export interface PaymentValidityData {
   expirationDate?: string | null
   daysRemaining?: number
   latestPayment?: VerifiedPayment | null
+  hasPendingPayment?: boolean
+  latestPendingPayment?: VerifiedPayment | null
+  latestAcceptedPayment?: VerifiedPayment | null
   isActive?: boolean
   lastPaymentDate?: string
 }
@@ -561,9 +564,19 @@ export async function fetchPaymentById(id: string): Promise<PaymentItem | null> 
  */
 export async function updateAdminPaymentStatus(
   id: string,
-  status: "accepted" | "pending" | "rejected"
+  status: "accepted" | "pending" | "rejected",
+  expirationDate?: string | Date
 ): Promise<PaymentItem | null> {
-  const res = await baseApi.patch<PaymentItem>(`/payments/${id}`, { status })
+  const payload: Record<string, any> = { status }
+  if (expirationDate) {
+    const dateStr =
+      expirationDate instanceof Date
+        ? expirationDate.toISOString()
+        : new Date(expirationDate).toISOString()
+    payload.expirationDate = dateStr
+    payload.expiration_date = dateStr
+  }
+  const res = await baseApi.patch<PaymentItem>(`/payments/${id}`, payload)
   if (res.success && res.data) {
     return res.data
   }

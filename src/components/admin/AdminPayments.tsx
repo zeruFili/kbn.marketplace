@@ -273,6 +273,16 @@ export default function AdminPayments() {
             : p,
         ),
       )
+      setSelected((prev) =>
+        prev && prev.id === item.id
+          ? {
+              ...prev,
+              ...(res || {}),
+              user: prev.user,
+              status: newStatus,
+            }
+          : prev,
+      )
 
       const opt = PAYMENT_STATUS_OPTIONS.find((s) => s.value === newStatus)
       const label = opt ? opt.label : newStatus

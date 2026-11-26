@@ -41,10 +41,10 @@ function getResolvedApiBaseUrl(): string {
       return envUrl
     }
 
-    return window.location.port === "3001" ? "/api/v1" : "https://back.kbnep.com/api/v1"
+    return window.location.port === "3002" ? "/api/v1" : "http://localhost:3002/api/v1"
   }
 
-  return envUrl || "https://back.kbnep.com/api/v1"
+  return envUrl || "http://localhost:3002/api/v1"
 }
 
 export const API_BASE_URL: string = getResolvedApiBaseUrl()
